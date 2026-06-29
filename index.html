@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Vale</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, Helvetica, sans-serif;
+    text-transform:uppercase;
+}
+
+body{
+    background:#f1f5f9;
+    padding:15px;
+}
+
+.container{
+    max-width:480px;
+    margin:auto;
+    background:white;
+    padding:20px;
+    border-radius:16px;
+    box-shadow:0 4px 15px rgba(0,0,0,0.15);
+}
+
+h1{
+    text-align:center;
+    color:#00a9d9;
+    font-size:42px;
+    margin-bottom:20px;
+}
+
+label{
+    display:block;
+    margin-top:14px;
+    margin-bottom:5px;
+    font-weight:bold;
+    color:#444;
+}
+
+input, textarea{
+    width:100%;
+    padding:14px;
+    border:2px solid #00a9d9;
+    border-radius:10px;
+    font-size:17px;
+    text-transform:uppercase;
+}
+
+textarea{
+    height:85px;
+    resize:none;
+}
+
+button{
+    width:100%;
+    padding:15px;
+    margin-top:18px;
+    border:none;
+    border-radius:10px;
+    font-size:18px;
+    color:white;
+    background:#00a9d9;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#008db5;
+}
+
+.resultado{
+    margin-top:20px;
+    padding:15px;
+    background:#e0f7ff;
+    border-radius:10px;
+    color:#333;
+    display:none;
+    line-height:1.6;
+}
+
+@media(max-width:500px){
+    body{
+        padding:10px;
+    }
+
+    .container{
+        padding:15px;
+    }
+
+    h1{
+        font-size:36px;
+    }
+}
+
+@media print{
+    body{
+        background:white;
+        padding:0;
+    }
+
+    .container{
+        box-shadow:none;
+        max-width:100%;
+        border-radius:0;
+    }
+
+    button{
+        display:none;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>VALE</h1>
+
+<label>CLIENTE</label>
+<input list="clientes" id="cliente" placeholder="DIGITE OU ESCOLHA O CLIENTE">
+
+<datalist id="clientes">
+    <option value="LUCAS FONTES">
+    <option value="RUAN CARLOS">
+    <option value="MARIA SILVA">
+    <option value="JOSÉ PEREIRA">
+    <option value="ANA SOUZA">
+    <option value="CARLOS ALBERTO">
+    <option value="JOÃO PEDRO">
+    <option value="FERNANDA OLIVEIRA">
+    <option value="RICARDO SANTOS">
+    <option value="JULIANA LIMA">
+</datalist>
+
+<label>VALOR ORIGINAL (R$)</label>
+<input type="number" id="valor" step="0.01" placeholder="0,00">
+
+<label>TAXA DE JUROS (%)</label>
+<input type="number" id="juros" value="30" step="0.01">
+
+<label>VALOR COM TAXA (R$)</label>
+<input type="number" id="valorComTaxa" readonly>
+
+<label>DATA INICIAL</label>
+<input type="date" id="dataInicial">
+
+<label>DATA FINAL</label>
+<input type="date" id="dataFinal">
+
+<label>OBSERVAÇÃO</label>
+<textarea id="observacao" placeholder="DIGITE ALGUMA OBSERVAÇÃO..."></textarea>
+
+<button onclick="window.print()">IMPRIMIR</button>
+
+<div class="resultado" id="resultado"></div>
+
+</div>
+
+<script>
+const valor = document.getElementById("valor");
+const juros = document.getElementById("juros");
+const valorComTaxa = document.getElementById("valorComTaxa");
+const dataInicial = document.getElementById("dataInicial");
+const dataFinal = document.getElementById("dataFinal");
+
+function formatarDataParaInput(data){
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, "0");
+    const dia = String(data.getDate()).padStart(2, "0");
+    return `${ano}-${mes}-${dia}`;
+}
+
+function formatarDataBR(dataTexto){
+    if(!dataTexto) return "";
+    const partes = dataTexto.split("-");
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+}
+
+function calcularValorComTaxa(){
+    const v = parseFloat(valor.value) || 0;
+    const j = parseFloat(juros.value) || 0;
+    const total = v + (v * j / 100);
+    valorComTaxa.value = total.toFixed(2);
+}
+
+function atualizarDataFinal(){
+    if(!dataInicial.value) return;
+    const inicio = new Date(dataInicial.value + "T00:00:00");
+    const fim = new Date(inicio);
+    fim.setDate(fim.getDate() + 30);
+    dataFinal.value = formatarDataParaInput(fim);
+}
+
+function iniciarDatas(){
+    const hoje = new Date();
+    dataInicial.value = formatarDataParaInput(hoje);
+    const fim = new Date(hoje);
+    fim.setDate(fim.getDate() + 30);
+    dataFinal.value = formatarDataParaInput(fim);
+}
+
+
+function deixarMaiusculo(campo){
+    campo.value = campo.value.toUpperCase();
+}
+
+document.querySelectorAll("input[type='text'], textarea").forEach(campo => {
+    campo.addEventListener("input", function(){
+        deixarMaiusculo(this);
+    });
+});
+
+valor.addEventListener("input", calcularValorComTaxa);
+juros.addEventListener("input", calcularValorComTaxa);
+dataInicial.addEventListener("change", atualizarDataFinal);
+
+window.onload = function(){
+    juros.value = 30;
+    iniciarDatas();
+    calcularValorComTaxa();
+};
+</script>
+
+</body>
+</html>
