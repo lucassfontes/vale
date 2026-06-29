@@ -1,0 +1,573 @@
+/*
+ * ESTILO PRINCIPAL DO SISTEMA
+ * Define layout, cards, botões, formulários, dashboard, listas e responsividade.
+ */
+
+:root{--p:#7c3aed;--p2:#a855f7;--bg:#f4f2ff;--card:#fff;--text:#111827;--muted:#64748b;--line:#ddd6fe;--ok:#16a34a;--warn:#f59e0b;--bad:#dc2626;--shadow:0 18px 45px rgba(36,10,79,.14)}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Inter,Arial,Helvetica,sans-serif;text-transform:uppercase}html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}body{min-height:100vh;min-height:100dvh;background:radial-gradient(circle at top,#ede9fe,transparent 35%),linear-gradient(180deg,#fff,var(--bg));color:var(--text);padding:clamp(8px,3vw,24px)}button,input,textarea,select{font:inherit}button{cursor:pointer}.app{width:min(100%,1050px);margin:auto;padding-bottom:20px}.glass{background:rgba(255,255,255,.74);backdrop-filter:blur(16px);border:1px solid rgba(124,58,237,.18);box-shadow:var(--shadow)}.topbar{border-radius:28px;padding:18px;display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:12px}.topbar h1{font-size:clamp(28px,8vw,56px);line-height:.92;color:var(--p)}.topbar p{margin-top:6px;color:var(--muted);font-weight:800;font-size:12px;text-transform:none}.top-actions{display:flex;align-items:center;gap:8px}.badge,.iconbtn{border-radius:999px;border:1px solid var(--line);background:#f5f3ff;color:var(--p);font-weight:900;padding:10px 12px;white-space:nowrap}.iconbtn{width:44px;height:44px;padding:0}.tabs{position:sticky;top:8px;z-index:20;border-radius:22px;padding:8px;display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-bottom:14px}.tab{min-height:52px;border:0;border-radius:16px;background:transparent;color:var(--muted);font-weight:900;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}.tab span{font-size:11px}.tab.active{background:linear-gradient(135deg,var(--p),var(--p2));color:white;box-shadow:0 10px 24px rgba(124,58,237,.28)}.screen{display:none;animation:show .22s ease}.screen.active{display:block}@keyframes show{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}.card{background:var(--card);border:1px solid rgba(124,58,237,.18);border-radius:26px;padding:clamp(14px,4vw,24px);box-shadow:var(--shadow);margin-bottom:14px}.gradient-card{background:linear-gradient(135deg,#7c3aed,#ec4899);color:white}.hero{display:flex;justify-content:space-between;align-items:center}.hero p{font-weight:900;opacity:.86}.hero strong{display:block;font-size:clamp(32px,10vw,58px);margin-top:4px}.hero span{font-size:46px}.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.stat{background:#faf5ff;border:1px solid var(--line);border-radius:20px;padding:14px}.stat small{display:block;color:var(--muted);font-weight:900;font-size:11px;margin-bottom:7px}.stat strong{font-size:clamp(18px,4vw,27px);overflow-wrap:anywhere}.stat.danger{background:#fef2f2}.stat.warn{background:#fffbeb}h2{font-size:22px;margin-bottom:14px}h3{margin:18px 0 10px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.field{display:flex;flex-direction:column;gap:7px;font-weight:900;color:var(--text)}.field.full{grid-column:1/-1}.field span{font-size:13px}input,textarea,select{width:100%;min-height:56px;border:2px solid #c4b5fd;border-radius:18px;padding:14px;background:#fff;color:var(--text);outline:0;transition:.15s}textarea{height:104px;resize:vertical;line-height:1.45}input:focus,textarea:focus{border-color:var(--p);box-shadow:0 0 0 4px rgba(124,58,237,.15)}input[readonly]{background:#f8fafc;color:var(--p);font-weight:900}.actions{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}.btn{min-height:56px;border:0;border-radius:18px;padding:13px;font-weight:900;color:white;background:#111827;box-shadow:0 10px 20px rgba(0,0,0,.12)}.btn.primary{background:linear-gradient(135deg,var(--p),var(--p2))}.btn.success{background:var(--ok)}.btn.danger{background:var(--bad)}.btn.muted{background:#334155}.btn.light{background:#f5f3ff;color:var(--p);border:1px solid var(--line)}.search{margin-bottom:14px}.list{display:grid;gap:12px}.list.cards{grid-template-columns:1fr 1fr}.item{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:14px;box-shadow:0 8px 22px rgba(15,23,42,.07)}.item-top{display:flex;gap:10px;justify-content:space-between;align-items:flex-start}.avatar{width:54px;height:54px;border-radius:18px;object-fit:cover;background:#ede9fe;display:grid;place-items:center;font-weight:900;color:var(--p);flex:none}.item h3{margin:0;font-size:17px;overflow-wrap:anywhere}.item p{font-size:13px;color:var(--muted);line-height:1.65;margin-top:8px}.status{display:inline-flex;align-items:center;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:900;color:white}.status.pago{background:var(--ok)}.status.aberto{background:var(--warn)}.status.atrasado{background:var(--bad)}.row-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.row-btns button{border:0;border-radius:13px;min-height:42px;background:#f5f3ff;color:var(--p);font-weight:900}.compact .item{box-shadow:none}.toast{display:none;position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#111827;color:white;padding:13px 18px;border-radius:999px;font-weight:900;z-index:50;max-width:92%;text-align:center}.client-history{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}@media(max-width:780px){.tabs{grid-template-columns:repeat(3,1fr)}.stats-grid,.form-grid,.list.cards,.actions{grid-template-columns:1fr}.topbar{border-radius:22px}.topbar{flex-direction:column}.top-actions{width:100%;justify-content:space-between}.row-btns{grid-template-columns:1fr 1fr}}@media(max-width:380px){body{padding:6px}.card,.topbar{padding:12px;border-radius:18px}.tabs{grid-template-columns:repeat(2,1fr)}.row-btns{grid-template-columns:1fr}input,textarea{min-height:50px;padding:12px}.btn{min-height:50px}}
+
+
+/* Painel destacado dos próximos vencimentos no Dashboard */
+.vencimentos-resumo{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.vencimentos-resumo div{border-radius:18px;padding:14px;background:linear-gradient(135deg,#fff7ed,#fffbeb);border:1px solid #fed7aa}
+.vencimentos-resumo span{display:block;font-size:11px;font-weight:900;color:#9a3412;margin-bottom:6px}
+.vencimentos-resumo strong{font-size:clamp(20px,6vw,30px);color:#111827}
+.vencimentos-lista{display:grid;gap:12px}
+.vencimento-card{border-radius:22px;padding:14px;border:2px solid #fde68a;background:#fffbeb;box-shadow:0 12px 26px rgba(15,23,42,.10);animation:show .22s ease}
+.vencimento-card.atrasado{background:#fef2f2;border-color:#fca5a5}
+.vencimento-card.hoje{background:#fff1f2;border-color:#fb7185;box-shadow:0 14px 30px rgba(220,38,38,.18)}
+.vencimento-card.amanha{background:#fff7ed;border-color:#fdba74}
+.vencimento-card.semana{background:#fefce8;border-color:#fde047}
+.vencimento-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.vencimento-alerta{display:inline-flex;border-radius:999px;padding:6px 9px;background:#111827;color:white;font-size:11px;font-weight:900;margin-bottom:8px}
+.vencimento-card.atrasado .vencimento-alerta,.vencimento-card.hoje .vencimento-alerta{background:#dc2626}
+.vencimento-card.amanha .vencimento-alerta{background:#ea580c}
+.vencimento-card.semana .vencimento-alerta{background:#ca8a04}
+.vencimento-card h3{margin:0;font-size:17px;color:#111827;overflow-wrap:anywhere}
+.vencimento-top strong{font-size:20px;color:#111827;white-space:nowrap}
+.vencimento-card p{margin:10px 0 0;color:#475569;font-size:13px;line-height:1.45}
+.vencimento-acoes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.vencimento-acoes button{border:0;border-radius:13px;min-height:42px;background:white;color:#111827;font-weight:900;box-shadow:0 6px 14px rgba(15,23,42,.08)}
+.sem-vencimentos{border-radius:18px;padding:18px;background:#ecfdf5;border:1px solid #86efac;color:#166534;font-weight:900;text-align:center}
+body.dark .vencimentos-resumo div,body.dark .vencimento-card{background:#1f2937;border-color:#334155}
+body.dark .vencimentos-resumo span,body.dark .vencimentos-resumo strong,body.dark .vencimento-card h3,body.dark .vencimento-top strong{color:#f8fafc}
+body.dark .vencimento-card p{color:#cbd5e1}
+body.dark .vencimento-acoes button{background:#0f172a;color:#e5e7eb}
+@media(max-width:780px){.vencimentos-resumo,.vencimento-acoes{grid-template-columns:1fr}.vencimento-top{flex-direction:column}.vencimento-top strong{font-size:24px}}
+
+/* Dashboard premium: melhora a harmonia visual sem alterar a lógica do sistema */
+.dashboard-premium{display:none}
+.dashboard-premium.active{display:block}
+.dashboard-main{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;align-items:stretch}
+.cash-hero{min-height:180px;overflow:hidden;position:relative}
+.cash-hero::after{content:"";position:absolute;right:-55px;top:-55px;width:190px;height:190px;border-radius:50%;background:rgba(255,255,255,.15)}
+.cash-hero small{display:block;margin-top:8px;font-size:12px;font-weight:800;opacity:.82;text-transform:none}
+.config-card{box-shadow:0 10px 28px rgba(36,10,79,.10)}
+.config-grid{grid-template-columns:1fr}
+.config-actions{grid-template-columns:1fr;margin-top:12px}
+.section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.section-head h2{margin:0}.section-head small{color:var(--muted);font-weight:800;text-transform:none}
+.dashboard-stats{grid-template-columns:repeat(4,1fr);margin-top:0}
+.dashboard-stats .stat{position:relative;overflow:hidden;min-height:128px;transition:.18s ease;box-shadow:0 10px 26px rgba(36,10,79,.10)}
+.dashboard-stats .stat:hover{transform:translateY(-2px)}
+.stat-icon{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:14px;background:rgba(124,58,237,.12);font-size:20px;margin-bottom:10px}
+.stat-caixa{background:linear-gradient(180deg,#ecfdf5,#fff)}
+.stat-emprestado{background:linear-gradient(180deg,#eff6ff,#fff)}
+.stat-juros{background:linear-gradient(180deg,#fff7ed,#fff)}
+.stat-receber{background:linear-gradient(180deg,#f5f3ff,#fff)}
+.stat-recebido{background:linear-gradient(180deg,#ecfdf5,#fff)}
+.stat-clientes{background:linear-gradient(180deg,#f8fafc,#fff)}
+.stat-semana{background:linear-gradient(180deg,#fefce8,#fff)}
+.dashboard-alert{display:flex;align-items:center;justify-content:space-between;gap:14px;border:0;color:#111827;overflow:hidden;position:relative}
+.dashboard-alert::after{content:"";position:absolute;right:-38px;top:-45px;width:150px;height:150px;border-radius:50%;opacity:.22;background:#fff}
+.dashboard-alert span{display:block;font-size:12px;font-weight:900;margin-bottom:6px}.dashboard-alert strong{display:block;font-size:clamp(18px,4vw,30px);line-height:1.05}.dashboard-alert p{margin-top:6px;color:#475569;font-weight:800;text-transform:none}.dashboard-alert .btn{width:auto;min-width:150px;position:relative;z-index:1}
+.alert-danger{background:linear-gradient(135deg,#fee2e2,#fff7ed);border:1px solid #fecaca}.alert-warn{background:linear-gradient(135deg,#fffbeb,#fff7ed);border:1px solid #fed7aa}.alert-ok{background:linear-gradient(135deg,#ecfdf5,#f0fdfa);border:1px solid #86efac}
+.chart-card{background:linear-gradient(180deg,#ffffff,#faf5ff)}.capital-chart{display:grid;gap:14px}.chart-row{display:grid;gap:8px}.chart-row>div:first-child{display:flex;justify-content:space-between;gap:10px;color:var(--text);font-size:14px}.chart-row span{color:var(--muted);font-weight:900}.bar{height:14px;border-radius:999px;background:#ede9fe;overflow:hidden}.bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#16a34a,#22c55e);transition:width .35s ease}.bar.emprestado i{background:linear-gradient(90deg,#7c3aed,#ec4899)}.chart-note{color:var(--muted);font-size:12px;font-weight:800;text-align:right;text-transform:none}
+.vencimentos-card{background:linear-gradient(180deg,#fff,#f8fafc)}
+.vencimentos-lista{grid-template-columns:repeat(2,1fr)}
+.vencimento-card{border-width:1px;box-shadow:0 10px 24px rgba(15,23,42,.08);transition:.18s ease}.vencimento-card:hover{transform:translateY(-2px)}
+.vencimento-card.atrasado,.vencimento-card.hoje{border-left:7px solid #dc2626}.vencimento-card.amanha{border-left:7px solid #ea580c}.vencimento-card.semana{border-left:7px solid #ca8a04}
+.vencimento-acoes button{transition:.15s ease}.vencimento-acoes button:hover{transform:translateY(-1px);background:#f8fafc}
+body.dark .chart-card,body.dark .vencimentos-card,body.dark .stat-caixa,body.dark .stat-emprestado,body.dark .stat-juros,body.dark .stat-receber,body.dark .stat-recebido,body.dark .stat-clientes,body.dark .stat-semana{background:#101827}
+body.dark .dashboard-alert{color:#f8fafc}body.dark .dashboard-alert p{color:#cbd5e1}body.dark .alert-danger{background:#3b1111;border-color:#7f1d1d}body.dark .alert-warn{background:#3b2506;border-color:#92400e}body.dark .alert-ok{background:#052e1a;border-color:#166534}body.dark .bar{background:#1e293b}
+@media(max-width:900px){.dashboard-main,.dashboard-stats{grid-template-columns:1fr 1fr}.vencimentos-lista{grid-template-columns:1fr}}
+@media(max-width:620px){.dashboard-main,.dashboard-stats{grid-template-columns:1fr}.dashboard-alert{flex-direction:column;align-items:flex-start}.dashboard-alert .btn{width:100%}.cash-hero{min-height:150px}.section-head{flex-direction:column}.dashboard-stats .stat{min-height:auto}}
+
+
+/* ===== DASHBOARD PREMIUM V3 =====
+   Melhorias apenas visuais no painel: hierarquia, urgência, gráfico e harmonia. */
+.dashboard-premium{
+  position:relative;
+}
+.dashboard-premium::before{
+  content:"";
+  position:absolute;
+  inset:-8px;
+  z-index:-1;
+  border-radius:34px;
+  background:
+    radial-gradient(circle at 15% 0%,rgba(124,58,237,.16),transparent 28%),
+    radial-gradient(circle at 90% 10%,rgba(0,169,217,.14),transparent 30%);
+}
+.urgency-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+  margin:14px 0;
+}
+.urgency-card{
+  border-radius:24px;
+  padding:16px;
+  border:1px solid var(--line);
+  box-shadow:0 10px 26px rgba(15,23,42,.08);
+  position:relative;
+  overflow:hidden;
+  min-height:118px;
+  transition:.18s ease;
+}
+.urgency-card:hover{transform:translateY(-2px)}
+.urgency-card::after{
+  content:"";
+  position:absolute;
+  right:-28px;
+  bottom:-38px;
+  width:120px;
+  height:120px;
+  border-radius:50%;
+  background:rgba(255,255,255,.46);
+}
+.urgency-card span,
+.urgency-card small,
+.urgency-card strong{position:relative;z-index:1;display:block}
+.urgency-card span{font-size:11px;font-weight:900;letter-spacing:.4px;margin-bottom:10px;color:#475569}
+.urgency-card strong{font-size:clamp(28px,7vw,46px);line-height:.95;color:#0f172a}
+.urgency-card small{margin-top:10px;font-size:14px;font-weight:900;color:#334155}
+.danger-soft{background:linear-gradient(135deg,#fff1f2,#ffffff);border-color:#fecdd3}
+.warn-soft{background:linear-gradient(135deg,#fff7ed,#ffffff);border-color:#fed7aa}
+.yellow-soft{background:linear-gradient(135deg,#fefce8,#ffffff);border-color:#fde68a}
+.dashboard-main{margin-bottom:14px}
+.cash-hero{
+  background:linear-gradient(135deg,#111827 0%,#4c1d95 48%,#7c3aed 100%)!important;
+  border:0!important;
+  color:white;
+  box-shadow:0 20px 52px rgba(76,29,149,.28)!important;
+}
+.cash-hero p{color:#ddd6fe!important;font-size:13px;font-weight:900;letter-spacing:.3px}
+.cash-hero strong{font-size:clamp(36px,9vw,64px);letter-spacing:-1.5px}
+.cash-hero span{font-size:52px;filter:drop-shadow(0 10px 24px rgba(0,0,0,.22))}
+.config-card{
+  background:linear-gradient(180deg,#ffffff,#fbfdff);
+  border:1px solid rgba(124,58,237,.13)!important;
+}
+.dashboard-stats{
+  gap:12px;
+}
+.dashboard-stats .stat{
+  border:1px solid rgba(124,58,237,.12);
+  backdrop-filter:blur(8px);
+}
+.dashboard-stats .stat small{letter-spacing:.25px}
+.dashboard-stats .stat strong{letter-spacing:-.5px}
+.dashboard-stats .danger{background:linear-gradient(180deg,#fef2f2,#fff)!important;border-color:#fecaca!important}
+.dashboard-stats .warn{background:linear-gradient(180deg,#fff7ed,#fff)!important;border-color:#fed7aa!important}
+.capital-donut-wrap{
+  display:grid;
+  grid-template-columns:170px 1fr;
+  gap:22px;
+  align-items:center;
+  margin-bottom:18px;
+}
+.capital-donut{
+  width:170px;
+  height:170px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:conic-gradient(#16a34a 0 calc(var(--caixa)*1%), #7c3aed calc(var(--caixa)*1%) calc((var(--caixa) + var(--emprestado))*1%), #e5e7eb 0);
+  box-shadow:inset 0 0 0 1px rgba(15,23,42,.08), 0 18px 38px rgba(15,23,42,.12);
+  position:relative;
+}
+.capital-donut::after{
+  content:"";
+  position:absolute;
+  inset:24px;
+  border-radius:50%;
+  background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line);
+}
+.capital-donut div{position:relative;z-index:1;text-align:center}
+.capital-donut span{font-size:10px;font-weight:900;color:var(--muted);display:block;margin-bottom:4px}
+.capital-donut strong{font-size:28px;color:var(--text)}
+.capital-legend{display:grid;gap:10px}
+.capital-legend div{
+  display:grid;
+  grid-template-columns:14px 1fr auto;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border-radius:16px;
+  background:#f8fafc;
+  border:1px solid #e2e8f0;
+}
+.capital-legend i{width:12px;height:12px;border-radius:999px;display:block}
+.leg-caixa{background:#16a34a}.leg-emprestado{background:#7c3aed}.leg-capital{background:#94a3b8}
+.capital-legend span{font-size:12px;font-weight:900;color:#64748b}
+.capital-legend strong{font-size:13px;color:#0f172a}
+.vencimentos-card .section-head h2::after,
+.chart-card .section-head h2::after{
+  content:"";
+  display:block;
+  width:42px;
+  height:4px;
+  border-radius:999px;
+  background:linear-gradient(90deg,var(--p),var(--p2));
+  margin-top:8px;
+}
+.vencimentos-resumo div{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  min-height:92px;
+}
+.vencimento-card{
+  background:linear-gradient(180deg,#ffffff,#fffdfa)!important;
+}
+.vencimento-card.atrasado{background:linear-gradient(180deg,#fff,#fef2f2)!important}
+.vencimento-card.hoje{background:linear-gradient(180deg,#fff,#fff1f2)!important}
+.vencimento-card.amanha{background:linear-gradient(180deg,#fff,#fff7ed)!important}
+.vencimento-card.semana{background:linear-gradient(180deg,#fff,#fefce8)!important}
+body.dark .urgency-card,
+body.dark .config-card{background:#101827;border-color:#1e293b}
+body.dark .urgency-card strong,
+body.dark .urgency-card small,
+body.dark .capital-legend strong{color:#f8fafc}
+body.dark .urgency-card span,
+body.dark .capital-legend span{color:#cbd5e1}
+body.dark .capital-donut::after{background:#101827;border-color:#334155}
+body.dark .capital-legend div{background:#0f172a;border-color:#1e293b}
+body.dark .dashboard-stats .danger, body.dark .dashboard-stats .warn{background:#101827!important;border-color:#1e293b!important}
+@media(max-width:900px){.urgency-grid{grid-template-columns:1fr 1fr 1fr}.capital-donut-wrap{grid-template-columns:1fr}.capital-donut{margin:auto}}
+@media(max-width:620px){.urgency-grid{grid-template-columns:1fr}.urgency-card{min-height:auto}.capital-donut{width:150px;height:150px}.capital-donut::after{inset:21px}.capital-legend div{grid-template-columns:12px 1fr}.capital-legend strong{grid-column:2 / 3}.cash-hero strong{font-size:42px}}
+
+/* ===== CORREÇÃO DE LEGIBILIDADE DOS VENCIMENTOS =====
+   Ajuste somente visual: deixa os cartões de vencimento legíveis no modo claro e escuro. */
+.vencimentos-card{overflow:hidden}
+.vencimento-card,
+.vencimento-card.atrasado,
+.vencimento-card.hoje,
+.vencimento-card.amanha,
+.vencimento-card.semana{
+  color:#0f172a!important;
+}
+.vencimento-card h3,
+.vencimento-card p,
+.vencimento-card .vencimento-top strong{
+  color:#0f172a!important;
+  opacity:1!important;
+}
+.vencimento-card p{color:#475569!important;font-weight:800}
+.vencimento-acoes button{
+  background:#0f172a!important;
+  color:#ffffff!important;
+  box-shadow:0 8px 18px rgba(15,23,42,.16)!important;
+}
+.vencimento-acoes button:hover{background:#1e293b!important}
+
+/* Modo escuro: os cartões ficam escuros, sem texto apagado em fundo claro. */
+body.dark .vencimentos-card{
+  background:linear-gradient(180deg,#101827,#0b1220)!important;
+  border-color:#1e293b!important;
+}
+body.dark .vencimentos-card .section-head h2,
+body.dark .vencimentos-card .section-head small{color:#f8fafc!important}
+body.dark .vencimentos-resumo div{
+  background:#0f172a!important;
+  border-color:#1e293b!important;
+}
+body.dark .vencimentos-resumo span{color:#cbd5e1!important}
+body.dark .vencimentos-resumo strong{color:#f8fafc!important}
+body.dark .vencimento-card,
+body.dark .vencimento-card.atrasado,
+body.dark .vencimento-card.hoje,
+body.dark .vencimento-card.amanha,
+body.dark .vencimento-card.semana{
+  background:#0f172a!important;
+  color:#f8fafc!important;
+  border-color:#334155!important;
+}
+body.dark .vencimento-card.atrasado,
+body.dark .vencimento-card.hoje{border-left:7px solid #ef4444!important}
+body.dark .vencimento-card.amanha{border-left:7px solid #f97316!important}
+body.dark .vencimento-card.semana{border-left:7px solid #eab308!important}
+body.dark .vencimento-card h3,
+body.dark .vencimento-card p,
+body.dark .vencimento-card .vencimento-top strong{
+  color:#f8fafc!important;
+  opacity:1!important;
+}
+body.dark .vencimento-card p{color:#cbd5e1!important}
+body.dark .vencimento-acoes button{
+  background:#111827!important;
+  color:#ffffff!important;
+  border:1px solid #334155!important;
+}
+body.dark .vencimento-acoes button:hover{background:#1f2937!important}
+
+
+/* Aba de notificações no estilo WhatsApp */
+.notification-tab{position:relative}
+.notif-count{position:absolute;top:5px;right:8px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#ef4444;color:#fff;font-size:10px;font-style:normal;font-weight:900;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--card)}
+.notifications-screen{max-width:860px;margin:0 auto}
+.notifications-header-card{margin-bottom:14px;background:linear-gradient(135deg,#ecfeff,#f8fafc)}
+.notificacoes-resumo{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.notificacoes-resumo strong{margin-left:auto;font-size:20px;color:var(--text)}
+.notif-chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:8px 11px;font-size:12px;font-weight:900;border:1px solid transparent}
+.notif-chip.danger{background:#fee2e2;color:#991b1b;border-color:#fecaca}.notif-chip.warn{background:#ffedd5;color:#9a3412;border-color:#fed7aa}.notif-chip.week{background:#fef9c3;color:#854d0e;border-color:#fde68a}.notif-chip.ok{background:#dcfce7;color:#166534;border-color:#86efac}
+.notifications-list{display:flex;flex-direction:column;gap:12px}
+.wa-notification{display:flex;gap:10px;align-items:flex-start;animation:entrar .18s ease}
+.wa-avatar{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:0 0 42px;background:#e0f2fe;border:1px solid #bae6fd;box-shadow:0 8px 20px rgba(15,23,42,.10)}
+.wa-bubble{position:relative;flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:0 18px 18px 18px;padding:13px 14px;box-shadow:0 12px 28px rgba(15,23,42,.08)}
+.wa-bubble::before{content:"";position:absolute;left:-8px;top:0;border-top:9px solid #fff;border-left:9px solid transparent}
+.wa-notification.danger .wa-bubble{border-left:5px solid #dc2626}.wa-notification.today .wa-bubble{border-left:5px solid #ef4444}.wa-notification.tomorrow .wa-bubble{border-left:5px solid #f97316}.wa-notification.week .wa-bubble{border-left:5px solid #eab308}
+.wa-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.wa-top strong{font-size:16px;overflow-wrap:anywhere}.wa-top small{color:var(--muted);font-weight:900;white-space:nowrap}.wa-title{margin-top:5px;font-weight:900;color:#0f172a}.wa-notification.danger .wa-title,.wa-notification.today .wa-title{color:#dc2626}.wa-notification.tomorrow .wa-title{color:#ea580c}.wa-notification.week .wa-title{color:#ca8a04}.wa-bubble p{margin:7px 0 0;color:#475569;font-size:13px;line-height:1.4}.wa-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.wa-actions button{min-height:39px;border:0;border-radius:12px;background:#0f172a;color:#fff;font-weight:900;cursor:pointer}.whatsapp-empty{text-align:center;padding:28px}.whatsapp-empty .wa-icon{font-size:42px;margin-bottom:8px}.whatsapp-empty p{color:var(--muted);text-transform:none;margin-top:6px}
+body.dark .notifications-header-card{background:#101827}body.dark .wa-bubble{background:#101827;border-color:#1e293b;color:#f8fafc}body.dark .wa-bubble::before{border-top-color:#101827}body.dark .wa-title,body.dark .wa-top strong{color:#f8fafc}body.dark .wa-bubble p,body.dark .wa-top small{color:#cbd5e1}body.dark .wa-actions button{background:#2563eb;color:#fff}body.dark .notif-count{box-shadow:0 0 0 2px #101827}
+@media(max-width:620px){.wa-avatar{width:34px;height:34px;flex-basis:34px}.wa-actions{grid-template-columns:1fr}.notificacoes-resumo strong{width:100%;margin-left:0}.wa-top{flex-direction:column;gap:3px}}
+
+/* ===== DASHBOARD FINANCEIRO HARMÔNICO =====
+   Ajuste visual somente do Dashboard: remove o card gigante estranho e organiza os valores em cartões equilibrados. */
+.dashboard-title-card{
+  background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(248,250,252,.96));
+  border:1px solid rgba(124,58,237,.16)!important;
+  overflow:hidden;
+}
+.finance-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+}
+.finance-card{
+  position:relative;
+  min-height:165px;
+  border-radius:24px;
+  padding:18px;
+  border:1px solid rgba(148,163,184,.24);
+  overflow:hidden;
+  box-shadow:0 14px 32px rgba(15,23,42,.08);
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  transition:.18s ease;
+}
+.finance-card:hover{transform:translateY(-2px)}
+.finance-card::after{
+  content:"";
+  position:absolute;
+  right:-34px;
+  top:-34px;
+  width:118px;
+  height:118px;
+  border-radius:50%;
+  background:rgba(255,255,255,.54);
+}
+.finance-icon{
+  width:46px;
+  height:46px;
+  border-radius:16px;
+  display:grid;
+  place-items:center;
+  font-size:23px;
+  background:rgba(255,255,255,.70);
+  box-shadow:0 8px 20px rgba(15,23,42,.08);
+  position:relative;
+  z-index:1;
+}
+.finance-card small,
+.finance-card strong,
+.finance-card span{position:relative;z-index:1;display:block}
+.finance-card small{
+  margin-top:14px;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.35px;
+  color:#475569;
+}
+.finance-card strong{
+  margin-top:4px;
+  font-size:clamp(24px,3.5vw,34px);
+  line-height:1;
+  letter-spacing:-1px;
+  color:#0f172a;
+  overflow-wrap:anywhere;
+}
+.finance-card span{
+  margin-top:10px;
+  font-size:12px;
+  font-weight:800;
+  color:#64748b;
+  text-transform:none;
+  line-height:1.3;
+}
+.finance-caixa{background:linear-gradient(135deg,#ecfdf5,#ffffff);border-color:#86efac}
+.finance-caixa .finance-icon{background:#dcfce7}
+.finance-capital{background:linear-gradient(135deg,#eff6ff,#ffffff);border-color:#93c5fd}
+.finance-capital .finance-icon{background:#dbeafe}
+.finance-emprestado{background:linear-gradient(135deg,#fff7ed,#ffffff);border-color:#fdba74}
+.finance-emprestado .finance-icon{background:#ffedd5}
+.finance-receber{background:linear-gradient(135deg,#f5f3ff,#ffffff);border-color:#c4b5fd}
+.finance-receber .finance-icon{background:#ede9fe}
+.dashboard-secondary-stats{
+  grid-template-columns:repeat(5,1fr);
+}
+.dashboard-secondary-stats .stat{
+  min-height:112px;
+  border-radius:22px;
+  box-shadow:0 10px 24px rgba(15,23,42,.07);
+}
+.dashboard-secondary-stats .stat strong{font-size:clamp(18px,2.7vw,25px)}
+body.dark .dashboard-title-card{background:#101827!important;border-color:#1e293b!important}
+body.dark .finance-card{background:#0f172a!important;border-color:#253045!important;box-shadow:0 14px 32px rgba(0,0,0,.24)}
+body.dark .finance-card::after{background:rgba(255,255,255,.05)}
+body.dark .finance-icon{background:#1e293b;color:#f8fafc}
+body.dark .finance-card small{color:#cbd5e1}
+body.dark .finance-card strong{color:#f8fafc}
+body.dark .finance-card span{color:#94a3b8}
+@media(max-width:980px){.finance-grid{grid-template-columns:repeat(2,1fr)}.dashboard-secondary-stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.finance-grid,.dashboard-secondary-stats{grid-template-columns:1fr}.finance-card{min-height:145px}.finance-card strong{font-size:34px}}
+
+/* =========================================================
+   DASHBOARD VALLE PRO - estilo aplicativo financeiro
+   Alteração visual do Dashboard e da navegação, mantendo a lógica original.
+   ========================================================= */
+:root{
+  --dash-bg:#050916;
+  --dash-card:#0e1628;
+  --dash-card-2:#111a2d;
+  --dash-line:rgba(148,163,184,.16);
+  --dash-text:#f8fafc;
+  --dash-muted:#94a3b8;
+  --dash-purple:#8b5cf6;
+  --dash-green:#22c55e;
+  --dash-blue:#0ea5e9;
+  --dash-orange:#f59e0b;
+  --dash-cyan:#22d3ee;
+}
+
+/* Fundo escuro premium igual ao mockup */
+body{
+  background:
+    radial-gradient(circle at 25% 0%,rgba(124,58,237,.24),transparent 30%),
+    radial-gradient(circle at 80% 12%,rgba(14,165,233,.13),transparent 28%),
+    linear-gradient(180deg,#030712,#070b18 52%,#020617)!important;
+  color:var(--dash-text)!important;
+}
+body.dark{background:
+    radial-gradient(circle at 25% 0%,rgba(124,58,237,.28),transparent 30%),
+    radial-gradient(circle at 80% 12%,rgba(14,165,233,.16),transparent 28%),
+    linear-gradient(180deg,#030712,#070b18 52%,#020617)!important;
+}
+
+.topbar.glass,.tabs.glass,.card,.dash-panel,.metric-card{
+  background:rgba(14,22,40,.84)!important;
+  border:1px solid var(--dash-line)!important;
+  box-shadow:0 22px 55px rgba(0,0,0,.28)!important;
+  color:var(--dash-text)!important;
+}
+.topbar h1{color:#fff!important;letter-spacing:.5px}.topbar p{color:var(--dash-muted)!important}
+.topbar h1::first-letter{color:#fff}
+
+/* Navegação: sidebar no desktop, barra inferior no celular */
+@media(min-width:981px){
+  body{padding:0!important;overflow-x:hidden}
+  .app{width:100%;max-width:none;margin:0;display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100dvh;padding:0!important}
+  .topbar{grid-column:1;grid-row:1;border-radius:0!important;margin:0!important;padding:32px 20px 18px!important;border-top:0!important;border-left:0!important;border-right:1px solid var(--dash-line)!important;border-bottom:1px solid var(--dash-line)!important;box-shadow:none!important;align-items:center!important}
+  .topbar h1{font-size:34px!important}.topbar p{font-size:11px!important}
+  .topbar h1::before{content:'V';display:inline-grid;place-items:center;width:42px;height:42px;border-radius:12px;margin-right:12px;background:linear-gradient(135deg,#7c3aed,#a855f7);font-size:25px;color:#fff;vertical-align:middle;box-shadow:0 12px 26px rgba(124,58,237,.35)}
+  .tabs{grid-column:1;grid-row:2;position:sticky!important;top:0!important;align-self:start;height:calc(100dvh - 110px);border-radius:0!important;margin:0!important;padding:22px 16px!important;display:flex!important;flex-direction:column!important;gap:10px!important;border-left:0!important;border-top:0!important;border-bottom:0!important;border-right:1px solid var(--dash-line)!important;box-shadow:none!important;background:rgba(5,9,22,.88)!important}
+  .tab{min-height:56px!important;display:flex!important;flex-direction:row!important;justify-content:flex-start!important;gap:14px!important;padding:0 16px!important;border-radius:14px!important;color:#cbd5e1!important;background:transparent!important}
+  .tab span{font-size:14px!important}.tab.active{background:linear-gradient(135deg,#6d28d9,#4c1d95)!important;color:#fff!important;box-shadow:0 14px 28px rgba(124,58,237,.26)!important}
+  main{grid-column:2;grid-row:1 / span 2;min-width:0;padding:34px 34px 28px!important;max-width:1480px;width:100%;justify-self:center}
+}
+
+/* Cabeçalho do Dashboard */
+.dashboard-pro{max-width:1320px;margin:0 auto}
+.dash-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:24px}
+.dash-head h2{margin:0!important;font-size:clamp(28px,4vw,42px);letter-spacing:-.8px;color:#fff}
+.dash-head p{color:#cbd5e1;font-size:15px;font-weight:700;text-transform:none;margin-top:6px}
+.dash-date-card{display:flex;align-items:center;gap:14px;padding:14px 18px;border:1px solid var(--dash-line);border-radius:18px;background:linear-gradient(180deg,rgba(17,24,39,.95),rgba(15,23,42,.8));min-width:230px;box-shadow:0 16px 34px rgba(0,0,0,.25)}
+.dash-date-card span{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#7c3aed,#4c1d95);font-size:22px}.dash-date-card small{display:block;color:var(--dash-muted);font-weight:800;font-size:12px}.dash-date-card strong{display:block;color:#fff;font-size:15px;margin-top:4px}
+
+/* Cards financeiros principais */
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:18px}
+.metric-card{position:relative;overflow:hidden;border-radius:22px!important;padding:22px!important;min-height:184px;transition:.2s ease;background:linear-gradient(150deg,rgba(17,24,39,.95),rgba(10,15,30,.95))!important}
+.metric-card:hover{transform:translateY(-3px);box-shadow:0 26px 60px rgba(0,0,0,.36)!important}
+.metric-card::after{content:'';position:absolute;right:-42px;top:-54px;width:150px;height:150px;border-radius:50%;opacity:.22;filter:blur(.2px)}
+.metric-green::after{background:#22c55e}.metric-blue::after{background:#0ea5e9}.metric-orange::after{background:#f59e0b}.metric-purple::after{background:#8b5cf6}.metric-cyan::after{background:#22d3ee}.metric-slate::after{background:#64748b}.metric-deepblue::after{background:#2563eb}.metric-gray::after{background:#94a3b8}
+.metric-green{background:linear-gradient(140deg,rgba(12,55,35,.96),rgba(8,18,34,.96))!important}.metric-blue{background:linear-gradient(140deg,rgba(7,39,85,.96),rgba(8,18,34,.96))!important}.metric-orange{background:linear-gradient(140deg,rgba(75,39,11,.96),rgba(8,18,34,.96))!important}.metric-purple{background:linear-gradient(140deg,rgba(55,28,99,.96),rgba(8,18,34,.96))!important}.metric-cyan{background:linear-gradient(140deg,rgba(12,70,75,.96),rgba(8,18,34,.96))!important}.metric-deepblue{background:linear-gradient(140deg,rgba(16,52,114,.96),rgba(8,18,34,.96))!important}
+.metric-icon{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;font-size:28px;margin-bottom:18px;position:relative;z-index:1;box-shadow:inset 0 0 0 1px rgba(255,255,255,.11),0 10px 25px rgba(0,0,0,.24)}
+.metric-green .metric-icon{background:linear-gradient(135deg,#16a34a,#22c55e)}.metric-blue .metric-icon{background:linear-gradient(135deg,#0369a1,#2563eb)}.metric-orange .metric-icon{background:linear-gradient(135deg,#c2410c,#f59e0b)}.metric-purple .metric-icon{background:linear-gradient(135deg,#6d28d9,#a855f7)}.metric-cyan .metric-icon{background:linear-gradient(135deg,#0891b2,#22d3ee)}.metric-slate .metric-icon,.metric-gray .metric-icon{background:linear-gradient(135deg,#334155,#64748b)}.metric-deepblue .metric-icon{background:linear-gradient(135deg,#1d4ed8,#0ea5e9)}
+.metric-card small{display:block;position:relative;z-index:1;color:#bfdbfe;font-weight:900;font-size:12px;letter-spacing:.3px;margin-bottom:8px}.metric-card strong{display:block;position:relative;z-index:1;color:#fff;font-size:clamp(24px,2.5vw,34px);letter-spacing:-.7px;line-height:1.05}.metric-card p{position:relative;z-index:1;color:#dbeafe;font-weight:650;text-transform:none;margin-top:14px;line-height:1.3}.metric-card em{display:inline-flex;position:relative;z-index:1;margin-top:18px;padding:8px 11px;border-radius:12px;background:rgba(255,255,255,.08);font-size:12px;color:#e0f2fe;font-style:normal;font-weight:900}
+
+/* Painéis inferiores */
+.dashboard-bottom-grid{display:grid;grid-template-columns:1fr;gap:18px;margin-bottom:18px}.dash-panel{border-radius:24px!important;padding:22px!important;background:linear-gradient(180deg,rgba(15,23,42,.95),rgba(8,13,27,.95))!important}.panel-title{display:flex;gap:14px;align-items:center;margin-bottom:20px}.panel-title>span{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#6d28d9,#4c1d95);font-size:24px}.panel-title h3{margin:0;color:#fff;font-size:20px}.panel-title p{margin-top:4px;color:var(--dash-muted);font-weight:700;text-transform:none}
+.donut-pro-wrap{display:grid;grid-template-columns:240px minmax(0,1fr);gap:26px;align-items:center}.donut-pro{width:220px;height:220px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#22c55e 0 calc(var(--caixa)*1%),#f59e0b calc(var(--caixa)*1%) calc((var(--caixa) + var(--emprestado))*1%),#8b5cf6 calc((var(--caixa) + var(--emprestado))*1%) 100%);box-shadow:0 22px 50px rgba(0,0,0,.28),inset 0 0 0 1px rgba(255,255,255,.08);position:relative}.donut-pro::after{content:'';position:absolute;inset:48px;border-radius:50%;background:#0b1220;box-shadow:inset 0 0 0 1px var(--dash-line)}.donut-pro div{position:relative;z-index:1;text-align:center}.donut-pro span{display:block;color:var(--dash-muted);font-size:11px;font-weight:900}.donut-pro strong{display:block;color:#fff;font-size:25px;margin-top:6px}
+.donut-legend-pro{display:grid;gap:8px}.donut-legend-pro div{display:grid;grid-template-columns:12px 1fr auto 56px;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--dash-line)}.donut-legend-pro i{width:12px;height:12px;border-radius:999px}.leg-caixa{background:#22c55e!important}.leg-emprestado{background:#f59e0b!important}.leg-receber{background:#8b5cf6}.leg-capital{background:#0ea5e9!important}.donut-legend-pro span{color:#e5e7eb;font-weight:800;text-transform:none}.donut-legend-pro strong{color:#fff;font-size:14px}.donut-legend-pro em{color:var(--dash-muted);font-style:normal;text-align:right;font-size:13px}
+.quick-list{display:grid;gap:10px}.quick-list div{display:grid;grid-template-columns:48px 1fr auto;align-items:center;gap:12px;padding:13px;border:1px solid var(--dash-line);border-radius:16px;background:rgba(15,23,42,.58)}.quick-list i{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-style:normal}.q-green{background:rgba(34,197,94,.18);color:#22c55e}.q-orange{background:rgba(245,158,11,.18);color:#f59e0b}.q-purple{background:rgba(139,92,246,.18);color:#a78bfa}.q-cyan{background:rgba(34,211,238,.18);color:#22d3ee}.quick-list b{display:block;color:#fff;text-transform:none}.quick-list small{display:block;color:var(--dash-muted);font-weight:700;margin-top:3px;text-transform:none}.quick-list strong{font-size:18px}.quick-list div:nth-child(1) strong{color:#22c55e}.quick-list div:nth-child(2) strong{color:#f59e0b}.quick-list div:nth-child(3) strong{color:#a855f7}.quick-list div:nth-child(4) strong{color:#22d3ee}
+.last-loans-table{overflow-x:auto}.loan-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;align-items:center;padding:13px 0;border-bottom:1px solid var(--dash-line);min-width:680px}.loan-head{color:var(--dash-muted);font-size:12px;font-weight:900}.loan-client{display:grid!important;grid-template-columns:42px 1fr;column-gap:10px;align-items:center}.loan-client .avatar{grid-row:1 / span 2;width:42px;height:42px;border-radius:999px}.loan-client b{color:#fff}.loan-client small{color:var(--dash-muted);font-weight:700;text-transform:none}.empty-dashboard{color:var(--dash-muted);font-weight:800;text-transform:none}
+
+/* Responsividade do Dashboard */
+@media(max-width:1180px){.metric-grid{grid-template-columns:repeat(2,1fr)}.dashboard-bottom-grid{grid-template-columns:1fr}.donut-pro-wrap{grid-template-columns:220px 1fr}}
+@media(max-width:780px){
+  body{padding:12px 12px 142px!important}
+  .app{padding-bottom:0!important}
+  .topbar{display:none!important}
+  main{padding:0!important}
+
+  /* Menu inferior no celular: uma linha com rolagem horizontal, estilo aplicativo. */
+  .tabs{
+    position:fixed!important;
+    left:10px;right:10px;bottom:10px;top:auto!important;
+    z-index:40;margin:0!important;
+    display:flex!important;
+    grid-template-columns:none!important;
+    gap:8px!important;
+    padding:8px!important;
+    border-radius:24px!important;
+    background:rgba(5,9,22,.94)!important;
+    backdrop-filter:blur(16px);
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    white-space:nowrap!important;
+    scroll-behavior:smooth;
+    scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{
+    flex:0 0 auto!important;
+    min-width:92px!important;
+    min-height:58px!important;
+    border-radius:17px!important;
+    gap:3px!important;
+    padding:6px 10px!important;
+    scroll-snap-align:center;
+  }
+  .tab span{font-size:9.5px!important;line-height:1.05!important}
+  .tab:nth-child(n){display:flex!important}
+
+  .dash-head{align-items:center;margin-bottom:16px}
+  .dash-head h2{font-size:28px}
+  .dash-date-card{display:none}
+  .metric-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .metric-card{min-height:150px;padding:15px!important;border-radius:18px!important}
+  .metric-icon{width:44px;height:44px;border-radius:14px;font-size:22px;margin-bottom:12px}
+  .metric-card small{font-size:10px}
+  .metric-card strong{font-size:20px}
+  .metric-card p{font-size:12px;margin-top:9px}
+  .metric-card em{font-size:10px;margin-top:10px;padding:6px 8px}
+  .dash-panel{padding:16px!important;border-radius:20px!important}
+  .panel-title>span{width:40px;height:40px}
+  .panel-title h3{font-size:16px}
+  .donut-pro-wrap{grid-template-columns:1fr}
+  .donut-pro{width:185px;height:185px;margin:auto}
+  .donut-pro::after{inset:40px}
+  .donut-legend-pro div{grid-template-columns:12px 1fr auto;gap:9px}
+  .donut-legend-pro em{display:none}
+  .quick-list div{grid-template-columns:42px 1fr;}
+  .quick-list strong{grid-column:2 / 3}
+  .last-loans-panel{display:none}
+  .notif-count{right:10px!important;top:4px!important}
+}
+@media(max-width:390px){
+  body{padding-bottom:108px!important}
+  .metric-grid{grid-template-columns:1fr}
+  .metric-card{min-height:auto}
+  .dash-head h2{font-size:25px}
+  .tabs{left:6px;right:6px;bottom:6px;padding:7px!important}
+  .tab{min-width:86px!important;min-height:54px!important}
+  .tab span{font-size:8.5px!important}
+}
+
+/* Ajuste: painel Resumo Rápido removido; o gráfico ocupa toda a largura do dashboard. */
+.dashboard-bottom-grid .financial-panel{width:100%;}
+@media(min-width:900px){.dashboard-bottom-grid .financial-panel .donut-pro-wrap{grid-template-columns:280px 1fr;}}
