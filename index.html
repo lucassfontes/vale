@@ -2,230 +2,206 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sistema de Vale</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vale de Cliente</title>
 <style>
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family:Arial, Helvetica, sans-serif;
-    text-transform:uppercase;
+:root{
+    --azul:#00a9d9;
+    --azul-escuro:#007fa6;
+    --fundo:#eef7fb;
+    --texto:#0f172a;
+    --muted:#64748b;
+    --borda:#b7e8f8;
+    --card:#ffffff;
+    --sombra:0 16px 40px rgba(15,23,42,.14);
 }
-
+*{box-sizing:border-box;margin:0;padding:0;font-family:Arial, Helvetica, sans-serif;text-transform:uppercase;}
+html{-webkit-text-size-adjust:100%;}
 body{
-    background:#f1f5f9;
-    padding:15px;
+    min-height:100vh;min-height:100dvh;
+    background:linear-gradient(180deg,#dff7ff 0%,var(--fundo) 48%,#f8fafc 100%);
+    color:var(--texto);
+    padding:clamp(8px,3vw,24px);
+    padding-top:max(clamp(8px,3vw,24px), env(safe-area-inset-top));
+    padding-bottom:max(clamp(8px,3vw,24px), env(safe-area-inset-bottom));
 }
+.app{width:min(100%,680px);margin:0 auto;}
+.container{background:var(--card);border:1px solid rgba(0,169,217,.22);border-radius:24px;padding:clamp(14px,4vw,28px);box-shadow:var(--sombra);}
+.header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:18px;}
+h1{color:var(--azul);font-size:clamp(40px,13vw,72px);line-height:.9;letter-spacing:1px;}
+.subtitulo{margin-top:5px;color:var(--muted);font-size:clamp(11px,3vw,13px);font-weight:800;}
+.badge{background:#e0f7ff;border:1px solid var(--borda);color:#036985;font-weight:900;border-radius:999px;padding:9px 12px;font-size:12px;white-space:nowrap;}
+.form-grid{display:grid;grid-template-columns:1fr;gap:14px;}
+.duas-colunas{display:block;} .duas-colunas .campo{margin-bottom:14px;}
+.campo{display:flex;flex-direction:column;gap:7px;min-width:0;}
+label{font-weight:900;color:#334155;font-size:clamp(12px,3.3vw,15px);}
+input,textarea,button{width:100%;max-width:100%;font-size:16px;}
+input,textarea{min-height:54px;padding:14px;border:2px solid var(--azul);border-radius:15px;background:#fff;color:var(--texto);outline:none;transition:.15s ease;}
+input::placeholder,textarea::placeholder{color:#94a3b8;}
+input:focus,textarea:focus{border-color:var(--azul-escuro);box-shadow:0 0 0 4px rgba(0,169,217,.18);}
+input[readonly]{background:#f8fafc;color:#075985;font-weight:900;}
+textarea{height:92px;resize:vertical;line-height:1.4;}
+.ajuda{color:#64748b;font-size:12px;line-height:1.35;text-transform:none;}
+.botoes{margin-top:18px;position:sticky;bottom:max(10px, env(safe-area-inset-bottom));background:rgba(255,255,255,.95);backdrop-filter:blur(10px);padding-top:10px;}
+button{min-height:56px;padding:15px;border:none;border-radius:15px;font-weight:900;color:#fff;background:#0f172a;cursor:pointer;touch-action:manipulation;letter-spacing:.4px;}
+button:active{transform:translateY(1px);background:#1e293b;}
+.aviso{margin-top:12px;color:#64748b;font-size:12px;text-align:center;text-transform:none;}
 
-.container{
-    max-width:480px;
-    margin:auto;
-    background:white;
-    padding:20px;
-    border-radius:16px;
-    box-shadow:0 4px 15px rgba(0,0,0,0.15);
-}
-
-h1{
-    text-align:center;
-    color:#00a9d9;
-    font-size:42px;
-    margin-bottom:20px;
-}
-
-label{
-    display:block;
-    margin-top:14px;
-    margin-bottom:5px;
-    font-weight:bold;
-    color:#444;
-}
-
-input, textarea{
-    width:100%;
-    padding:14px;
-    border:2px solid #00a9d9;
-    border-radius:10px;
-    font-size:17px;
-    text-transform:uppercase;
-}
-
-textarea{
-    height:85px;
-    resize:none;
-}
-
-button{
-    width:100%;
-    padding:15px;
-    margin-top:18px;
-    border:none;
-    border-radius:10px;
-    font-size:18px;
-    color:white;
-    background:#00a9d9;
-    cursor:pointer;
-}
-
-button:hover{
-    background:#008db5;
-}
-
-.resultado{
-    margin-top:20px;
-    padding:15px;
-    background:#e0f7ff;
-    border-radius:10px;
-    color:#333;
-    display:none;
-    line-height:1.6;
-}
-
-@media(max-width:500px){
-    body{
-        padding:10px;
-    }
-
-    .container{
-        padding:15px;
-    }
-
-    h1{
-        font-size:36px;
-    }
-}
-
+@media (max-width:370px){body{padding:6px}.container{padding:12px;border-radius:18px}.header{align-items:flex-start;flex-direction:column}.badge{font-size:11px}input,textarea{padding:12px;min-height:50px}.resumo-linha{font-size:13px}}
+@media (min-width:768px){body{padding-top:28px}.container{border-radius:28px}.form-grid{gap:16px}}
 @media print{
-    body{
-        background:white;
-        padding:0;
-    }
-
-    .container{
-        box-shadow:none;
-        max-width:100%;
-        border-radius:0;
-    }
-
-    button{
-        display:none;
-    }
+    body{background:white;padding:0}.app{width:100%;max-width:100%}.container{box-shadow:none;border:2px solid #58b7d8;border-radius:10px;padding:14px}.botoes,.aviso,.ajuda{display:none}input,textarea{border:1px solid #000;min-height:36px;padding:8px}textarea{height:62px}.resumo-card{border:1px solid #000;background:white}
 }
 </style>
 </head>
-
 <body>
+<main class="app">
+<section class="container">
+    <div class="header">
+        <div>
+            <h1>VALE</h1>
+            <div class="subtitulo">CONTROLE DE CLIENTES E JUROS</div>
+        </div>
+        <div class="badge"><span id="diasPrazo">30</span> DIAS</div>
+    </div>
 
-<div class="container">
+    <div class="form-grid">
+        <div class="campo">
+            <label for="cliente">Cliente</label>
+            <input list="clientes" id="cliente" placeholder="DIGITE OU ESCOLHA O CLIENTE" autocomplete="off">
+            <div class="ajuda">Digite o nome para buscar na lista ou escreva um novo cliente.</div>
+        </div>
 
-<h1>VALE</h1>
+        <datalist id="clientes">
+            <option value="LUCAS FONTES"></option><option value="RUAN CARLOS"></option><option value="MARIA SILVA"></option><option value="JOSÉ PEREIRA"></option><option value="ANA SOUZA"></option><option value="CARLOS ALBERTO"></option><option value="JOÃO PEDRO"></option><option value="FERNANDA OLIVEIRA"></option><option value="RICARDO SANTOS"></option><option value="JULIANA LIMA"></option>
+        </datalist>
 
-<label>CLIENTE</label>
-<input list="clientes" id="cliente" placeholder="DIGITE OU ESCOLHA O CLIENTE">
+        <div class="duas-colunas">
+            <div class="campo">
+                <label for="valor">Valor do Empréstimo (R$)</label>
+                <input type="text" id="valor" inputmode="numeric" placeholder="R$ 0,00" autocomplete="off">
+            </div>
+            <div class="campo">
+                <label for="juros">Taxa de Juros (%)</label>
+                <input type="text" id="juros" value="30%" inputmode="decimal" autocomplete="off">
+            </div>
+        </div>
 
-<datalist id="clientes">
-    <option value="LUCAS FONTES">
-    <option value="RUAN CARLOS">
-    <option value="MARIA SILVA">
-    <option value="JOSÉ PEREIRA">
-    <option value="ANA SOUZA">
-    <option value="CARLOS ALBERTO">
-    <option value="JOÃO PEDRO">
-    <option value="FERNANDA OLIVEIRA">
-    <option value="RICARDO SANTOS">
-    <option value="JULIANA LIMA">
-</datalist>
+        <div class="campo">
+            <label for="valorComTaxa">Valor com Taxa (R$)</label>
+            <input type="text" id="valorComTaxa" value="R$ 0,00" readonly>
+        </div>
 
-<label>VALOR ORIGINAL (R$)</label>
-<input type="number" id="valor" step="0.01" placeholder="0,00">
+        <div class="duas-colunas">
+            <div class="campo">
+                <label for="dataInicial">Data Inicial</label>
+                <input type="date" id="dataInicial">
+            </div>
+            <div class="campo">
+                <label for="dataFinal">Data Final</label>
+                <input type="date" id="dataFinal">
+            </div>
+        </div>
 
-<label>TAXA DE JUROS (%)</label>
-<input type="number" id="juros" value="30" step="0.01">
+        <div class="campo">
+            <label for="observacao">Observação</label>
+            <textarea id="observacao" placeholder="DIGITE ALGUMA OBSERVAÇÃO..."></textarea>
+        </div>
+    </div>
 
-<label>VALOR COM TAXA (R$)</label>
-<input type="number" id="valorComTaxa" readonly>
-
-<label>DATA INICIAL</label>
-<input type="date" id="dataInicial">
-
-<label>DATA FINAL</label>
-<input type="date" id="dataFinal">
-
-<label>OBSERVAÇÃO</label>
-<textarea id="observacao" placeholder="DIGITE ALGUMA OBSERVAÇÃO..."></textarea>
-
-<button onclick="window.print()">IMPRIMIR</button>
-
-<div class="resultado" id="resultado"></div>
-
-</div>
+    <div class="botoes"><button type="button" onclick="window.print()">IMPRIMIR VALE</button></div>
+    <div class="aviso">Os textos são convertidos automaticamente para maiúsculas.</div>
+</section>
+</main>
 
 <script>
-const valor = document.getElementById("valor");
-const juros = document.getElementById("juros");
-const valorComTaxa = document.getElementById("valorComTaxa");
-const dataInicial = document.getElementById("dataInicial");
-const dataFinal = document.getElementById("dataFinal");
+const valor=document.getElementById('valor'),juros=document.getElementById('juros'),valorComTaxa=document.getElementById('valorComTaxa'),dataInicial=document.getElementById('dataInicial'),dataFinal=document.getElementById('dataFinal'),cliente=document.getElementById('cliente'),diasPrazo=document.getElementById('diasPrazo');
 
-function formatarDataParaInput(data){
-    const ano = data.getFullYear();
-    const mes = String(data.getMonth() + 1).padStart(2, "0");
-    const dia = String(data.getDate()).padStart(2, "0");
-    return `${ano}-${mes}-${dia}`;
+function moeda(v){return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
+function dataInput(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+
+function apenasNumeros(texto){return String(texto||'').replace(/\D/g,'');}
+
+function valorParaNumero(texto){
+    const limpo=String(texto||'').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.');
+    return parseFloat(limpo)||0;
 }
 
-function formatarDataBR(dataTexto){
-    if(!dataTexto) return "";
-    const partes = dataTexto.split("-");
-    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+function porcentagemParaNumero(texto){
+    const limpo=String(texto||'').replace(/[^\d,.-]/g,'').replace(',','.');
+    return parseFloat(limpo)||0;
 }
 
-function calcularValorComTaxa(){
-    const v = parseFloat(valor.value) || 0;
-    const j = parseFloat(juros.value) || 0;
-    const total = v + (v * j / 100);
-    valorComTaxa.value = total.toFixed(2);
+function aplicarMascaraMoeda(campo){
+    const numeros=apenasNumeros(campo.value);
+    const centavos=(parseInt(numeros||'0',10)/100);
+    campo.value=moeda(centavos);
+}
+
+function aplicarMascaraPorcentagem(campo){
+    let valorDigitado=String(campo.value||'').replace(/[^\d,.]/g,'').replace('.',',');
+    const partes=valorDigitado.split(',');
+    if(partes.length>1){
+        valorDigitado=partes[0]+','+partes.slice(1).join('').slice(0,2);
+    }
+    valorDigitado=valorDigitado.replace(/^0+(?=\d)/,'');
+    campo.value=valorDigitado ? `${valorDigitado}%` : '';
+}
+
+function calcular(){
+    const v=valorParaNumero(valor.value);
+    const j=porcentagemParaNumero(juros.value);
+    const total=v+(v*j/100);
+    valorComTaxa.value=moeda(total);
+}
+
+function calcularDiasPrazo(){
+    if(!dataInicial.value || !dataFinal.value){
+        diasPrazo.textContent='0';
+        return;
+    }
+
+    const inicio=new Date(dataInicial.value+'T00:00:00');
+    const fim=new Date(dataFinal.value+'T00:00:00');
+    const diferenca=fim-inicio;
+    const dias=Math.round(diferenca/(1000*60*60*24));
+
+    diasPrazo.textContent=dias;
 }
 
 function atualizarDataFinal(){
-    if(!dataInicial.value) return;
-    const inicio = new Date(dataInicial.value + "T00:00:00");
-    const fim = new Date(inicio);
-    fim.setDate(fim.getDate() + 30);
-    dataFinal.value = formatarDataParaInput(fim);
+    if(!dataInicial.value)return;
+    const f=new Date(dataInicial.value+'T00:00:00');
+    f.setDate(f.getDate()+30);
+    dataFinal.value=dataInput(f);
+    calcularDiasPrazo();
 }
 
-function iniciarDatas(){
-    const hoje = new Date();
-    dataInicial.value = formatarDataParaInput(hoje);
-    const fim = new Date(hoje);
-    fim.setDate(fim.getDate() + 30);
-    dataFinal.value = formatarDataParaInput(fim);
+function maiusculo(campo){
+    const i=campo.selectionStart,f=campo.selectionEnd;
+    campo.value=campo.value.toUpperCase();
+    campo.setSelectionRange(i,f);
 }
 
+valor.addEventListener('input',()=>{aplicarMascaraMoeda(valor);calcular();});
+juros.addEventListener('input',()=>{aplicarMascaraPorcentagem(juros);calcular();});
+dataInicial.addEventListener('change',atualizarDataFinal);
+dataFinal.addEventListener('change',()=>{calcularDiasPrazo();calcular();});
 
-function deixarMaiusculo(campo){
-    campo.value = campo.value.toUpperCase();
-}
+document.querySelectorAll("input:not(#valor):not(#juros):not([type='date']), textarea").forEach(c=>c.addEventListener('input',()=>maiusculo(c)));
 
-document.querySelectorAll("input[type='text'], textarea").forEach(campo => {
-    campo.addEventListener("input", function(){
-        deixarMaiusculo(this);
-    });
-});
-
-valor.addEventListener("input", calcularValorComTaxa);
-juros.addEventListener("input", calcularValorComTaxa);
-dataInicial.addEventListener("change", atualizarDataFinal);
-
-window.onload = function(){
-    juros.value = 30;
-    iniciarDatas();
-    calcularValorComTaxa();
+window.onload=()=>{
+    juros.value='30%';
+    valor.value='';
+    valorComTaxa.value=moeda(0);
+    const hoje=new Date();
+    dataInicial.value=dataInput(hoje);
+    const fim=new Date(hoje);
+    fim.setDate(fim.getDate()+30);
+    dataFinal.value=dataInput(fim);
+    calcular();
+    calcularDiasPrazo();
 };
 </script>
-
 </body>
 </html>
