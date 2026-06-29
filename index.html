@@ -79,6 +79,7 @@ textarea{height:96px;resize:vertical;line-height:1.4;}
     </div>
     <div class="actions">
       <button id="btnImprimir" class="btn primary" onclick="imprimirESalvar()">🖨️ IMPRIMIR VALE</button>
+      <button id="btnWhatsAppVale" class="btn ok" onclick="enviarValeAtualWhatsApp()">📄 ENVIAR PDF NO WHATSAPP</button>
       <button id="btnAtualizar" class="btn ok" style="display:none" onclick="atualizarValeEditado()">💾 SALVAR ALTERAÇÃO</button>
       <button id="btnCancelarEdicao" class="btn light" style="display:none" onclick="cancelarEdicao()">CANCELAR EDIÇÃO</button>
       <button class="btn light" onclick="limparFormulario()">LIMPAR</button>
@@ -98,9 +99,17 @@ textarea{height:96px;resize:vertical;line-height:1.4;}
   </section>
 
   <section id="clientes" class="tela card">
-    <div class="header"><div><h1>CLIENTES</h1><div class="sub">CADASTRO SIMPLES</div></div></div>
-    <div class="grid"><div class="campo"><label>👤 Nome do Cliente</label><input id="novoCliente" placeholder="NOME DO CLIENTE"></div></div>
-    <div class="actions"><button class="btn primary" onclick="adicionarCliente()">ADICIONAR CLIENTE</button></div>
+    <div class="header"><div><h1>CLIENTES</h1><div class="sub">CADASTRO COM TELEFONE</div></div></div>
+    <div class="grid">
+      <input type="hidden" id="clienteEditandoId">
+      <div class="campo"><label>👤 Nome do Cliente</label><input id="novoCliente" placeholder="NOME DO CLIENTE"></div>
+      <div class="campo"><label>📱 Telefone / WhatsApp</label><input id="telefoneCliente" inputmode="tel" placeholder="(94) 99999-9999"></div>
+    </div>
+    <div class="actions">
+      <button id="btnAddCliente" class="btn primary" onclick="adicionarCliente()">ADICIONAR CLIENTE</button>
+      <button id="btnSalvarCliente" class="btn ok" style="display:none" onclick="salvarEdicaoCliente()">SALVAR CLIENTE</button>
+      <button id="btnCancelarCliente" class="btn light" style="display:none" onclick="cancelarEdicaoCliente()">CANCELAR EDIÇÃO</button>
+    </div>
     <input class="search" id="buscaCliente" placeholder="🔍 PESQUISAR CLIENTE" oninput="renderClientes()" style="margin-top:16px">
     <div id="listaClientes" class="lista"></div>
   </section>
@@ -121,7 +130,13 @@ const LS='sistema_emprestimos_v3';
 let dados=JSON.parse(localStorage.getItem(LS)||'{"clientes":["LUCAS FONTES","RUAN CARLOS","MARIA SILVA"],"vales":[],"tema":"claro"}');
 const $=id=>document.getElementById(id);
 let editandoId=null;
-function salvar(){localStorage.setItem(LS,JSON.stringify(dados));}
+
+function normalizarDados(){
+  dados.clientes=(dados.clientes||[]).map(c=>typeof c==='string'?{id:'C'+Date.now()+Math.random().toString(16).slice(2),nome:c.toUpperCase(),telefone:''}:{id:c.id||('C'+Date.now()+Math.random().toString(16).slice(2)),nome:String(c.nome||c.name||'').toUpperCase(),telefone:String(c.telefone||c.phone||'')}).filter(c=>c.nome);
+  dados.vales=(dados.vales||[]).map(v=>({...v,cliente:String(v.cliente||'').toUpperCase(),telefone:String(v.telefone||'')}));
+  if(!dados.tema)dados.tema='claro';
+}
+function salvar(){normalizarDados();localStorage.setItem(LS,JSON.stringify(dados));}
 function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',2200);}
 function moedaNumero(str){return Number(String(str||'').replace(/\D/g,''))/100;}
 function moeda(v){return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
@@ -134,65 +149,155 @@ function diasEntre(){const i=$('dataInicial').value,f=$('dataFinal').value;if(!i
 function diasVale(v){if(!v.dataInicial||!v.dataFinal)return 0;return Math.round((new Date(v.dataFinal+'T00:00:00')-new Date(v.dataInicial+'T00:00:00'))/86400000);}
 function calcular(){const v=moedaNumero($('valor').value),j=taxaNumero(),total=v+(v*j/100);$('valorComTaxa').value=moeda(total);$('diasBadge').textContent=diasEntre()||0;}
 function maiusculo(el){const i=el.selectionStart,f=el.selectionEnd;el.value=el.value.toUpperCase();try{el.setSelectionRange(i,f)}catch(e){}}
+function apenasNumeros(t){return String(t||'').replace(/\D/g,'');}
+function maskTelefone(el){let n=apenasNumeros(el.value).slice(0,11);if(n.length<=2)el.value=n;else if(n.length<=6)el.value=`(${n.slice(0,2)}) ${n.slice(2)}`;else if(n.length<=10)el.value=`(${n.slice(0,2)}) ${n.slice(2,6)}-${n.slice(6)}`;else el.value=`(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`;}
+function telefoneWhatsApp(t){let n=apenasNumeros(t);if(!n)return'';if(n.length===10||n.length===11)n='55'+n;return n;}
+function encontrarCliente(nome){nome=String(nome||'').toUpperCase();return dados.clientes.find(c=>c.nome===nome)||null;}
+function abrirWhatsAppPorTelefone(t,nome){const fone=telefoneWhatsApp(t);if(!fone){toast('CLIENTE SEM TELEFONE');return;}const texto=encodeURIComponent(`Olá ${nome||''}`.trim());window.open(`https://wa.me/${fone}?text=${texto}`,'_blank');}
+function abrirWhatsAppCliente(id){const c=dados.clientes.find(x=>x.id===id);if(c)abrirWhatsAppPorTelefone(c.telefone,c.nome);}
+function textoValeWhatsApp(v){return `*VALE DE EMPRÉSTIMO*\n\n*Cliente:* ${v.cliente}\n*Telefone:* ${v.telefone||'NÃO INFORMADO'}\n\n*Valor do Empréstimo:* ${moeda(v.valor)}\n*Taxa de Juros:* ${String(v.juros).replace('.',',')}%\n*Valor Total:* ${moeda(v.total)}\n\n*Data Inicial:* ${dataBR(v.dataInicial)}\n*Data Final:* ${dataBR(v.dataFinal)}\n*Prazo:* ${diasVale(v)} DIAS\n\n*Observação:* ${v.observacao||'NENHUMA'}`;}
+function pdfTxt(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,'').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');}
+function nomeArquivoPdf(v){return `VALE-${pdfTxt(v.cliente||'CLIENTE').replace(/\s+/g,'-')}-${dataBR(v.dataFinal).replace(/\//g,'-')}.pdf`;}
+function criarPdfVale(v){
+  const W=298,H=420;
+  const ops=[];
+  const esc=pdfTxt;
+  const rgb=(hex)=>{hex=hex.replace('#','');return [0,2,4].map(i=>parseInt(hex.slice(i,i+2),16)/255).join(' ')};
+  const cor=(hex)=>ops.push(rgb(hex)+' rg '+rgb(hex)+' RG');
+  const stroke=(hex)=>ops.push(rgb(hex)+' RG');
+  const fill=(hex)=>ops.push(rgb(hex)+' rg');
+  const txt=(t,x,y,size=10,bold=false,hex='#0f172a')=>{fill(hex);ops.push(`BT /${bold?'F2':'F1'} ${size} Tf ${x} ${y} Td (${esc(t)}) Tj ET`);};
+  const line=(x1,y1,x2,y2,hex='#cbd5e1')=>{stroke(hex);ops.push(`${x1} ${y1} m ${x2} ${y2} l S`);};
+  const rect=(x,y,w,h,fillHex=null,strokeHex='#0f172a')=>{if(fillHex){fill(fillHex);stroke(strokeHex);ops.push(`${x} ${y} ${w} ${h} re B`);}else{stroke(strokeHex);ops.push(`${x} ${y} ${w} ${h} re S`);}};
+
+  // Fundo e borda principal
+  rect(12,12,W-24,H-24,'#ffffff','#0f172a');
+  rect(18,18,W-36,H-36,null,'#00a9d9');
+
+  // Cabeçalho azul
+  rect(18,H-82,W-36,64,'#00a9d9','#00a9d9');
+  txt('VALE DE EMPRESTIMO',34,H-50,19,true,'#ffffff');
+  txt('COMPROVANTE DO CLIENTE',35,H-68,8,false,'#e0f7ff');
+  rect(W-86,H-65,54,24,'#ffffff','#ffffff');
+  txt(`${diasVale(v)} DIAS`,W-76,H-51,10,true,'#007fa6');
+
+  // Bloco cliente
+  let y=H-112;
+  txt('CLIENTE',28,y,8,true,'#64748b');
+  txt(v.cliente||'NAO INFORMADO',28,y-18,15,true,'#0f172a');
+  line(28,y-26,W-28,y-26,'#bae6fd');
+
+  y-=44;
+  txt('TELEFONE / WHATSAPP',28,y,8,true,'#64748b');
+  txt(v.telefone||'NAO INFORMADO',28,y-18,12,true,'#0f172a');
+  line(28,y-26,W-28,y-26,'#bae6fd');
+
+  // Cartões de valores
+  y-=64;
+  rect(26,y,112,48,'#f0f9ff','#7dd3fc');
+  txt('VALOR EMPRESTADO',36,y+31,7,true,'#036985');
+  txt(moeda(v.valor),36,y+13,14,true,'#0f172a');
+
+  rect(160,y,112,48,'#ecfdf5','#86efac');
+  txt('TOTAL A PAGAR',170,y+31,7,true,'#166534');
+  txt(moeda(v.total),170,y+13,14,true,'#0f172a');
+
+  y-=56;
+  rect(26,y,72,38,'#fff7ed','#fed7aa');
+  txt('JUROS',36,y+24,7,true,'#9a3412');
+  txt(String(v.juros).replace('.',',')+'%',36,y+10,12,true,'#0f172a');
+
+  rect(113,y,72,38,'#f8fafc','#cbd5e1');
+  txt('STATUS',123,y+24,7,true,'#475569');
+  txt(v.status||'ABERTO',123,y+10,11,true,'#0f172a');
+
+  rect(200,y,72,38,'#f8fafc','#cbd5e1');
+  txt('PRAZO',210,y+24,7,true,'#475569');
+  txt(`${diasVale(v)} DIAS`,210,y+10,11,true,'#0f172a');
+
+  y-=58;
+  txt('DATA INICIAL',28,y+24,8,true,'#64748b');
+  txt(dataBR(v.dataInicial),28,y+6,13,true,'#0f172a');
+  txt('VENCIMENTO',160,y+24,8,true,'#64748b');
+  txt(dataBR(v.dataFinal),160,y+6,13,true,'#dc2626');
+  line(28,y,W-28,y,'#bae6fd');
+
+  y-=28;
+  txt('OBSERVACAO',28,y,8,true,'#64748b');
+  rect(28,y-54,W-56,44,'#f8fafc','#cbd5e1');
+  const obs=(v.observacao||'').slice(0,74);
+  txt(obs||' ',36,y-28,10,false,'#0f172a');
+
+  // Assinatura
+  line(52,58,W-52,58,'#0f172a');
+  txt('ASSINATURA DO CLIENTE',84,43,9,true,'#334155');
+  txt('Documento gerado pelo sistema de emprestimos',46,25,7,false,'#94a3b8');
+
+  const stream=ops.join('\n');
+  const objs=[
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>',
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`
+  ];
+  let pdf='%PDF-1.4\n',pos=[0];
+  objs.forEach((o,i)=>{pos.push(pdf.length);pdf+=`${i+1} 0 obj\n${o}\nendobj\n`;});
+  const xref=pdf.length;pdf+='xref\n0 '+(objs.length+1)+'\n0000000000 65535 f \n';
+  for(let i=1;i<pos.length;i++)pdf+=String(pos[i]).padStart(10,'0')+' 00000 n \n';
+  pdf+=`trailer << /Size ${objs.length+1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  const bytes=new Uint8Array(pdf.length);for(let i=0;i<pdf.length;i++)bytes[i]=pdf.charCodeAt(i)&255;
+  return new Blob([bytes],{type:'application/pdf'});
+}
+function baixarPdfVale(v){const blob=criarPdfVale(v);const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nomeArquivoPdf(v);a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+async function enviarValeWhatsApp(v){const cad=encontrarCliente(v.cliente);const tel=v.telefone||(cad?cad.telefone:'');const fone=telefoneWhatsApp(tel);if(!fone){toast('CADASTRE O TELEFONE DO CLIENTE');return;}v.telefone=tel;const blob=criarPdfVale(v);const file=new File([blob],nomeArquivoPdf(v),{type:'application/pdf'});
+  try{
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'VALE DE EMPRESTIMO'});
+      toast('ESCOLHA O WHATSAPP E ENVIE O PDF');
+    }else{
+      baixarPdfVale(v);
+      window.open(`https://wa.me/${fone}`,'_blank');
+      toast('PDF BAIXADO. ANEXE NO WHATSAPP ABERTO');
+    }
+  }catch(e){toast('ENVIO CANCELADO');}
+}
+function enviarValeAtualWhatsApp(){const v=novoVale(),erro=validarVale(v);if(erro){toast(erro);return;}salvarVale(v);renderHistorico();toast('VALE SALVO NO HISTÓRICO');enviarValeWhatsApp(v);}
 function abrirTela(id){document.querySelectorAll('.tela').forEach(t=>t.classList.remove('ativa'));$(id).classList.add('ativa');document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('ativo'));({emprestimo:'tabEmp',historico:'tabHist',clientes:'tabCli',backup:'tabBack'}[id]&&$(({emprestimo:'tabEmp',historico:'tabHist',clientes:'tabCli',backup:'tabBack'}[id])).classList.add('ativo')); if(id==='historico')renderHistorico(); if(id==='clientes')renderClientes();}
-function atualizarClientesLista(){const dl=$('clientesLista');dl.innerHTML='';dados.clientes.sort().forEach(c=>{const o=document.createElement('option');o.value=c;dl.appendChild(o);});}
-function novoVale(){const cliente=$('cliente').value.trim().toUpperCase();return {id:'V'+Date.now(),cliente,valor:moedaNumero($('valor').value),juros:taxaNumero(),total:moedaNumero($('valorComTaxa').value),dataInicial:$('dataInicial').value,dataFinal:$('dataFinal').value,observacao:$('observacao').value.trim().toUpperCase(),status:'ABERTO',criadoEm:new Date().toISOString()};}
+function atualizarClientesLista(){const dl=$('clientesLista');dl.innerHTML='';dados.clientes.sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(c=>{const o=document.createElement('option');o.value=c.nome;dl.appendChild(o);});}
+function novoVale(){const cliente=$('cliente').value.trim().toUpperCase();const cad=encontrarCliente(cliente);return {id:'V'+Date.now(),cliente,telefone:cad?cad.telefone:'',valor:moedaNumero($('valor').value),juros:taxaNumero(),total:moedaNumero($('valorComTaxa').value),dataInicial:$('dataInicial').value,dataFinal:$('dataFinal').value,observacao:$('observacao').value.trim().toUpperCase(),status:'ABERTO',criadoEm:new Date().toISOString()};}
 function validarVale(v){if(!v.cliente)return 'INFORME O CLIENTE'; if(v.valor<=0)return 'INFORME O VALOR DO EMPRÉSTIMO'; if(!v.dataInicial||!v.dataFinal)return 'INFORME AS DATAS'; return '';}
-function salvarVale(v){if(!dados.clientes.includes(v.cliente))dados.clientes.push(v.cliente);dados.vales.unshift(v);salvar();atualizarClientesLista();}
+function garantirCliente(nome,telefone=''){nome=String(nome||'').trim().toUpperCase();if(!nome)return null;let c=encontrarCliente(nome);if(!c){c={id:'C'+Date.now()+Math.random().toString(16).slice(2),nome,telefone};dados.clientes.push(c);}else if(telefone && !c.telefone){c.telefone=telefone;}return c;}
+function salvarVale(v){garantirCliente(v.cliente,v.telefone);dados.vales.unshift(v);salvar();atualizarClientesLista();}
 function imprimirESalvar(){const v=novoVale(),erro=validarVale(v);if(erro){toast(erro);return;}salvarVale(v);imprimirVale(v);toast('VALE SALVO NO HISTÓRICO');}
-function imprimirVale(v){const w=window.open('','_blank','width=420,height=650');w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Vale</title><style>@page{size:A6;margin:8mm}*{box-sizing:border-box;font-family:Arial;text-transform:uppercase}body{margin:0}.vale{border:2px solid #111;border-radius:10px;padding:14px;min-height:100mm}.top{text-align:center;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px}h1{font-size:38px;margin:0}.linha{margin:10px 0}.rot{font-size:11px;font-weight:bold;color:#555}.val{font-size:18px;font-weight:bold;border-bottom:1px solid #999;padding:5px 0;min-height:30px}.duo{display:grid;grid-template-columns:1fr 1fr;gap:12px}.obs{min-height:55px}.assinatura{margin-top:34px;text-align:center}.assinatura div{border-top:1px solid #111;padding-top:8px;font-weight:bold}@media print{button{display:none}}</style></head><body onload="window.print();setTimeout(()=>window.close(),500)"><div class="vale"><div class="top"><h1>VALE</h1><strong>${diasVale(v)} DIAS</strong></div><div class="linha"><div class="rot">Cliente</div><div class="val">${v.cliente}</div></div><div class="duo"><div class="linha"><div class="rot">Valor do empréstimo</div><div class="val">${moeda(v.valor)}</div></div><div class="linha"><div class="rot">Total com juros</div><div class="val">${moeda(v.total)}</div></div></div><div class="duo"><div class="linha"><div class="rot">Juros</div><div class="val">${String(v.juros).replace('.',',')}%</div></div><div class="linha"><div class="rot">Status</div><div class="val">${v.status}</div></div></div><div class="duo"><div class="linha"><div class="rot">Data inicial</div><div class="val">${dataBR(v.dataInicial)}</div></div><div class="linha"><div class="rot">Vencimento</div><div class="val">${dataBR(v.dataFinal)}</div></div></div><div class="linha"><div class="rot">Observação</div><div class="val obs">${v.observacao||' '}</div></div><div class="assinatura"><div>ASSINATURA DO CLIENTE</div></div></div></body></html>`);w.document.close();}
+function imprimirVale(v){const w=window.open('','_blank','width=420,height=650');w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Vale</title><style>@page{size:A6;margin:8mm}*{box-sizing:border-box;font-family:Arial;text-transform:uppercase}body{margin:0}.vale{border:2px solid #111;border-radius:10px;padding:14px;min-height:100mm}.top{text-align:center;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px}h1{font-size:38px;margin:0}.linha{margin:10px 0}.rot{font-size:11px;font-weight:bold;color:#555}.val{font-size:18px;font-weight:bold;border-bottom:1px solid #999;padding:5px 0;min-height:30px}.duo{display:grid;grid-template-columns:1fr 1fr;gap:12px}.obs{min-height:55px}.assinatura{margin-top:34px;text-align:center}.assinatura div{border-top:1px solid #111;padding-top:8px;font-weight:bold}@media print{button{display:none}}</style></head><body onload="window.print();setTimeout(()=>window.close(),500)"><div class="vale"><div class="top"><h1>VALE</h1><strong>${diasVale(v)} DIAS</strong></div><div class="linha"><div class="rot">Cliente</div><div class="val">${v.cliente}</div></div><div class="linha"><div class="rot">Telefone</div><div class="val">${v.telefone||' '}</div></div><div class="duo"><div class="linha"><div class="rot">Valor do empréstimo</div><div class="val">${moeda(v.valor)}</div></div><div class="linha"><div class="rot">Total com juros</div><div class="val">${moeda(v.total)}</div></div></div><div class="duo"><div class="linha"><div class="rot">Juros</div><div class="val">${String(v.juros).replace('.',',')}%</div></div><div class="linha"><div class="rot">Status</div><div class="val">${v.status}</div></div></div><div class="duo"><div class="linha"><div class="rot">Data inicial</div><div class="val">${dataBR(v.dataInicial)}</div></div><div class="linha"><div class="rot">Vencimento</div><div class="val">${dataBR(v.dataFinal)}</div></div></div><div class="linha"><div class="rot">Observação</div><div class="val obs">${v.observacao||' '}</div></div><div class="assinatura"><div>ASSINATURA DO CLIENTE</div></div></div></body></html>`);w.document.close();}
 function limparFormulario(){$('cliente').value='';$('valor').value='';$('juros').value='30%';$('valorComTaxa').value='';$('observacao').value='';iniciarDatas();calcular();}
 function statusVale(v){if(v.status==='PAGO')return 'pago';const hoje=dataInput(new Date());return v.dataFinal<hoje?'atrasado':'aberto';}
-function renderHistorico(){const q=($('buscaHistorico').value||'').toUpperCase();const lista=dados.vales.filter(v=>v.cliente.includes(q));$('qtdVales').textContent=dados.vales.length+' VALES';let emp=0,rec=0,ab=0;dados.vales.forEach(v=>{emp+=v.valor;rec+=v.total;if(v.status!=='PAGO')ab+=v.total;});$('statEmprestado').textContent=moeda(emp);$('statReceber').textContent=moeda(rec);$('statAberto').textContent=moeda(ab);$('listaHistorico').innerHTML=lista.length?lista.map(v=>{const s=statusVale(v);return `<div class="item"><div class="item-top"><h3>${v.cliente}</h3><span class="status ${s}">${v.status==='PAGO'?'PAGO':s==='atrasado'?'ATRASADO':'ABERTO'}</span></div><p>VALOR: <b>${moeda(v.valor)}</b><br>TOTAL: <b>${moeda(v.total)}</b><br>VENCIMENTO: ${dataBR(v.dataFinal)}<br>JUROS: ${String(v.juros).replace('.',',')}%</p><div class="row-btns four"><button onclick="editarVale('${v.id}')">EDITAR</button><button onclick="reimprimir('${v.id}')">IMPRIMIR</button><button onclick="marcarPago('${v.id}')">${v.status==='PAGO'?'ABRIR':'RECEBIDO'}</button><button onclick="excluirVale('${v.id}')">EXCLUIR</button></div></div>`}).join(''):'<div class="ajuda">NENHUM VALE ENCONTRADO.</div>';}
-
-function modoEdicao(ativo){
-  $('btnAtualizar').style.display=ativo?'block':'none';
-  $('btnCancelarEdicao').style.display=ativo?'block':'none';
-  $('btnImprimir').style.display=ativo?'none':'block';
-  document.querySelector('#emprestimo .sub').textContent=ativo?'EDITANDO VALE DO HISTÓRICO':'SISTEMA DE EMPRÉSTIMOS';
-}
-function editarVale(id){
-  const v=dados.vales.find(x=>x.id===id);
-  if(!v){toast('VALE NÃO ENCONTRADO');return;}
-  editandoId=id;
-  $('cliente').value=v.cliente||'';
-  $('valor').value=moeda(v.valor||0);
-  $('juros').value=String(v.juros||0).replace('.',',')+'%';
-  $('valorComTaxa').value=moeda(v.total||0);
-  $('dataInicial').value=v.dataInicial||'';
-  $('dataFinal').value=v.dataFinal||'';
-  $('observacao').value=v.observacao||'';
-  calcular();modoEdicao(true);abrirTela('emprestimo');toast('EDITE OS DADOS E SALVE A ALTERAÇÃO');
-}
-function atualizarValeEditado(){
-  if(!editandoId){toast('NENHUM VALE EM EDIÇÃO');return;}
-  const idx=dados.vales.findIndex(x=>x.id===editandoId);
-  if(idx<0){toast('VALE NÃO ENCONTRADO');return;}
-  const atual=dados.vales[idx];
-  const novo=novoVale();
-  const erro=validarVale(novo);
-  if(erro){toast(erro);return;}
-  dados.vales[idx]={...atual,...novo,id:atual.id,status:atual.status,criadoEm:atual.criadoEm,editadoEm:new Date().toISOString()};
-  if(!dados.clientes.includes(novo.cliente))dados.clientes.push(novo.cliente);
-  salvar();atualizarClientesLista();renderHistorico();modoEdicao(false);editandoId=null;limparFormulario();abrirTela('historico');toast('VALE ALTERADO COM SUCESSO');
-}
+function renderHistorico(){const q=($('buscaHistorico').value||'').toUpperCase();const lista=dados.vales.filter(v=>v.cliente.includes(q));$('qtdVales').textContent=dados.vales.length+' VALES';let emp=0,rec=0,ab=0;dados.vales.forEach(v=>{emp+=v.valor;rec+=v.total;if(v.status!=='PAGO')ab+=v.total;});$('statEmprestado').textContent=moeda(emp);$('statReceber').textContent=moeda(rec);$('statAberto').textContent=moeda(ab);$('listaHistorico').innerHTML=lista.length?lista.map(v=>{const s=statusVale(v);const cad=encontrarCliente(v.cliente);const tel=v.telefone||(cad?cad.telefone:'');return `<div class="item"><div class="item-top"><h3>${v.cliente}</h3><span class="status ${s}">${v.status==='PAGO'?'PAGO':s==='atrasado'?'ATRASADO':'ABERTO'}</span></div><p>TELEFONE: <b>${tel||'NÃO INFORMADO'}</b><br>VALOR: <b>${moeda(v.valor)}</b><br>TOTAL: <b>${moeda(v.total)}</b><br>VENCIMENTO: ${dataBR(v.dataFinal)}<br>JUROS: ${String(v.juros).replace('.',',')}%</p><div class="row-btns four"><button onclick="editarVale('${v.id}')">EDITAR</button><button onclick="reimprimir('${v.id}')">IMPRIMIR</button><button onclick="marcarPago('${v.id}')">${v.status==='PAGO'?'ABRIR':'RECEBIDO'}</button><button onclick="excluirVale('${v.id}')">EXCLUIR</button><button onclick="enviarValeHistorico('${v.id}')">ENVIAR PDF</button></div></div>`}).join(''):'<div class="ajuda">NENHUM VALE ENCONTRADO.</div>';}
+function modoEdicao(ativo){$('btnAtualizar').style.display=ativo?'block':'none';$('btnCancelarEdicao').style.display=ativo?'block':'none';$('btnImprimir').style.display=ativo?'none':'block';document.querySelector('#emprestimo .sub').textContent=ativo?'EDITANDO VALE DO HISTÓRICO':'SISTEMA DE EMPRÉSTIMOS';}
+function editarVale(id){const v=dados.vales.find(x=>x.id===id);if(!v){toast('VALE NÃO ENCONTRADO');return;}editandoId=id;$('cliente').value=v.cliente||'';$('valor').value=moeda(v.valor||0);$('juros').value=String(v.juros||0).replace('.',',')+'%';$('valorComTaxa').value=moeda(v.total||0);$('dataInicial').value=v.dataInicial||'';$('dataFinal').value=v.dataFinal||'';$('observacao').value=v.observacao||'';calcular();modoEdicao(true);abrirTela('emprestimo');toast('EDITE OS DADOS E SALVE A ALTERAÇÃO');}
+function atualizarValeEditado(){if(!editandoId){toast('NENHUM VALE EM EDIÇÃO');return;}const idx=dados.vales.findIndex(x=>x.id===editandoId);if(idx<0){toast('VALE NÃO ENCONTRADO');return;}const atual=dados.vales[idx];const novo=novoVale();const erro=validarVale(novo);if(erro){toast(erro);return;}dados.vales[idx]={...atual,...novo,id:atual.id,status:atual.status,criadoEm:atual.criadoEm,editadoEm:new Date().toISOString()};garantirCliente(novo.cliente,novo.telefone);salvar();atualizarClientesLista();renderHistorico();modoEdicao(false);editandoId=null;limparFormulario();abrirTela('historico');toast('VALE ALTERADO COM SUCESSO');}
 function cancelarEdicao(){editandoId=null;modoEdicao(false);limparFormulario();toast('EDIÇÃO CANCELADA');}
-
 function reimprimir(id){const v=dados.vales.find(x=>x.id===id);if(v)imprimirVale(v);}
+function enviarValeHistorico(id){const v=dados.vales.find(x=>x.id===id);if(v)enviarValeWhatsApp({...v});}
 function marcarPago(id){const v=dados.vales.find(x=>x.id===id);if(v){v.status=v.status==='PAGO'?'ABERTO':'PAGO';salvar();renderHistorico();}}
 function excluirVale(id){if(confirm('EXCLUIR ESTE VALE?')){dados.vales=dados.vales.filter(v=>v.id!==id);salvar();renderHistorico();}}
-function adicionarCliente(){const n=$('novoCliente').value.trim().toUpperCase();if(!n){toast('DIGITE O NOME');return;}if(!dados.clientes.includes(n))dados.clientes.push(n);$('novoCliente').value='';salvar();atualizarClientesLista();renderClientes();toast('CLIENTE ADICIONADO');}
-function renderClientes(){const q=($('buscaCliente').value||'').toUpperCase();const arr=dados.clientes.filter(c=>c.includes(q)).sort();$('listaClientes').innerHTML=arr.length?arr.map(c=>`<div class="item"><div class="item-top"><h3>${c}</h3></div><div class="row-btns"><button onclick="usarCliente('${c.replace(/'/g,"\\'")}')">USAR</button><button onclick="excluirCliente('${c.replace(/'/g,"\\'")}')">EXCLUIR</button></div></div>`).join(''):'<div class="ajuda">NENHUM CLIENTE ENCONTRADO.</div>';}
+function adicionarCliente(){const n=$('novoCliente').value.trim().toUpperCase();const t=$('telefoneCliente').value.trim();if(!n){toast('DIGITE O NOME');return;}let c=encontrarCliente(n);if(c){toast('CLIENTE JÁ EXISTE');return;}dados.clientes.push({id:'C'+Date.now(),nome:n,telefone:t});$('novoCliente').value='';$('telefoneCliente').value='';salvar();atualizarClientesLista();renderClientes();toast('CLIENTE ADICIONADO');}
+function editarCliente(id){const c=dados.clientes.find(x=>x.id===id);if(!c)return;$('clienteEditandoId').value=id;$('novoCliente').value=c.nome;$('telefoneCliente').value=c.telefone||'';$('btnAddCliente').style.display='none';$('btnSalvarCliente').style.display='block';$('btnCancelarCliente').style.display='block';toast('EDITANDO CLIENTE');}
+function salvarEdicaoCliente(){const id=$('clienteEditandoId').value;const c=dados.clientes.find(x=>x.id===id);if(!c)return;const nomeAntigo=c.nome;const nomeNovo=$('novoCliente').value.trim().toUpperCase();if(!nomeNovo){toast('DIGITE O NOME');return;}c.nome=nomeNovo;c.telefone=$('telefoneCliente').value.trim();dados.vales.forEach(v=>{if(v.cliente===nomeAntigo){v.cliente=nomeNovo;v.telefone=c.telefone;}});salvar();cancelarEdicaoCliente();atualizarClientesLista();renderClientes();renderHistorico();toast('CLIENTE ALTERADO');}
+function cancelarEdicaoCliente(){$('clienteEditandoId').value='';$('novoCliente').value='';$('telefoneCliente').value='';$('btnAddCliente').style.display='block';$('btnSalvarCliente').style.display='none';$('btnCancelarCliente').style.display='none';}
+function renderClientes(){const q=($('buscaCliente').value||'').toUpperCase();const arr=dados.clientes.filter(c=>c.nome.includes(q)||String(c.telefone||'').includes(q)).sort((a,b)=>a.nome.localeCompare(b.nome));$('listaClientes').innerHTML=arr.length?arr.map(c=>`<div class="item"><div class="item-top"><h3>${c.nome}</h3></div><p>TELEFONE: <b>${c.telefone||'NÃO INFORMADO'}</b></p><div class="row-btns four"><button onclick="usarCliente('${c.nome.replace(/'/g,"\\'")}')">USAR</button><button onclick="editarCliente('${c.id}')">EDITAR</button><button onclick="abrirWhatsAppCliente('${c.id}')">WHATSAPP</button><button onclick="excluirCliente('${c.id}')">EXCLUIR</button></div></div>`).join(''):'<div class="ajuda">NENHUM CLIENTE ENCONTRADO.</div>';}
 function usarCliente(c){$('cliente').value=c;abrirTela('emprestimo');}
-function excluirCliente(c){if(confirm('EXCLUIR CLIENTE?')){dados.clientes=dados.clientes.filter(x=>x!==c);salvar();atualizarClientesLista();renderClientes();}}
+function excluirCliente(id){if(confirm('EXCLUIR CLIENTE?')){dados.clientes=dados.clientes.filter(x=>x.id!==id);salvar();atualizarClientesLista();renderClientes();}}
 function baixarBackup(){const blob=new Blob([JSON.stringify(dados,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='backup-emprestimos.json';a.click();URL.revokeObjectURL(a.href);}
-function restaurarBackup(ev){const file=ev.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{try{const obj=JSON.parse(r.result);if(!obj.clientes||!obj.vales)throw Error();dados=obj;salvar();iniciar();toast('BACKUP RESTAURADO');}catch(e){toast('ARQUIVO INVÁLIDO');}};r.readAsText(file);}
+function restaurarBackup(ev){const file=ev.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{try{const obj=JSON.parse(r.result);if(!obj.clientes||!obj.vales)throw Error();dados=obj;normalizarDados();salvar();iniciar();toast('BACKUP RESTAURADO');}catch(e){toast('ARQUIVO INVÁLIDO');}};r.readAsText(file);}
 function limparTudo(){if(confirm('APAGAR TODOS OS DADOS?')){dados={clientes:[],vales:[],tema:dados.tema};salvar();iniciar();}}
 function alternarTema(){dados.tema=dados.tema==='dark'?'claro':'dark';salvar();aplicarTema();}
 function aplicarTema(){document.body.classList.toggle('dark',dados.tema==='dark');}
 function iniciarDatas(){const hoje=new Date();$('dataInicial').value=dataInput(hoje);const fim=new Date(hoje);fim.setDate(fim.getDate()+30);$('dataFinal').value=dataInput(fim);}
-function iniciar(){aplicarTema();atualizarClientesLista();renderClientes();renderHistorico();iniciarDatas();calcular();}
-$('valor').addEventListener('input',()=>moedaInput($('valor')));$('juros').addEventListener('blur',taxaInput);$('juros').addEventListener('input',calcular);$('dataInicial').addEventListener('change',()=>{const i=new Date($('dataInicial').value+'T00:00:00');if(!isNaN(i)){i.setDate(i.getDate()+30);$('dataFinal').value=dataInput(i);}calcular();});$('dataFinal').addEventListener('change',calcular);document.querySelectorAll("input:not([type='date']):not(#valor):not(#juros), textarea").forEach(e=>e.addEventListener('input',()=>maiusculo(e)));
+function iniciar(){normalizarDados();salvar();aplicarTema();atualizarClientesLista();renderClientes();renderHistorico();iniciarDatas();calcular();}
+$('valor').addEventListener('input',()=>moedaInput($('valor')));$('juros').addEventListener('blur',taxaInput);$('juros').addEventListener('input',calcular);$('telefoneCliente').addEventListener('input',()=>maskTelefone($('telefoneCliente')));$('dataInicial').addEventListener('change',()=>{const i=new Date($('dataInicial').value+'T00:00:00');if(!isNaN(i)){i.setDate(i.getDate()+30);$('dataFinal').value=dataInput(i);}calcular();});$('dataFinal').addEventListener('change',calcular);document.querySelectorAll("input:not([type='date']):not(#valor):not(#juros):not(#telefoneCliente), textarea").forEach(e=>e.addEventListener('input',()=>maiusculo(e)));
 iniciar();
 </script>
 </body>
