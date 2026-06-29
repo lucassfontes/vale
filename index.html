@@ -3,305 +3,197 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Vale de Cliente</title>
+<meta name="theme-color" content="#00a9d9">
+<title>Sistema de Empréstimos</title>
 <style>
 :root{
-    --azul:#00a9d9;
-    --azul-escuro:#007fa6;
-    --fundo:#eef7fb;
-    --texto:#0f172a;
-    --muted:#64748b;
-    --borda:#b7e8f8;
-    --card:#ffffff;
-    --campo:#ffffff;
-    --sombra:0 18px 45px rgba(15,23,42,.15);
-    --sucesso:#16a34a;
-    --perigo:#dc2626;
+  --primary:#00a9d9;--primary-dark:#007fa6;--bg:#eef7fb;--card:#fff;--text:#0f172a;--muted:#64748b;--border:#b7e8f8;--field:#fff;--shadow:0 18px 45px rgba(15,23,42,.14);--ok:#16a34a;--warn:#f59e0b;--bad:#dc2626;--chip:#e0f7ff;
 }
-body.dark{
-    --fundo:#020617;
-    --texto:#e5e7eb;
-    --muted:#94a3b8;
-    --borda:#155e75;
-    --card:#0f172a;
-    --campo:#111827;
-    --sombra:0 18px 45px rgba(0,0,0,.45);
-}
-*{box-sizing:border-box;margin:0;padding:0;font-family:Arial, Helvetica, sans-serif;text-transform:uppercase;}
-html{-webkit-text-size-adjust:100%;}
-body{
-    min-height:100vh;min-height:100dvh;
-    background:linear-gradient(180deg,#dff7ff 0%,var(--fundo) 48%,#f8fafc 100%);
-    color:var(--texto);
-    padding:clamp(8px,3vw,24px);
-    padding-top:max(clamp(8px,3vw,24px), env(safe-area-inset-top));
-    padding-bottom:max(clamp(8px,3vw,24px), env(safe-area-inset-bottom));
-    transition:.25s ease;
-}
-body.dark{background:linear-gradient(180deg,#082f49 0%,#020617 55%,#020617 100%);}
-.app{width:min(100%,720px);margin:0 auto;}
-.container{background:var(--card);border:1px solid rgba(0,169,217,.22);border-radius:28px;padding:clamp(15px,4vw,30px);box-shadow:var(--sombra);}
-.header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:20px;}
-h1{color:var(--azul);font-size:clamp(42px,13vw,76px);line-height:.9;letter-spacing:1px;}
-.subtitulo{margin-top:8px;color:var(--muted);font-size:clamp(11px,3vw,13px);font-weight:900;}
-.header-acoes{display:flex;flex-direction:column;gap:10px;align-items:flex-end;}
-.badge{background:#e0f7ff;border:1px solid var(--borda);color:#036985;font-weight:900;border-radius:999px;padding:10px 13px;font-size:12px;white-space:nowrap;box-shadow:0 6px 14px rgba(0,169,217,.15);}
-body.dark .badge{background:#083344;color:#67e8f9;}
-.tema{border:1px solid var(--borda);background:var(--campo);color:var(--texto);border-radius:999px;padding:9px 12px;font-weight:900;font-size:12px;cursor:pointer;width:auto;min-height:auto;}
-.form-grid{display:grid;grid-template-columns:1fr;gap:15px;}
-.campo{display:flex;flex-direction:column;gap:8px;min-width:0;}
-label{font-weight:900;color:var(--texto);font-size:clamp(12px,3.3vw,15px);display:flex;gap:8px;align-items:center;}
-.icone{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;background:#e0f7ff;font-size:15px;}
-body.dark .icone{background:#083344;}
-input,textarea,button{width:100%;max-width:100%;font-size:16px;}
-input,textarea{min-height:56px;padding:15px;border:2px solid var(--azul);border-radius:18px;background:var(--campo);color:var(--texto);outline:none;transition:.18s ease;box-shadow:0 8px 18px rgba(15,23,42,.04);}
-input::placeholder,textarea::placeholder{color:#94a3b8;}
-input:focus,textarea:focus{border-color:var(--azul-escuro);box-shadow:0 0 0 4px rgba(0,169,217,.18);transform:translateY(-1px);}
-input[readonly]{background:rgba(148,163,184,.12);color:#075985;font-weight:900;}
-body.dark input[readonly]{color:#67e8f9;}
+body.dark{--bg:#07111f;--card:#101827;--text:#e5e7eb;--muted:#94a3b8;--border:#1e40af;--field:#0b1220;--shadow:0 18px 45px rgba(0,0,0,.35);--chip:#0f2f45;}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;text-transform:uppercase;}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;}
+body{min-height:100vh;min-height:100dvh;background:linear-gradient(180deg,#dff7ff 0%,var(--bg) 55%,#f8fafc 100%);color:var(--text);padding:clamp(8px,3vw,22px);transition:.25s ease;}
+body.dark{background:linear-gradient(180deg,#04111f 0%,var(--bg) 60%,#020617 100%);}
+.app{width:min(100%,920px);margin:0 auto;padding-bottom:20px;}
+.card{background:var(--card);border:1px solid rgba(0,169,217,.24);border-radius:26px;padding:clamp(14px,4vw,28px);box-shadow:var(--shadow);animation:entrar .25s ease;}
+@keyframes entrar{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:18px;}
+h1{color:var(--primary);font-size:clamp(34px,11vw,64px);line-height:.9;letter-spacing:1px;}
+.sub{color:var(--muted);font-size:12px;font-weight:900;margin-top:7px;}
+.badge{background:var(--chip);border:1px solid var(--border);color:var(--primary-dark);font-weight:900;border-radius:999px;padding:9px 12px;font-size:12px;white-space:nowrap;}
+body.dark .badge{color:#67e8f9;}
+.nav{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;position:sticky;top:8px;z-index:5;background:rgba(238,247,251,.8);backdrop-filter:blur(8px);padding:8px;border-radius:18px;}
+body.dark .nav{background:rgba(7,17,31,.75);}
+.nav button,.mini-btn{border:none;border-radius:14px;padding:12px 8px;font-weight:900;background:var(--card);color:var(--text);box-shadow:0 6px 18px rgba(15,23,42,.08);cursor:pointer;transition:.15s;}
+.nav button.ativo{background:var(--primary);color:white;}
+button:active{transform:scale(.985)}
+.tela{display:none}.tela.ativa{display:block}
+.grid{display:grid;grid-template-columns:1fr;gap:14px;}
+.campo{display:flex;flex-direction:column;gap:7px;min-width:0;}
+label{font-weight:900;color:var(--text);font-size:clamp(12px,3.3vw,15px);}
+input,textarea,select,button{width:100%;max-width:100%;font-size:16px;}
+input,textarea,select{min-height:55px;padding:14px;border:2px solid var(--primary);border-radius:16px;background:var(--field);color:var(--text);outline:none;transition:.15s ease;}
+input:focus,textarea:focus,select:focus{border-color:var(--primary-dark);box-shadow:0 0 0 4px rgba(0,169,217,.18)}
 textarea{height:96px;resize:vertical;line-height:1.4;}
-.ajuda{color:var(--muted);font-size:12px;line-height:1.35;text-transform:none;}
-.preview{margin:18px 0 4px;background:linear-gradient(135deg,#e0f7ff,#fff);border:1px solid var(--borda);border-radius:22px;padding:16px;display:grid;gap:9px;}
-body.dark .preview{background:linear-gradient(135deg,#082f49,#0f172a);}
-.preview h2{font-size:16px;color:var(--azul-escuro);}
-body.dark .preview h2{color:#67e8f9;}
-.preview p{font-size:14px;line-height:1.45;color:var(--texto);}
-.botoes{margin-top:18px;position:sticky;bottom:max(10px, env(safe-area-inset-bottom));background:rgba(255,255,255,.88);backdrop-filter:blur(12px);padding:10px 0 2px;display:grid;grid-template-columns:1fr;gap:10px;}
-body.dark .botoes{background:rgba(15,23,42,.88);}
-button{min-height:56px;padding:15px;border:none;border-radius:18px;font-weight:900;color:#fff;background:#0f172a;cursor:pointer;touch-action:manipulation;letter-spacing:.4px;transition:.15s ease;}
-button:active{transform:translateY(1px);filter:brightness(.9);}
-.btn-azul{background:var(--azul-escuro);}
-.btn-verde{background:var(--sucesso);}
-.btn-perigo{background:var(--perigo);}
-.aviso{margin-top:12px;color:var(--muted);font-size:12px;text-align:center;text-transform:none;}
-.historico{margin-top:22px;border-top:1px solid var(--borda);padding-top:18px;}
-.historico-topo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
-.historico h2{font-size:18px;color:var(--texto);}
-.historico-lista{display:grid;gap:10px;}
-.item-historico{background:rgba(0,169,217,.08);border:1px solid var(--borda);border-radius:16px;padding:12px;display:grid;gap:6px;}
-.item-historico strong{font-size:14px;}
-.item-historico span{font-size:13px;color:var(--muted);}
-.vazio{color:var(--muted);font-size:13px;text-transform:none;}
-.print-vale{display:none;}
-@media (min-width:520px){.botoes{grid-template-columns:1fr 1fr}.btn-verde{grid-column:1 / -1}}
-@media (max-width:370px){body{padding:6px}.container{padding:12px;border-radius:20px}.header{flex-direction:column}.header-acoes{align-items:flex-start;flex-direction:row;flex-wrap:wrap}input,textarea{padding:12px;min-height:52px}.badge,.tema{font-size:11px}}
-@media print{
-    @page{size:A6 portrait;margin:8mm;}
-    body{background:white!important;padding:0;color:#000;}
-    .app,.container{width:100%;max-width:100%;margin:0;padding:0;box-shadow:none;border:0;background:white;}
-    .header,.form-grid,.botoes,.aviso,.historico,.preview{display:none!important;}
-    .print-vale{display:block;border:2px solid #58b7d8;border-radius:10px;padding:10px;font-size:12px;color:#000;}
-    .print-topo{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #58b7d8;padding-bottom:8px;margin-bottom:10px;}
-    .print-topo h1{font-size:34px;color:#58b7d8;}
-    .print-badge{border:1px solid #58b7d8;border-radius:999px;padding:5px 8px;font-weight:900;}
-    .print-linha{border-bottom:1px solid #444;min-height:26px;margin:9px 0;padding:3px 0;}
-    .print-label{font-size:10px;font-weight:900;color:#444;}
-    .print-assinatura{margin-top:25px;text-align:center;border-top:1px solid #000;padding-top:6px;}
-}
+.ajuda{color:var(--muted);font-size:12px;line-height:1.3;text-transform:none;}
+.btn{min-height:56px;border:none;border-radius:16px;padding:15px;font-weight:900;color:white;background:#0f172a;cursor:pointer;letter-spacing:.3px;}
+.btn.primary{background:var(--primary)}.btn.ok{background:var(--ok)}.btn.bad{background:var(--bad)}.btn.light{background:var(--chip);color:var(--text);border:1px solid var(--border)}
+.actions{display:grid;grid-template-columns:1fr;gap:10px;margin-top:16px;}
+@media(min-width:620px){.actions{grid-template-columns:1fr 1fr}.cards-estat{grid-template-columns:repeat(3,1fr)!important}.lista{grid-template-columns:1fr 1fr!important}}
+.cards-estat{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:16px;}
+.stat{background:var(--chip);border:1px solid var(--border);border-radius:18px;padding:14px;}
+.stat span{display:block;color:var(--muted);font-size:12px;font-weight:900;margin-bottom:6px}.stat strong{font-size:21px;color:var(--text)}
+.search{margin-bottom:14px;}
+.lista{display:grid;grid-template-columns:1fr;gap:12px;}
+.item{border:1px solid var(--border);background:var(--card);border-radius:18px;padding:14px;box-shadow:0 6px 20px rgba(15,23,42,.07);}
+.item-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px;}
+.item h3{font-size:16px;overflow-wrap:anywhere;}.item p{color:var(--muted);font-size:13px;line-height:1.6;}
+.status{border-radius:999px;padding:6px 9px;font-size:11px;font-weight:900;color:white;white-space:nowrap}.pago{background:var(--ok)}.aberto{background:var(--warn)}.atrasado{background:var(--bad)}
+.row-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.row-btns.three{grid-template-columns:1fr 1fr 1fr}.row-btns.four{grid-template-columns:1fr 1fr}.row-btns button{min-height:42px;border-radius:12px;border:none;font-weight:900;cursor:pointer;background:var(--chip);color:var(--text);}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#0f172a;color:white;padding:12px 16px;border-radius:999px;font-weight:900;z-index:50;display:none;text-align:center;max-width:92%;}
+.footer-note{text-align:center;color:var(--muted);font-size:12px;margin-top:14px;text-transform:none;}
+@media(max-width:380px){body{padding:6px}.card{padding:12px;border-radius:18px}.header{flex-direction:column}.nav{grid-template-columns:repeat(2,1fr)}input,textarea,select{padding:12px;min-height:50px}.row-btns,.row-btns.three{grid-template-columns:1fr}}
+@media print{body{background:#fff;padding:0}.app,.nav,.tela,.toast{display:none!important}.print-only{display:block!important}}
+.print-only{display:none}
 </style>
 </head>
 <body>
-<main class="app">
-<section class="container">
-    <div class="header">
-        <div>
-            <h1>VALE</h1>
-            <div class="subtitulo">CONTROLE DE CLIENTES E JUROS</div>
-        </div>
-        <div class="header-acoes">
-            <div class="badge"><span id="diasPrazo">30</span> DIAS</div>
-            <button class="tema" type="button" onclick="alternarTema()">🌙 MODO ESCURO</button>
-        </div>
+<div class="app">
+  <div class="nav">
+    <button id="tabEmp" class="ativo" onclick="abrirTela('emprestimo')">💰 Novo</button>
+    <button id="tabHist" onclick="abrirTela('historico')">📜 Histórico</button>
+    <button id="tabCli" onclick="abrirTela('clientes')">👤 Clientes</button>
+    <button id="tabBack" onclick="abrirTela('backup')">📂 Backup</button>
+  </div>
+
+  <section id="emprestimo" class="tela ativa card">
+    <div class="header"><div><h1>VALE</h1><div class="sub">SISTEMA DE EMPRÉSTIMOS</div></div><div class="badge"><span id="diasBadge">30</span> DIAS</div></div>
+    <div class="grid">
+      <div class="campo"><label>👤 Cliente</label><input list="clientesLista" id="cliente" placeholder="DIGITE OU ESCOLHA O CLIENTE" autocomplete="off"><div class="ajuda">Digite um cliente novo ou escolha da lista.</div><datalist id="clientesLista"></datalist></div>
+      <div class="campo"><label>💰 Valor do Empréstimo</label><input id="valor" inputmode="numeric" placeholder="R$ 0,00"></div>
+      <div class="campo"><label>📈 Taxa de Juros</label><input id="juros" inputmode="decimal" placeholder="30%" value="30%"></div>
+      <div class="campo"><label>💵 Valor com Juros</label><input id="valorComTaxa" readonly placeholder="R$ 0,00"></div>
+      <div class="campo"><label>📅 Data Inicial</label><input type="date" id="dataInicial"></div>
+      <div class="campo"><label>📅 Data Final</label><input type="date" id="dataFinal"></div>
+      <div class="campo"><label>📝 Observação</label><textarea id="observacao" placeholder="DIGITE ALGUMA OBSERVAÇÃO..."></textarea></div>
     </div>
-
-    <div class="form-grid">
-        <div class="campo">
-            <label for="cliente"><span class="icone">👤</span> Cliente</label>
-            <input list="clientes" id="cliente" placeholder="DIGITE OU ESCOLHA O CLIENTE" autocomplete="off">
-            <div class="ajuda">Digite o nome para buscar na lista ou escreva um novo cliente.</div>
-        </div>
-
-        <datalist id="clientes">
-            <option value="LUCAS FONTES"></option><option value="RUAN CARLOS"></option><option value="MARIA SILVA"></option><option value="JOSÉ PEREIRA"></option><option value="ANA SOUZA"></option><option value="CARLOS ALBERTO"></option><option value="JOÃO PEDRO"></option><option value="FERNANDA OLIVEIRA"></option><option value="RICARDO SANTOS"></option><option value="JULIANA LIMA"></option>
-        </datalist>
-
-        <div class="campo">
-            <label for="valor"><span class="icone">💰</span> Valor do Empréstimo (R$)</label>
-            <input type="text" id="valor" inputmode="numeric" placeholder="R$ 0,00" autocomplete="off">
-        </div>
-
-        <div class="campo">
-            <label for="juros"><span class="icone">📈</span> Taxa de Juros (%)</label>
-            <input type="text" id="juros" value="30%" inputmode="decimal" autocomplete="off">
-        </div>
-
-        <div class="campo">
-            <label for="valorComTaxa"><span class="icone">💵</span> Valor com Taxa (R$)</label>
-            <input type="text" id="valorComTaxa" value="R$ 0,00" readonly>
-        </div>
-
-        <div class="campo">
-            <label for="dataInicial"><span class="icone">📅</span> Data Inicial</label>
-            <input type="date" id="dataInicial">
-        </div>
-
-        <div class="campo">
-            <label for="dataFinal"><span class="icone">📅</span> Data Final</label>
-            <input type="date" id="dataFinal">
-        </div>
-
-        <div class="campo">
-            <label for="observacao"><span class="icone">📝</span> Observação</label>
-            <textarea id="observacao" placeholder="DIGITE ALGUMA OBSERVAÇÃO..."></textarea>
-        </div>
+    <div class="actions">
+      <button id="btnImprimir" class="btn primary" onclick="imprimirESalvar()">🖨️ IMPRIMIR VALE</button>
+      <button id="btnAtualizar" class="btn ok" style="display:none" onclick="atualizarValeEditado()">💾 SALVAR ALTERAÇÃO</button>
+      <button id="btnCancelarEdicao" class="btn light" style="display:none" onclick="cancelarEdicao()">CANCELAR EDIÇÃO</button>
+      <button class="btn light" onclick="limparFormulario()">LIMPAR</button>
     </div>
+    <div class="footer-note">Ao imprimir, o vale é salvo automaticamente no histórico.</div>
+  </section>
 
-    <div class="preview" id="preview">
-        <h2>PRÉVIA DO VALE</h2>
-        <p id="textoPreview">PREENCHA OS DADOS PARA GERAR A PRÉVIA.</p>
+  <section id="historico" class="tela card">
+    <div class="header"><div><h1>HISTÓRICO</h1><div class="sub">CONTROLE DOS EMPRÉSTIMOS</div></div><div class="badge" id="qtdVales">0 VALES</div></div>
+    <div class="cards-estat">
+      <div class="stat"><span>TOTAL EMPRESTADO</span><strong id="statEmprestado">R$ 0,00</strong></div>
+      <div class="stat"><span>TOTAL A RECEBER</span><strong id="statReceber">R$ 0,00</strong></div>
+      <div class="stat"><span>EM ABERTO</span><strong id="statAberto">R$ 0,00</strong></div>
     </div>
+    <input class="search" id="buscaHistorico" placeholder="🔍 PESQUISAR CLIENTE" oninput="renderHistorico()">
+    <div id="listaHistorico" class="lista"></div>
+  </section>
 
-    <div class="botoes">
-        <button class="btn-azul" type="button" onclick="imprimirVale()">🖨️ IMPRIMIR VALE</button>
-        <button type="button" onclick="copiarWhatsApp()">📋 COPIAR WHATSAPP</button>
-        <button class="btn-verde" type="button" onclick="adicionarHistorico()">💾 GUARDAR NO HISTÓRICO</button>
+  <section id="clientes" class="tela card">
+    <div class="header"><div><h1>CLIENTES</h1><div class="sub">CADASTRO SIMPLES</div></div></div>
+    <div class="grid"><div class="campo"><label>👤 Nome do Cliente</label><input id="novoCliente" placeholder="NOME DO CLIENTE"></div></div>
+    <div class="actions"><button class="btn primary" onclick="adicionarCliente()">ADICIONAR CLIENTE</button></div>
+    <input class="search" id="buscaCliente" placeholder="🔍 PESQUISAR CLIENTE" oninput="renderClientes()" style="margin-top:16px">
+    <div id="listaClientes" class="lista"></div>
+  </section>
+
+  <section id="backup" class="tela card">
+    <div class="header"><div><h1>BACKUP</h1><div class="sub">SALVAR E RESTAURAR DADOS</div></div><button class="mini-btn" onclick="alternarTema()">🌙 MODO</button></div>
+    <div class="grid">
+      <button class="btn primary" onclick="baixarBackup()">📂 BAIXAR BACKUP JSON</button>
+      <div class="campo"><label>📥 Restaurar Backup</label><input type="file" id="arquivoBackup" accept="application/json" onchange="restaurarBackup(event)"><div class="ajuda">Escolha o arquivo JSON salvo anteriormente.</div></div>
+      <button class="btn bad" onclick="limparTudo()">APAGAR TODOS OS DADOS</button>
     </div>
-
-    <div class="historico">
-        <div class="historico-topo">
-            <h2>HISTÓRICO</h2>
-            <button class="tema btn-perigo" type="button" onclick="limparHistorico()">LIMPAR</button>
-        </div>
-        <div class="historico-lista" id="historicoLista"></div>
-    </div>
-
-    <div class="aviso">Os textos são convertidos automaticamente para maiúsculas. O histórico fica salvo apenas neste navegador.</div>
-
-    <div class="print-vale" id="printVale">
-        <div class="print-topo"><h1>VALE</h1><div class="print-badge"><span id="pDias">30</span> DIAS</div></div>
-        <div class="print-label">CLIENTE</div><div class="print-linha" id="pCliente"></div>
-        <div class="print-label">VALOR DO EMPRÉSTIMO</div><div class="print-linha" id="pValor"></div>
-        <div class="print-label">TAXA DE JUROS</div><div class="print-linha" id="pJuros"></div>
-        <div class="print-label">VALOR COM TAXA</div><div class="print-linha" id="pTotal"></div>
-        <div class="print-label">DATA INICIAL / DATA FINAL</div><div class="print-linha" id="pDatas"></div>
-        <div class="print-label">OBSERVAÇÃO</div><div class="print-linha" id="pObs"></div>
-        <div class="print-assinatura">ASSINATURA</div>
-    </div>
-</section>
-</main>
+  </section>
+</div>
+<div id="toast" class="toast"></div>
 
 <script>
-const valor=document.getElementById('valor'),juros=document.getElementById('juros'),valorComTaxa=document.getElementById('valorComTaxa'),dataInicial=document.getElementById('dataInicial'),dataFinal=document.getElementById('dataFinal'),cliente=document.getElementById('cliente'),diasPrazo=document.getElementById('diasPrazo'),observacao=document.getElementById('observacao');
-const historicoLista=document.getElementById('historicoLista'),textoPreview=document.getElementById('textoPreview');
-
+const LS='sistema_emprestimos_v3';
+let dados=JSON.parse(localStorage.getItem(LS)||'{"clientes":["LUCAS FONTES","RUAN CARLOS","MARIA SILVA"],"vales":[],"tema":"claro"}');
+const $=id=>document.getElementById(id);
+let editandoId=null;
+function salvar(){localStorage.setItem(LS,JSON.stringify(dados));}
+function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',2200);}
+function moedaNumero(str){return Number(String(str||'').replace(/\D/g,''))/100;}
 function moeda(v){return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
+function moedaInput(el){el.value=moeda(moedaNumero(el.value));calcular();}
+function taxaNumero(){return parseFloat(String($('juros').value||'').replace(',','.').replace('%',''))||0;}
+function taxaInput(){let n=taxaNumero();$('juros').value=(String(n).replace('.',','))+'%';calcular();}
 function dataInput(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function dataBR(t){if(!t)return'--/--/----';const p=t.split('-');return `${p[2]}/${p[1]}/${p[0]}`;}
-function apenasNumeros(texto){return String(texto||'').replace(/\D/g,'');}
-function valorParaNumero(texto){const limpo=String(texto||'').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.');return parseFloat(limpo)||0;}
-function porcentagemParaNumero(texto){const limpo=String(texto||'').replace(/[^\d,.-]/g,'').replace(',','.');return parseFloat(limpo)||0;}
+function diasEntre(){const i=$('dataInicial').value,f=$('dataFinal').value;if(!i||!f)return 0;return Math.round((new Date(f+'T00:00:00')-new Date(i+'T00:00:00'))/86400000);}
+function diasVale(v){if(!v.dataInicial||!v.dataFinal)return 0;return Math.round((new Date(v.dataFinal+'T00:00:00')-new Date(v.dataInicial+'T00:00:00'))/86400000);}
+function calcular(){const v=moedaNumero($('valor').value),j=taxaNumero(),total=v+(v*j/100);$('valorComTaxa').value=moeda(total);$('diasBadge').textContent=diasEntre()||0;}
+function maiusculo(el){const i=el.selectionStart,f=el.selectionEnd;el.value=el.value.toUpperCase();try{el.setSelectionRange(i,f)}catch(e){}}
+function abrirTela(id){document.querySelectorAll('.tela').forEach(t=>t.classList.remove('ativa'));$(id).classList.add('ativa');document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('ativo'));({emprestimo:'tabEmp',historico:'tabHist',clientes:'tabCli',backup:'tabBack'}[id]&&$(({emprestimo:'tabEmp',historico:'tabHist',clientes:'tabCli',backup:'tabBack'}[id])).classList.add('ativo')); if(id==='historico')renderHistorico(); if(id==='clientes')renderClientes();}
+function atualizarClientesLista(){const dl=$('clientesLista');dl.innerHTML='';dados.clientes.sort().forEach(c=>{const o=document.createElement('option');o.value=c;dl.appendChild(o);});}
+function novoVale(){const cliente=$('cliente').value.trim().toUpperCase();return {id:'V'+Date.now(),cliente,valor:moedaNumero($('valor').value),juros:taxaNumero(),total:moedaNumero($('valorComTaxa').value),dataInicial:$('dataInicial').value,dataFinal:$('dataFinal').value,observacao:$('observacao').value.trim().toUpperCase(),status:'ABERTO',criadoEm:new Date().toISOString()};}
+function validarVale(v){if(!v.cliente)return 'INFORME O CLIENTE'; if(v.valor<=0)return 'INFORME O VALOR DO EMPRÉSTIMO'; if(!v.dataInicial||!v.dataFinal)return 'INFORME AS DATAS'; return '';}
+function salvarVale(v){if(!dados.clientes.includes(v.cliente))dados.clientes.push(v.cliente);dados.vales.unshift(v);salvar();atualizarClientesLista();}
+function imprimirESalvar(){const v=novoVale(),erro=validarVale(v);if(erro){toast(erro);return;}salvarVale(v);imprimirVale(v);toast('VALE SALVO NO HISTÓRICO');}
+function imprimirVale(v){const w=window.open('','_blank','width=420,height=650');w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Vale</title><style>@page{size:A6;margin:8mm}*{box-sizing:border-box;font-family:Arial;text-transform:uppercase}body{margin:0}.vale{border:2px solid #111;border-radius:10px;padding:14px;min-height:100mm}.top{text-align:center;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px}h1{font-size:38px;margin:0}.linha{margin:10px 0}.rot{font-size:11px;font-weight:bold;color:#555}.val{font-size:18px;font-weight:bold;border-bottom:1px solid #999;padding:5px 0;min-height:30px}.duo{display:grid;grid-template-columns:1fr 1fr;gap:12px}.obs{min-height:55px}.assinatura{margin-top:34px;text-align:center}.assinatura div{border-top:1px solid #111;padding-top:8px;font-weight:bold}@media print{button{display:none}}</style></head><body onload="window.print();setTimeout(()=>window.close(),500)"><div class="vale"><div class="top"><h1>VALE</h1><strong>${diasVale(v)} DIAS</strong></div><div class="linha"><div class="rot">Cliente</div><div class="val">${v.cliente}</div></div><div class="duo"><div class="linha"><div class="rot">Valor do empréstimo</div><div class="val">${moeda(v.valor)}</div></div><div class="linha"><div class="rot">Total com juros</div><div class="val">${moeda(v.total)}</div></div></div><div class="duo"><div class="linha"><div class="rot">Juros</div><div class="val">${String(v.juros).replace('.',',')}%</div></div><div class="linha"><div class="rot">Status</div><div class="val">${v.status}</div></div></div><div class="duo"><div class="linha"><div class="rot">Data inicial</div><div class="val">${dataBR(v.dataInicial)}</div></div><div class="linha"><div class="rot">Vencimento</div><div class="val">${dataBR(v.dataFinal)}</div></div></div><div class="linha"><div class="rot">Observação</div><div class="val obs">${v.observacao||' '}</div></div><div class="assinatura"><div>ASSINATURA DO CLIENTE</div></div></div></body></html>`);w.document.close();}
+function limparFormulario(){$('cliente').value='';$('valor').value='';$('juros').value='30%';$('valorComTaxa').value='';$('observacao').value='';iniciarDatas();calcular();}
+function statusVale(v){if(v.status==='PAGO')return 'pago';const hoje=dataInput(new Date());return v.dataFinal<hoje?'atrasado':'aberto';}
+function renderHistorico(){const q=($('buscaHistorico').value||'').toUpperCase();const lista=dados.vales.filter(v=>v.cliente.includes(q));$('qtdVales').textContent=dados.vales.length+' VALES';let emp=0,rec=0,ab=0;dados.vales.forEach(v=>{emp+=v.valor;rec+=v.total;if(v.status!=='PAGO')ab+=v.total;});$('statEmprestado').textContent=moeda(emp);$('statReceber').textContent=moeda(rec);$('statAberto').textContent=moeda(ab);$('listaHistorico').innerHTML=lista.length?lista.map(v=>{const s=statusVale(v);return `<div class="item"><div class="item-top"><h3>${v.cliente}</h3><span class="status ${s}">${v.status==='PAGO'?'PAGO':s==='atrasado'?'ATRASADO':'ABERTO'}</span></div><p>VALOR: <b>${moeda(v.valor)}</b><br>TOTAL: <b>${moeda(v.total)}</b><br>VENCIMENTO: ${dataBR(v.dataFinal)}<br>JUROS: ${String(v.juros).replace('.',',')}%</p><div class="row-btns four"><button onclick="editarVale('${v.id}')">EDITAR</button><button onclick="reimprimir('${v.id}')">IMPRIMIR</button><button onclick="marcarPago('${v.id}')">${v.status==='PAGO'?'ABRIR':'RECEBIDO'}</button><button onclick="excluirVale('${v.id}')">EXCLUIR</button></div></div>`}).join(''):'<div class="ajuda">NENHUM VALE ENCONTRADO.</div>';}
 
-function aplicarMascaraMoeda(campo){const numeros=apenasNumeros(campo.value);const centavos=(parseInt(numeros||'0',10)/100);campo.value=moeda(centavos);}
-function aplicarMascaraPorcentagem(campo){let v=String(campo.value||'').replace(/[^\d,.]/g,'').replace('.',',');const partes=v.split(',');if(partes.length>1){v=partes[0]+','+partes.slice(1).join('').slice(0,2);}v=v.replace(/^0+(?=\d)/,'');campo.value=v?`${v}%`:'';}
-function calcular(){const v=valorParaNumero(valor.value),j=porcentagemParaNumero(juros.value);valorComTaxa.value=moeda(v+(v*j/100));atualizarTudo();}
-function calcularDiasPrazo(){if(!dataInicial.value||!dataFinal.value){diasPrazo.textContent='0';return;}const inicio=new Date(dataInicial.value+'T00:00:00'),fim=new Date(dataFinal.value+'T00:00:00');diasPrazo.textContent=Math.round((fim-inicio)/(1000*60*60*24));}
-function atualizarDataFinal(){if(!dataInicial.value)return;const f=new Date(dataInicial.value+'T00:00:00');f.setDate(f.getDate()+30);dataFinal.value=dataInput(f);atualizarTudo();}
-function maiusculo(campo){const i=campo.selectionStart,f=campo.selectionEnd;campo.value=campo.value.toUpperCase();campo.setSelectionRange(i,f);atualizarTudo();}
-
-function dadosVale(){return{cliente:cliente.value||'NÃO INFORMADO',valor:valor.value||moeda(0),juros:juros.value||'0%',total:valorComTaxa.value||moeda(0),inicio:dataBR(dataInicial.value),fim:dataBR(dataFinal.value),dias:diasPrazo.textContent||'0',obs:observacao.value||'NENHUMA'}}
-function textoVale(){const d=dadosVale();return `VALE\n\nCLIENTE: ${d.cliente}\nVALOR DO EMPRÉSTIMO: ${d.valor}\nTAXA DE JUROS: ${d.juros}\nVALOR COM TAXA: ${d.total}\nPRAZO: ${d.dias} DIAS\nDATA INICIAL: ${d.inicio}\nDATA FINAL: ${d.fim}\nOBSERVAÇÃO: ${d.obs}`;}
-function atualizarPreview(){textoPreview.innerHTML=textoVale().replace(/\n/g,'<br>');}
-function atualizarPrint(){const d=dadosVale();document.getElementById('pDias').textContent=d.dias;document.getElementById('pCliente').textContent=d.cliente;document.getElementById('pValor').textContent=d.valor;document.getElementById('pJuros').textContent=d.juros;document.getElementById('pTotal').textContent=d.total;document.getElementById('pDatas').textContent=`${d.inicio} ATÉ ${d.fim}`;document.getElementById('pObs').textContent=d.obs;}
-function atualizarTudo(){calcularDiasPrazo();atualizarPreview();atualizarPrint();}
-
-
-function imprimirVale(){
-    atualizarTudo();
-    const d=dadosVale();
-    const html=`<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Imprimir Vale</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0;font-family:Arial, Helvetica, sans-serif;text-transform:uppercase;}
-body{background:#e5e7eb;padding:18px;color:#111827;}
-.pagina{width:105mm;min-height:148mm;margin:0 auto;background:white;padding:9mm;border-radius:12px;box-shadow:0 12px 35px rgba(0,0,0,.18);}
-.topo{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #00a9d9;padding-bottom:10px;margin-bottom:14px;}
-.titulo{font-size:42px;font-weight:900;color:#00a9d9;letter-spacing:2px;line-height:1;}
-.badge{border:2px solid #00a9d9;color:#036985;border-radius:999px;padding:7px 12px;font-weight:900;font-size:13px;}
-.info{display:grid;gap:11px;}
-.campo{border:1.8px solid #00a9d9;border-radius:12px;padding:8px 10px;min-height:45px;}
-.label{font-size:10px;font-weight:900;color:#475569;margin-bottom:4px;}
-.valor{font-size:18px;font-weight:900;color:#111827;word-break:break-word;}
-.duplo{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
-.obs{min-height:58px;}
-.assinatura{margin-top:26px;text-align:center;padding-top:8px;border-top:1.6px solid #111827;font-weight:900;font-size:12px;}
-.rodape{margin-top:12px;text-align:center;font-size:10px;color:#64748b;text-transform:none;}
-.acoes{width:105mm;margin:12px auto 0;display:flex;gap:10px;}
-button{flex:1;border:0;border-radius:12px;padding:14px;font-weight:900;color:white;background:#0f172a;cursor:pointer;}
-@page{size:A6 portrait;margin:0;}
-@media print{body{background:white;padding:0}.pagina{width:105mm;min-height:148mm;box-shadow:none;border-radius:0}.acoes{display:none}}
-@media(max-width:520px){body{padding:8px}.pagina,.acoes{width:100%}.pagina{min-height:auto;padding:16px}.titulo{font-size:36px}.duplo{grid-template-columns:1fr}}
-</style>
-</head>
-<body>
-<div class="pagina">
-    <div class="topo">
-        <div class="titulo">VALE</div>
-        <div class="badge">${d.dias} DIAS</div>
-    </div>
-    <div class="info">
-        <div class="campo"><div class="label">CLIENTE</div><div class="valor">${d.cliente}</div></div>
-        <div class="campo"><div class="label">VALOR DO EMPRÉSTIMO</div><div class="valor">${d.valor}</div></div>
-        <div class="duplo">
-            <div class="campo"><div class="label">TAXA DE JUROS</div><div class="valor">${d.juros}</div></div>
-            <div class="campo"><div class="label">TOTAL A PAGAR</div><div class="valor">${d.total}</div></div>
-        </div>
-        <div class="duplo">
-            <div class="campo"><div class="label">DATA INICIAL</div><div class="valor">${d.inicio}</div></div>
-            <div class="campo"><div class="label">DATA FINAL</div><div class="valor">${d.fim}</div></div>
-        </div>
-        <div class="campo obs"><div class="label">OBSERVAÇÃO</div><div class="valor">${d.obs}</div></div>
-    </div>
-    <div class="assinatura">ASSINATURA</div>
-    <div class="rodape">Vale gerado pelo sistema de controle de clientes.</div>
-</div>
-<div class="acoes">
-    <button onclick="window.print()">IMPRIMIR</button>
-    <button onclick="window.close()">FECHAR</button>
-</div>
-<script>window.onload=()=>setTimeout(()=>window.print(),300);<\/script>
-</body>
-</html>`;
-    const janela=window.open('', '_blank', 'width=430,height=700');
-    if(!janela){alert('PERMITA POP-UPS PARA IMPRIMIR O VALE.');return;}
-    janela.document.open();
-    janela.document.write(html);
-    janela.document.close();
+function modoEdicao(ativo){
+  $('btnAtualizar').style.display=ativo?'block':'none';
+  $('btnCancelarEdicao').style.display=ativo?'block':'none';
+  $('btnImprimir').style.display=ativo?'none':'block';
+  document.querySelector('#emprestimo .sub').textContent=ativo?'EDITANDO VALE DO HISTÓRICO':'SISTEMA DE EMPRÉSTIMOS';
 }
+function editarVale(id){
+  const v=dados.vales.find(x=>x.id===id);
+  if(!v){toast('VALE NÃO ENCONTRADO');return;}
+  editandoId=id;
+  $('cliente').value=v.cliente||'';
+  $('valor').value=moeda(v.valor||0);
+  $('juros').value=String(v.juros||0).replace('.',',')+'%';
+  $('valorComTaxa').value=moeda(v.total||0);
+  $('dataInicial').value=v.dataInicial||'';
+  $('dataFinal').value=v.dataFinal||'';
+  $('observacao').value=v.observacao||'';
+  calcular();modoEdicao(true);abrirTela('emprestimo');toast('EDITE OS DADOS E SALVE A ALTERAÇÃO');
+}
+function atualizarValeEditado(){
+  if(!editandoId){toast('NENHUM VALE EM EDIÇÃO');return;}
+  const idx=dados.vales.findIndex(x=>x.id===editandoId);
+  if(idx<0){toast('VALE NÃO ENCONTRADO');return;}
+  const atual=dados.vales[idx];
+  const novo=novoVale();
+  const erro=validarVale(novo);
+  if(erro){toast(erro);return;}
+  dados.vales[idx]={...atual,...novo,id:atual.id,status:atual.status,criadoEm:atual.criadoEm,editadoEm:new Date().toISOString()};
+  if(!dados.clientes.includes(novo.cliente))dados.clientes.push(novo.cliente);
+  salvar();atualizarClientesLista();renderHistorico();modoEdicao(false);editandoId=null;limparFormulario();abrirTela('historico');toast('VALE ALTERADO COM SUCESSO');
+}
+function cancelarEdicao(){editandoId=null;modoEdicao(false);limparFormulario();toast('EDIÇÃO CANCELADA');}
 
-async function copiarWhatsApp(){try{await navigator.clipboard.writeText(textoVale());alert('DADOS DO VALE COPIADOS PARA O WHATSAPP.');}catch(e){prompt('COPIE O TEXTO ABAIXO:',textoVale());}}
-function carregarHistorico(){return JSON.parse(localStorage.getItem('historicoVales')||'[]');}
-function salvarHistorico(lista){localStorage.setItem('historicoVales',JSON.stringify(lista));}
-function adicionarHistorico(){const lista=carregarHistorico();lista.unshift({...dadosVale(),criadoEm:new Date().toLocaleString('pt-BR')});salvarHistorico(lista.slice(0,50));renderHistorico();alert('VALE GUARDADO NO HISTÓRICO.');}
-function limparHistorico(){if(confirm('DESEJA APAGAR TODO O HISTÓRICO?')){localStorage.removeItem('historicoVales');renderHistorico();}}
-function renderHistorico(){const lista=carregarHistorico();if(!lista.length){historicoLista.innerHTML='<div class="vazio">Nenhum vale guardado ainda.</div>';return;}historicoLista.innerHTML=lista.map((d,i)=>`<div class="item-historico"><strong>${d.cliente}</strong><span>${d.total} • ${d.dias} DIAS • ${d.fim}</span><span>CRIADO EM: ${d.criadoEm}</span></div>`).join('');}
-function alternarTema(){document.body.classList.toggle('dark');localStorage.setItem('temaVale',document.body.classList.contains('dark')?'dark':'light');document.querySelector('.tema').textContent=document.body.classList.contains('dark')?'☀️ MODO CLARO':'🌙 MODO ESCURO';}
-
-valor.addEventListener('input',()=>{aplicarMascaraMoeda(valor);calcular();});
-juros.addEventListener('input',()=>{aplicarMascaraPorcentagem(juros);calcular();});
-dataInicial.addEventListener('change',atualizarDataFinal);
-dataFinal.addEventListener('change',atualizarTudo);
-document.querySelectorAll("input:not(#valor):not(#juros):not([type='date']), textarea").forEach(c=>c.addEventListener('input',()=>maiusculo(c)));
-
-window.onload=()=>{
-    if(localStorage.getItem('temaVale')==='dark'){document.body.classList.add('dark');document.querySelector('.tema').textContent='☀️ MODO CLARO';}
-    juros.value='30%';valor.value='';valorComTaxa.value=moeda(0);
-    const hoje=new Date();dataInicial.value=dataInput(hoje);const fim=new Date(hoje);fim.setDate(fim.getDate()+30);dataFinal.value=dataInput(fim);
-    atualizarTudo();renderHistorico();
-};
+function reimprimir(id){const v=dados.vales.find(x=>x.id===id);if(v)imprimirVale(v);}
+function marcarPago(id){const v=dados.vales.find(x=>x.id===id);if(v){v.status=v.status==='PAGO'?'ABERTO':'PAGO';salvar();renderHistorico();}}
+function excluirVale(id){if(confirm('EXCLUIR ESTE VALE?')){dados.vales=dados.vales.filter(v=>v.id!==id);salvar();renderHistorico();}}
+function adicionarCliente(){const n=$('novoCliente').value.trim().toUpperCase();if(!n){toast('DIGITE O NOME');return;}if(!dados.clientes.includes(n))dados.clientes.push(n);$('novoCliente').value='';salvar();atualizarClientesLista();renderClientes();toast('CLIENTE ADICIONADO');}
+function renderClientes(){const q=($('buscaCliente').value||'').toUpperCase();const arr=dados.clientes.filter(c=>c.includes(q)).sort();$('listaClientes').innerHTML=arr.length?arr.map(c=>`<div class="item"><div class="item-top"><h3>${c}</h3></div><div class="row-btns"><button onclick="usarCliente('${c.replace(/'/g,"\\'")}')">USAR</button><button onclick="excluirCliente('${c.replace(/'/g,"\\'")}')">EXCLUIR</button></div></div>`).join(''):'<div class="ajuda">NENHUM CLIENTE ENCONTRADO.</div>';}
+function usarCliente(c){$('cliente').value=c;abrirTela('emprestimo');}
+function excluirCliente(c){if(confirm('EXCLUIR CLIENTE?')){dados.clientes=dados.clientes.filter(x=>x!==c);salvar();atualizarClientesLista();renderClientes();}}
+function baixarBackup(){const blob=new Blob([JSON.stringify(dados,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='backup-emprestimos.json';a.click();URL.revokeObjectURL(a.href);}
+function restaurarBackup(ev){const file=ev.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{try{const obj=JSON.parse(r.result);if(!obj.clientes||!obj.vales)throw Error();dados=obj;salvar();iniciar();toast('BACKUP RESTAURADO');}catch(e){toast('ARQUIVO INVÁLIDO');}};r.readAsText(file);}
+function limparTudo(){if(confirm('APAGAR TODOS OS DADOS?')){dados={clientes:[],vales:[],tema:dados.tema};salvar();iniciar();}}
+function alternarTema(){dados.tema=dados.tema==='dark'?'claro':'dark';salvar();aplicarTema();}
+function aplicarTema(){document.body.classList.toggle('dark',dados.tema==='dark');}
+function iniciarDatas(){const hoje=new Date();$('dataInicial').value=dataInput(hoje);const fim=new Date(hoje);fim.setDate(fim.getDate()+30);$('dataFinal').value=dataInput(fim);}
+function iniciar(){aplicarTema();atualizarClientesLista();renderClientes();renderHistorico();iniciarDatas();calcular();}
+$('valor').addEventListener('input',()=>moedaInput($('valor')));$('juros').addEventListener('blur',taxaInput);$('juros').addEventListener('input',calcular);$('dataInicial').addEventListener('change',()=>{const i=new Date($('dataInicial').value+'T00:00:00');if(!isNaN(i)){i.setDate(i.getDate()+30);$('dataFinal').value=dataInput(i);}calcular();});$('dataFinal').addEventListener('change',calcular);document.querySelectorAll("input:not([type='date']):not(#valor):not(#juros), textarea").forEach(e=>e.addEventListener('input',()=>maiusculo(e)));
+iniciar();
 </script>
 </body>
 </html>
