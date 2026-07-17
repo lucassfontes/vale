@@ -467,6 +467,60 @@
 <script src="js/app.js?v=20260716-alertas-compactos-v2"></script>
 <script src="js/auth-ui.js?v=20260716-alertas-compactos-v2"></script>
 <script src="js/bootstrap-enhance.js?v=20260712-standard-v4"></script>
-<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('service-worker.js').catch(()=>{});}</script>
+<script>
+(function () {
+  if (!('serviceWorker' in navigator)) return;
+
+  let recarregandoPorAtualizacao = false;
+
+  // Quando o novo Service Worker assumir o controle, recarrega uma única vez.
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (recarregandoPorAtualizacao) return;
+    recarregandoPorAtualizacao = true;
+    window.location.reload();
+  });
+
+  window.addEventListener('load', async function () {
+    try {
+      const registro = await navigator.serviceWorker.register(
+        'service-worker.js?v=20260717-auto-update-v1',
+        { updateViaCache: 'none' }
+      );
+
+      const ativarNovaVersao = function (worker) {
+        if (!worker) return;
+        worker.addEventListener('statechange', function () {
+          if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+            worker.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      };
+
+      if (registro.waiting) {
+        registro.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+
+      registro.addEventListener('updatefound', function () {
+        ativarNovaVersao(registro.installing);
+      });
+
+      const verificarAtualizacao = function () {
+        if (navigator.onLine) registro.update().catch(function () {});
+      };
+
+      // Verifica ao abrir, voltar ao app e periodicamente enquanto estiver aberto.
+      verificarAtualizacao();
+      window.addEventListener('focus', verificarAtualizacao);
+      window.addEventListener('online', verificarAtualizacao);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') verificarAtualizacao();
+      });
+      setInterval(verificarAtualizacao, 15 * 60 * 1000);
+    } catch (_) {
+      // O sistema continua funcionando normalmente mesmo sem suporte a PWA.
+    }
+  });
+})();
+</script>
 </body>
 </html>
