@@ -1,5 +1,5 @@
 /** VALLE PWA — atualização automática no celular + suporte offline */
-const CACHE = 'valle-auto-update-20260717-v2-safearea';
+const CACHE = 'valle-auto-update-20260717-v7-preview-no-gaps';
 const APP_SHELL = [
   './', './index.html', './manifest.json', './favicon.ico',
   './vendor/bootstrap/bootstrap.min.css', './vendor/bootstrap/bootstrap.bundle.min.js',

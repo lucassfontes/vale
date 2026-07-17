@@ -2805,29 +2805,35 @@ function ensurePdfPreviewModal() {
   modal.id = 'pdfPreviewOverlay';
   modal.className = 'pdf-preview-overlay';
   modal.innerHTML = `
-    <div class="pdf-preview-modal" role="dialog" aria-modal="true" aria-labelledby="pdfPreviewTitle">
-      <div class="pdf-preview-head">
-        <div>
-          <h3 id="pdfPreviewTitle">📄 Pré-visualização do vale</h3>
-          <small id="pdfPreviewSub">Confira o PDF antes de baixar ou imprimir</small>
+    <div class="pdf-preview-modal card border-0 shadow-lg bootstrap-only-ui" role="dialog" aria-modal="true" aria-labelledby="pdfPreviewTitle">
+      <div class="pdf-preview-head card-header d-flex align-items-center gap-3">
+        <span class="pdf-preview-head-icon d-inline-flex align-items-center justify-content-center flex-shrink-0" aria-hidden="true">
+          <i class="bi bi-file-earmark-pdf-fill"></i>
+        </span>
+        <div class="pdf-preview-head-copy flex-grow-1 min-w-0">
+          <h3 id="pdfPreviewTitle" class="mb-1">PRÉ-VISUALIZAÇÃO DO VALE</h3>
+          <small id="pdfPreviewSub">CONFIRA O DOCUMENTO ANTES DE BAIXAR OU IMPRIMIR</small>
         </div>
-        <button type="button" class="pdf-preview-close" id="pdfPreviewCloseBtn" aria-label="Fechar">✕</button>
+        <span class="badge pdf-preview-head-badge d-none d-sm-inline-flex align-items-center gap-2 rounded-pill">
+          <i class="bi bi-receipt"></i> VALE
+        </span>
+        <button type="button" class="btn btn-outline-light pdf-preview-close d-inline-flex align-items-center justify-content-center" id="pdfPreviewCloseBtn" aria-label="Fechar">
+          <i class="bi bi-x-lg"></i>
+        </button>
       </div>
-      <div class="pdf-preview-body">
+      <div class="pdf-preview-body card-body">
         <div id="pdfPreviewPage" class="pdf-preview-page" aria-label="Pré-visualização visual do vale"></div>
         <iframe id="pdfPreviewFrame" class="pdf-preview-print-frame" title="Arquivo PDF para impressão"></iframe>
       </div>
-      <div class="pdf-preview-actions">
-        <button type="button" class="pdf-preview-print" id="pdfPreviewPrintBtn">🖨️ Imprimir</button>
-        <button type="button" class="pdf-preview-download" id="pdfPreviewDownloadBtn">⬇️ Baixar PDF</button>
-        <button type="button" class="pdf-preview-cancel" id="pdfPreviewCancelBtn">Fechar</button>
+      <div class="pdf-preview-actions card-footer d-flex justify-content-end gap-2 flex-wrap">
+        <button type="button" class="btn btn-primary pdf-preview-print" id="pdfPreviewPrintBtn"><i class="bi bi-printer-fill me-1"></i>IMPRIMIR</button>
+        <button type="button" class="btn btn-danger pdf-preview-download" id="pdfPreviewDownloadBtn"><i class="bi bi-file-earmark-arrow-down-fill me-1"></i>BAIXAR PDF</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
 
   const close = () => closePdfPreview();
   document.getElementById('pdfPreviewCloseBtn').onclick = close;
-  document.getElementById('pdfPreviewCancelBtn').onclick = close;
   document.getElementById('pdfPreviewDownloadBtn').onclick = () => {
     if (pdfPreviewBlob && pdfPreviewName) downloadBlob(pdfPreviewBlob, pdfPreviewName);
   };

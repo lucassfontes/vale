@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="vendor/bootstrap/bootstrap.min.css">
   <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="css/app.css?v=20260716-alertas-compactos-v2">
+  <link rel="stylesheet" href="css/app.css?v=20260717-preview-fullscreen-v2">
 </head>
 <body class="bootstrap-only-ui">
 <div class="app">
@@ -464,7 +464,7 @@
 <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
 <script src="js/supabase-config.js"></script>
 <script src="js/supabase-client.js?v=20260716-auditoria-v1"></script>
-<script src="js/app.js?v=20260716-alertas-compactos-v2"></script>
+<script src="js/app.js?v=20260717-preview-fullscreen-v2"></script>
 <script src="js/auth-ui.js?v=20260716-alertas-compactos-v2"></script>
 <script src="js/bootstrap-enhance.js?v=20260712-standard-v4"></script>
 <script>
@@ -483,7 +483,7 @@
   window.addEventListener('load', async function () {
     try {
       const registro = await navigator.serviceWorker.register(
-        'service-worker.js?v=20260717-auto-update-v1',
+        'service-worker.js?v=20260717-preview-sem-fechar-v1',
         { updateViaCache: 'none' }
       );
 

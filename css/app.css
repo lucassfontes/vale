@@ -11088,3 +11088,412 @@ body.calendar-modal-open{
     -webkit-overflow-scrolling: touch;
   }
 }
+
+
+/* =========================================================
+   PRÉ-VISUALIZAÇÃO DO VALE — PADRÃO BOOTSTRAP / HISTÓRICO
+   ========================================================= */
+.pdf-preview-modal.card{
+  background:var(--card, #111827)!important;
+  border:1px solid rgba(148,163,184,.20)!important;
+}
+.pdf-preview-head.card-header{
+  min-height:82px;
+  padding:16px 18px!important;
+  background:linear-gradient(135deg,rgba(37,99,235,.24),rgba(109,40,217,.18))!important;
+  border-bottom:1px solid rgba(148,163,184,.18)!important;
+}
+.pdf-preview-head-icon{
+  width:48px;
+  height:48px;
+  border-radius:15px;
+  background:linear-gradient(135deg,#2563eb,#6d28d9);
+  color:#fff;
+  box-shadow:0 10px 24px rgba(37,99,235,.28);
+  font-size:1.35rem;
+}
+.pdf-preview-head-copy{min-width:0}
+.pdf-preview-head h3{
+  font-size:1.05rem!important;
+  line-height:1.15;
+  font-weight:900!important;
+  letter-spacing:.03em;
+}
+.pdf-preview-head small{
+  margin-top:0!important;
+  font-size:.69rem!important;
+  letter-spacing:.055em;
+  color:#cbd5e1!important;
+}
+.pdf-preview-head-badge{
+  min-height:32px;
+  padding:0 12px;
+  color:#dbeafe;
+  background:rgba(37,99,235,.17);
+  border:1px solid rgba(96,165,250,.30);
+  font-size:.70rem;
+  font-weight:900;
+  letter-spacing:.04em;
+}
+.pdf-preview-close.btn{
+  width:40px!important;
+  height:40px!important;
+  min-width:40px!important;
+  padding:0!important;
+  border-radius:12px!important;
+  border-color:rgba(255,255,255,.24)!important;
+  background:rgba(255,255,255,.07)!important;
+  color:#fff!important;
+}
+.pdf-preview-close.btn:hover{
+  background:#dc3545!important;
+  border-color:#dc3545!important;
+  transform:none!important;
+}
+.pdf-preview-body.card-body{
+  padding:14px!important;
+  background:rgba(2,6,23,.74)!important;
+}
+.pdf-preview-actions.card-footer{
+  padding:13px 16px!important;
+  background:rgba(15,23,42,.92)!important;
+  border-top:1px solid rgba(148,163,184,.18)!important;
+}
+.pdf-preview-actions .btn{
+  min-width:132px!important;
+  min-height:40px!important;
+  border-radius:10px!important;
+  padding:.5rem .9rem!important;
+  font-size:.76rem!important;
+  font-weight:900!important;
+  letter-spacing:.025em;
+  box-shadow:0 5px 14px rgba(0,0,0,.16);
+  text-transform:uppercase;
+}
+.pdf-preview-actions .btn-primary{background:#0d6efd!important;border-color:#0d6efd!important}
+.pdf-preview-actions .btn-danger{background:#dc3545!important;border-color:#dc3545!important}
+.pdf-preview-actions .btn-secondary{background:#6c757d!important;border-color:#6c757d!important}
+body:not(.dark) .pdf-preview-modal.card{background:#fff!important;border-color:#dee2e6!important}
+body:not(.dark) .pdf-preview-head.card-header{
+  background:linear-gradient(135deg,rgba(13,110,253,.12),rgba(111,66,193,.08))!important;
+  border-color:#dee2e6!important;
+}
+body:not(.dark) .pdf-preview-head h3{color:#172033!important}
+body:not(.dark) .pdf-preview-head small{color:#64748b!important}
+body:not(.dark) .pdf-preview-head-badge{color:#0d6efd;background:rgba(13,110,253,.10);border-color:rgba(13,110,253,.22)}
+body:not(.dark) .pdf-preview-close.btn{color:#334155!important;border-color:#cbd5e1!important;background:#fff!important}
+body:not(.dark) .pdf-preview-close.btn:hover{color:#fff!important;background:#dc3545!important;border-color:#dc3545!important}
+body:not(.dark) .pdf-preview-body.card-body{background:#e9ecef!important}
+body:not(.dark) .pdf-preview-actions.card-footer{background:#f8f9fa!important;border-color:#dee2e6!important}
+@media (max-width:640px){
+  .pdf-preview-head.card-header{
+    min-height:68px;
+    padding:10px 11px!important;
+    gap:9px!important;
+  }
+  .pdf-preview-head-icon{width:38px;height:38px;border-radius:11px;font-size:1.05rem}
+  .pdf-preview-head h3{font-size:.82rem!important}
+  .pdf-preview-head small{font-size:.57rem!important;max-width:210px!important}
+  .pdf-preview-close.btn{width:36px!important;height:36px!important;min-width:36px!important;border-radius:10px!important}
+  .pdf-preview-actions.card-footer{
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+    gap:7px!important;
+    padding:8px!important;
+  }
+  .pdf-preview-actions .btn{width:100%!important;min-width:0!important;min-height:40px!important;padding:.42rem .35rem!important;font-size:.67rem!important}
+  .pdf-preview-actions .pdf-preview-cancel{grid-column:1/-1}
+}
+
+
+/* =========================================================
+   CORREÇÃO FINAL — PRÉ-VISUALIZAÇÃO DO VALE NO CELULAR
+   - remove o botão inferior Fechar
+   - mantém somente o X no cabeçalho
+   - elimina a moldura/fundo preto ao redor do documento
+   - deixa Imprimir e Baixar PDF alinhados e com o mesmo tamanho
+   ========================================================= */
+.pdf-preview-cancel,
+#pdfPreviewCancelBtn{
+  display:none!important;
+}
+
+.pdf-preview-body.card-body{
+  background:#e9eef5!important;
+  padding:12px!important;
+}
+
+.pdf-preview-page{
+  width:min(100%,720px)!important;
+  max-width:720px!important;
+  margin:0 auto!important;
+  background:transparent!important;
+}
+
+.pdf-preview-page .pdf-html-page{
+  border:1px solid #b8c9dc!important;
+  border-radius:10px!important;
+  box-shadow:0 8px 24px rgba(15,23,42,.12)!important;
+}
+
+.pdf-preview-actions.card-footer{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:10px!important;
+  padding:12px!important;
+}
+
+.pdf-preview-actions .btn{
+  width:100%!important;
+  min-width:0!important;
+  min-height:46px!important;
+  margin:0!important;
+}
+
+@media (max-width:640px){
+  .pdf-preview-overlay{
+    padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom))!important;
+    align-items:stretch!important;
+    background:rgba(2,6,23,.82)!important;
+  }
+
+  .pdf-preview-modal.card{
+    width:100%!important;
+    max-width:100%!important;
+    height:calc(100dvh - max(16px,env(safe-area-inset-top)) - max(16px,env(safe-area-inset-bottom)))!important;
+    max-height:calc(100dvh - max(16px,env(safe-area-inset-top)) - max(16px,env(safe-area-inset-bottom)))!important;
+    border-radius:18px!important;
+    overflow:hidden!important;
+  }
+
+  .pdf-preview-body.card-body{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    overflow:auto!important;
+    padding:8px!important;
+    background:#e9eef5!important;
+  }
+
+  .pdf-preview-page{
+    width:100%!important;
+    max-width:100%!important;
+  }
+
+  .pdf-preview-page .pdf-html-page{
+    width:100%!important;
+    border:1px solid #b8c9dc!important;
+    border-radius:8px!important;
+    box-shadow:0 5px 16px rgba(15,23,42,.10)!important;
+  }
+
+  .pdf-preview-actions.card-footer{
+    flex:0 0 auto!important;
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;
+    padding:8px!important;
+  }
+
+  .pdf-preview-actions .btn{
+    min-height:44px!important;
+    font-size:.72rem!important;
+    border-radius:11px!important;
+    white-space:nowrap!important;
+  }
+}
+
+body:not(.dark) .pdf-preview-body.card-body{
+  background:#eef2f7!important;
+}
+
+/* =========================================================
+   PRÉ-VISUALIZAÇÃO DO VALE — TELA INTEIRA NO CELULAR
+   - cabeçalho ocupa toda a largura disponível
+   - modal sem margens laterais
+   - botões dividem igualmente a largura da tela (50% / 50%)
+   ========================================================= */
+@media (max-width:768px){
+  .pdf-preview-overlay{
+    inset:0!important;
+    width:100vw!important;
+    height:100dvh!important;
+    padding:0!important;
+    align-items:stretch!important;
+    justify-content:stretch!important;
+    background:rgba(2,6,23,.88)!important;
+  }
+
+  .pdf-preview-modal.card{
+    width:100vw!important;
+    max-width:100vw!important;
+    height:100dvh!important;
+    max-height:100dvh!important;
+    margin:0!important;
+    border:0!important;
+    border-radius:0!important;
+    overflow:hidden!important;
+  }
+
+  .pdf-preview-head.card-header{
+    box-sizing:border-box!important;
+    width:100vw!important;
+    max-width:100vw!important;
+    min-height:60px!important;
+    margin:0!important;
+    padding:max(env(safe-area-inset-top, 0px), 2px) 14px 10px!important;
+    border-radius:0!important;
+    flex:0 0 auto!important;
+  }
+
+  .pdf-preview-head-copy{
+    min-width:0!important;
+  }
+
+  .pdf-preview-head h3{
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+  }
+
+  .pdf-preview-body.card-body{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    overflow:auto!important;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  .pdf-preview-actions.card-footer{
+    box-sizing:border-box!important;
+    width:100vw!important;
+    max-width:100vw!important;
+    margin:0!important;
+    padding:10px 10px calc(10px + env(safe-area-inset-bottom))!important;
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    gap:10px!important;
+    border-radius:0!important;
+    flex:0 0 auto!important;
+  }
+
+  .pdf-preview-actions .btn{
+    flex:1 1 0!important;
+    width:calc(50% - 5px)!important;
+    max-width:calc(50% - 5px)!important;
+    min-width:0!important;
+    min-height:56px!important;
+    margin:0!important;
+    padding:.65rem .35rem!important;
+    font-size:.76rem!important;
+    border-radius:12px!important;
+    white-space:nowrap!important;
+  }
+}
+
+/* =========================================================
+   AJUSTE DEFINITIVO MOBILE — REMOVE EXCESSO ACIMA/ABAIXO
+   DO MODAL DE PRÉ-VISUALIZAÇÃO DO VALE
+   ========================================================= */
+@media (max-width:768px){
+  .pdf-preview-overlay,
+  .pdf-preview-overlay.show{
+    inset:0!important;
+    width:100vw!important;
+    height:100dvh!important;
+    padding:0!important;
+    align-items:stretch!important;
+    justify-content:stretch!important;
+  }
+
+  .pdf-preview-modal,
+  .pdf-preview-modal.card{
+    width:100vw!important;
+    max-width:100vw!important;
+    height:100dvh!important;
+    max-height:100dvh!important;
+    min-height:0!important;
+    margin:0!important;
+    border:0!important;
+    border-radius:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:hidden!important;
+  }
+
+  .pdf-preview-head,
+  .pdf-preview-head.card-header{
+    width:100%!important;
+    max-width:100%!important;
+    min-height:64px!important;
+    height:auto!important;
+    margin:0!important;
+    padding:7px 12px!important;
+    gap:10px!important;
+    border-radius:0!important;
+    flex:0 0 auto!important;
+  }
+
+  .pdf-preview-head-icon{
+    width:42px!important;
+    height:42px!important;
+    min-width:42px!important;
+    border-radius:12px!important;
+    font-size:1.05rem!important;
+  }
+
+  .pdf-preview-head h3{
+    margin:0 0 3px!important;
+    font-size:.88rem!important;
+    line-height:1.1!important;
+  }
+
+  .pdf-preview-head small{
+    margin:0!important;
+    font-size:.59rem!important;
+    line-height:1.1!important;
+  }
+
+  .pdf-preview-close.btn{
+    width:40px!important;
+    height:40px!important;
+    min-width:40px!important;
+    border-radius:11px!important;
+  }
+
+  .pdf-preview-body,
+  .pdf-preview-body.card-body{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:8px!important;
+    overflow:auto!important;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  .pdf-preview-actions,
+  .pdf-preview-actions.card-footer{
+    width:100%!important;
+    max-width:100%!important;
+    min-height:0!important;
+    height:auto!important;
+    margin:0!important;
+    padding:8px!important;
+    display:flex!important;
+    flex:0 0 auto!important;
+    flex-wrap:nowrap!important;
+    gap:8px!important;
+    border-radius:0!important;
+  }
+
+  .pdf-preview-actions .btn{
+    flex:1 1 50%!important;
+    width:50%!important;
+    max-width:none!important;
+    min-width:0!important;
+    min-height:52px!important;
+    height:52px!important;
+    margin:0!important;
+    padding:.5rem .25rem!important;
+    font-size:.74rem!important;
+    border-radius:11px!important;
+  }
+}
