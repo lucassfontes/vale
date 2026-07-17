@@ -11009,3 +11009,82 @@ body.calendar-modal-open{
   #calendarDayModal .calendar-vale-money{grid-template-columns:1fr!important}
   #calendarDayModal .calendar-day-head .v35-report-avatar{width:40px!important;height:40px!important;flex-basis:40px!important}
 }
+
+/* =========================================================
+   MODAIS NO CELULAR — RESPEITAR CÂMERA / NOTCH / ILHA DINÂMICA
+   ========================================================= */
+@media (max-width: 767.98px) {
+  :root {
+    --valle-modal-safe-top: max(16px, env(safe-area-inset-top, 0px));
+    --valle-modal-safe-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Modais Bootstrap: mantém o card inteiro abaixo da câmera. */
+  .modal.show {
+    padding-top: var(--valle-modal-safe-top) !important;
+    padding-right: max(8px, env(safe-area-inset-right, 0px)) !important;
+    padding-bottom: var(--valle-modal-safe-bottom) !important;
+    padding-left: max(8px, env(safe-area-inset-left, 0px)) !important;
+  }
+
+  .modal.show .modal-dialog,
+  .modal.show .modal-dialog-centered,
+  .modal.show .modal-dialog-scrollable {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    min-height: calc(100dvh - var(--valle-modal-safe-top) - var(--valle-modal-safe-bottom)) !important;
+    max-height: calc(100dvh - var(--valle-modal-safe-top) - var(--valle-modal-safe-bottom)) !important;
+  }
+
+  .modal.show .modal-content {
+    max-height: calc(100dvh - var(--valle-modal-safe-top) - var(--valle-modal-safe-bottom)) !important;
+    overflow: hidden !important;
+  }
+
+  .modal.show .modal-body {
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Modais próprios do sistema. */
+  .user-modal:not(.hidden),
+  .audit-detail-modal:not(.hidden),
+  .partial-payment-modal:not(.hidden),
+  .pdf-preview-modal:not(.hidden) {
+    padding-top: var(--valle-modal-safe-top) !important;
+    padding-right: max(8px, env(safe-area-inset-right, 0px)) !important;
+    padding-bottom: var(--valle-modal-safe-bottom) !important;
+    padding-left: max(8px, env(safe-area-inset-left, 0px)) !important;
+    align-items: flex-start !important;
+  }
+
+  .user-modal:not(.hidden) .user-modal-card,
+  .audit-detail-modal:not(.hidden) > div,
+  .partial-payment-modal:not(.hidden) .partial-payment-modal-content,
+  .pdf-preview-modal:not(.hidden) > div {
+    margin-top: 0 !important;
+    max-height: calc(100dvh - var(--valle-modal-safe-top) - var(--valle-modal-safe-bottom)) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Modal dos vales do calendário, que ocupa a tela toda no celular. */
+  #calendarDayModal.calendar-day-modal {
+    padding-top: var(--valle-modal-safe-top) !important;
+    padding-right: max(8px, env(safe-area-inset-right, 0px)) !important;
+    padding-bottom: var(--valle-modal-safe-bottom) !important;
+    padding-left: max(8px, env(safe-area-inset-left, 0px)) !important;
+    align-items: flex-start !important;
+  }
+
+  #calendarDayModal .calendar-day-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: calc(100dvh - var(--valle-modal-safe-top) - var(--valle-modal-safe-bottom)) !important;
+    max-height: calc(100dvh - var(--valle-modal-safe-top) - var(--valle-modal-safe-bottom)) !important;
+    border-radius: 18px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
