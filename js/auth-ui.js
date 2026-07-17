@@ -55,6 +55,10 @@ function inject(){
  <label id="managedPasswordLabel">Senha inicial<input id="managedPassword" type="password" minlength="6"></label>
  <label id="managedValidityWrap">Validade da sessão<input id="managedValidity" type="date"></label>
  <label id="managedWhatsappWrap">WhatsApp do administrador<input id="managedWhatsapp" inputmode="tel" placeholder="Ex: 5594999999999"></label>
+ <fieldset id="serviceFinancialBox" class="service-financial-box"><legend>Configuração financeira individual</legend>
+  <label for="managedInterestPercent">Juros configurável (%)<input id="managedInterestPercent" type="number" inputmode="decimal" min="0" step="0.01" value="30" placeholder="Ex: 30"></label>
+  <small>Este percentual será usado somente por este usuário de serviço.</small>
+ </fieldset>
  <label class="check-line" for="managedActive">
   <input id="managedActive" type="checkbox" checked>
   <span class="active-check" aria-hidden="true">✓</span>
@@ -285,6 +289,11 @@ function applyServiceFinancialSettings(settings){
  };
  const current=window.getValleDatabase?window.getValleDatabase():window.db;
  if(current?.settings){
+  current.settings.percentualJuros50=window.VALLE_SERVICE_FINANCIAL_SETTINGS.interest_percent;
+  current.settings.taxaAtrasoDiario=window.VALLE_SERVICE_FINANCIAL_SETTINGS.late_fee_value;
+  current.settings.tipoTaxaAtrasoDiario=window.VALLE_SERVICE_FINANCIAL_SETTINGS.late_fee_type;
+  window.db=current;
+  try{localStorage.setItem('percentualJuros50',String(current.settings.percentualJuros50));}catch(_){}
  }
 }
 
@@ -428,16 +437,20 @@ async function renderUsers(){
  try{
   const users=await ValleCloud.listManagedUsers();
   if(!users.length){box.innerHTML='<div class="empty-users">Nenhum usuário cadastrado.</div>';return;}
-  box.innerHTML=users.map(u=>userCard(u,[])).join('');
+  const permissionMap={};
+  if(ValleCloud.profile?.role==='session'){
+   await Promise.all(users.map(async u=>{permissionMap[u.id]=await ValleCloud.getPermissions(u.id)}));
+  }
+  box.innerHTML=users.map(u=>userCard(u,[],permissionMap[u.id])).join('');
   box.querySelectorAll('[data-edit-user]').forEach(b=>b.onclick=()=>openEdit(b.dataset.editUser,users));
   box.querySelectorAll('[data-toggle-user]').forEach(b=>b.onclick=()=>toggleUser(b.dataset.toggleUser,b.dataset.active!=='true'));
   box.querySelectorAll('[data-delete-user]').forEach(b=>b.onclick=()=>deleteManagedUser(b.dataset.deleteUser,users));
   renderAuditLogs();
  }catch(e){box.innerHTML=`<div class="auth-message error">${htmlEscape(e.message)}</div>`}
 }
-function userCard(u,children){
+function userCard(u,children,financial){
  const expired=u.role==='session'&&u.valid_until&&u.valid_until<new Date().toISOString().slice(0,10);
- return `<article class="user-card ${!u.active||expired?'blocked':''}"><div class="user-main"><div class="user-avatar">${htmlEscape((u.name||'?')[0])}</div><div><h3>${htmlEscape(u.name)}</h3><p>${htmlEscape(u.email||'')} · ${u.role==='session'?'SESSÃO':'SERVIÇO'}</p>${u.role==='session'?`<small>Validade: ${u.valid_until?new Date(u.valid_until+'T00:00:00').toLocaleDateString('pt-BR'):'sem validade'} ${expired?'· VENCIDA':''}</small>`:''}</div></div><div class="user-actions"><span class="status-pill ${u.active&&!expired?'on':'off'}">${u.active&&!expired?'ATIVO':'BLOQUEADO'}</span><button class="btn light" data-edit-user="${u.id}">EDITAR</button><button class="btn ${u.active?'danger':'success'}" data-toggle-user="${u.id}" data-active="${u.active}">${u.active?'BLOQUEAR':'ATIVAR'}</button><button class="btn delete-user-btn" data-delete-user="${u.id}" title="Excluir usuário">🗑️ EXCLUIR</button></div>${children.length?`<div class="hierarchy-children"><b>Usuários de serviço</b>${children.map(c=>`<div><span>${htmlEscape(c.name)} <small>${htmlEscape(c.email||'')}</small></span><em class="${c.active?'on':'off'}">${c.active?'ATIVO':'BLOQUEADO'}</em></div>`).join('')}</div>`:''}</article>`;
+ return `<article class="user-card ${!u.active||expired?'blocked':''}"><div class="user-main"><div class="user-avatar">${htmlEscape((u.name||'?')[0])}</div><div><h3>${htmlEscape(u.name)}</h3><p>${htmlEscape(u.email||'')} · ${u.role==='session'?'SESSÃO':'SERVIÇO'}</p>${u.role==='session'?`<small>Validade: ${u.valid_until?new Date(u.valid_until+'T00:00:00').toLocaleDateString('pt-BR'):'sem validade'} ${expired?'· VENCIDA':''}</small>`:`<small class="service-interest-label">Juros configurável: ${Number(financial?.interest_percent??30).toLocaleString('pt-BR',{maximumFractionDigits:2})}%</small>`}</div></div><div class="user-actions"><span class="status-pill ${u.active&&!expired?'on':'off'}">${u.active&&!expired?'ATIVO':'BLOQUEADO'}</span><button class="btn light" data-edit-user="${u.id}">EDITAR</button><button class="btn ${u.active?'danger':'success'}" data-toggle-user="${u.id}" data-active="${u.active}">${u.active?'BLOQUEAR':'ATIVAR'}</button><button class="btn delete-user-btn" data-delete-user="${u.id}" title="Excluir usuário">🗑️ EXCLUIR</button></div>${children.length?`<div class="hierarchy-children"><b>Usuários de serviço</b>${children.map(c=>`<div><span>${htmlEscape(c.name)} <small>${htmlEscape(c.email||'')}</small></span><em class="${c.active?'on':'off'}">${c.active?'ATIVO':'BLOQUEADO'}</em></div>`).join('')}</div>`:''}</article>`;
 }
 
 function configureManagedForm(role, editing=false){
@@ -446,6 +459,7 @@ function configureManagedForm(role, editing=false){
  const validity=el('managedValidityWrap');
  const whatsapp=el('managedWhatsappWrap');
  const perms=el('permissionsBox');
+ const financial=el('serviceFinancialBox');
  // Validade e WhatsApp pertencem somente ao usuário de sessão criado pelo ADM.
  validity.classList.toggle('hidden',!isAdmin);
  whatsapp.classList.toggle('hidden',!isAdmin);
@@ -453,6 +467,8 @@ function configureManagedForm(role, editing=false){
  whatsapp.style.display=isAdmin?'':'none';
  perms.classList.toggle('hidden',!isSession);
  perms.style.display=isSession?'':'none';
+ financial.classList.toggle('hidden',!isSession);
+ financial.style.display=isSession?'':'none';
  if(!isAdmin){el('managedValidity').value='';el('managedWhatsapp').value='';}
  // O ADM, ao editar, administra apenas validade/status. Dados de identidade ficam protegidos.
  el('managedName').disabled=isAdmin&&editing;
@@ -460,7 +476,7 @@ function configureManagedForm(role, editing=false){
  el('managedPasswordLabel').classList.toggle('hidden',editing);
 }
 function openNew(){
- el('userForm').reset(); el('managedId').value=''; el('managedActive').checked=true;
+ el('userForm').reset(); el('managedId').value=''; el('managedActive').checked=true; el('managedInterestPercent').value='30';
  const admin=ValleCloud.profile.role==='admin';
  el('userModalTitle').textContent=admin?'Novo usuário de sessão':'Novo usuário de serviço';
  document.querySelector('#userForm .btn.primary').textContent='Salvar';
@@ -480,6 +496,7 @@ async function openEdit(id,users){
  if(u.role==='service'){
   const p=await ValleCloud.getPermissions(u.id);
   document.querySelectorAll('[data-perm]').forEach(x=>x.checked=p[x.dataset.perm]!==false);
+  el('managedInterestPercent').value=String(Number(p.interest_percent??30));
  }
  el('userModal').classList.remove('hidden');
 }
@@ -526,11 +543,13 @@ async function saveManaged(e){
  } else {
   // Usuário de sessão pode manter o nome do usuário de serviço atualizado.
   payload.name=el('managedName').value.trim();
+  payload.interestPercent=Math.max(0,Number(String(el('managedInterestPercent').value||'30').replace(',','.'))||0);
  }
+ if(callerRole==='session') payload.interestPercent=Math.max(0,Number(String(el('managedInterestPercent').value||'30').replace(',','.'))||0);
  try{
   const result=await ValleCloud.invokeManage(id?'update':'create',payload); const uid=id||result.userId;
   if(callerRole==='session'){
-   const perms={};document.querySelectorAll('[data-perm]').forEach(x=>perms[x.dataset.perm]=x.checked);
+   const perms={interest_percent:payload.interestPercent};document.querySelectorAll('[data-perm]').forEach(x=>perms[x.dataset.perm]=x.checked);
    await ValleCloud.savePermissions(uid,perms);
   }
   closeModal(); await renderUsers();

@@ -2049,11 +2049,11 @@ function renderDashboard() {
 }
 
 /**
- * Salva capital investido e percentual dos juros configurável no localStorage.
+ * Salva o capital investido da sessão. O juros é configurado individualmente
+ * no painel Administrar usuário de serviço.
  */
 function saveDashboardConfig() {
   db.settings.capitalInvestido = moneyNum($('configCapitalInvestido')?.value || '0');
-  // Juros e taxa de atraso são configurados individualmente no cadastro de cada usuário de serviço.
   save();
   renderAll();
   toast('CONFIGURAÇÃO SALVA');
@@ -3573,17 +3573,22 @@ function ensureCalendarDayModal(){
   if (modal) return modal;
   modal = document.createElement('div');
   modal.id = 'calendarDayModal';
-  modal.className = 'calendar-day-modal';
+  modal.className = 'calendar-day-modal client-report-modal';
   modal.innerHTML = `
-    <div class="calendar-day-card" role="dialog" aria-modal="true" aria-labelledby="calendarDayTitle">
-      <div class="calendar-day-head">
-        <div>
-          <h3 id="calendarDayTitle">📅 Vales do dia</h3>
-          <small id="calendarDaySub">Clientes com vencimento no dia selecionado</small>
+    <div class="calendar-day-card client-report-card v35-client-report-card" role="dialog" aria-modal="true" aria-labelledby="calendarDayTitle">
+      <button type="button" class="calendar-day-close client-report-close btn btn-outline-primary" onclick="closeCalendarDayModal()" aria-label="Fechar"><i class="bi bi-x-lg"></i></button>
+      <div class="calendar-day-head v35-report-head">
+        <div class="v35-report-person">
+          <div class="v35-report-avatar"><i class="bi bi-calendar3"></i></div>
+          <div class="min-w-0">
+            <h2 id="calendarDayTitle">Vales do dia</h2>
+            <p id="calendarDaySub">Clientes com vencimento no dia selecionado</p>
+          </div>
         </div>
-        <button type="button" onclick="closeCalendarDayModal()" aria-label="Fechar">✕</button>
       </div>
-      <div id="calendarDayList" class="calendar-day-list"></div>
+      <div class="border-top my-3"></div>
+      <h3 class="v35-modal-section-title"><i class="bi bi-receipt me-2"></i>Vales com vencimento</h3>
+      <div id="calendarDayList" class="calendar-day-list v35-history-list"></div>
     </div>`;
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if (e.target === modal) closeCalendarDayModal(); });
@@ -3600,7 +3605,7 @@ function openCalendarDayModal(iso){
     .map(v => ({...v, _info:statusInfo(v)}))
     .sort((a,b)=>String(a.cliente).localeCompare(String(b.cliente),'pt-BR'));
   const total = list.reduce((s,v)=>s+loanPrincipalBalance(v),0);
-  title.textContent = `📅 ${brDate(iso)}`;
+  title.textContent = `Vales de ${brDate(iso)}`;
   sub.textContent = `${list.length} vale${list.length===1?'':'s'} • ${calendarDayLabel(iso)} • ${money(total)} em aberto`;
   listBox.innerHTML = list.length ? list.map(v => {
     const c = clienteById(v.clienteId) || clienteByName(v.cliente) || {};
@@ -3608,22 +3613,26 @@ function openCalendarDayModal(iso){
     const num = String(v.numero || '').padStart(4,'0');
     const info = statusInfo(v);
     return `
-      <div class="calendar-vale-row ${info.key}">
-        <div class="calendar-vale-main">
-          <strong>${h(v.cliente)}</strong>
-          <small>📞 ${h(tel || 'SEM TELEFONE')} • 📄 VALE Nº ${num}</small>
+      <article class="card calendar-vale-row v35-history-row ${info.key} border-${info.key === 'danger' ? 'danger' : (info.key === 'today' ? 'warning' : 'primary')} border-start border-4 shadow-sm">
+        <div class="card-body">
+          <header class="v35-vale-header calendar-vale-main">
+            <div class="min-w-0">
+              <h4><i class="bi bi-person-circle me-2"></i>${h(v.cliente)}</h4>
+              <small><i class="bi bi-telephone me-1"></i>${h(tel || 'SEM TELEFONE')} <span class="mx-1">•</span> <i class="bi bi-receipt me-1"></i>VALE Nº ${num}</small>
+            </div>
+            <span class="badge rounded-pill calendar-vale-status ${info.key}">${h(info.label)}</span>
+          </header>
+          <div class="calendar-vale-money v35-modal-loan-metrics">
+            <div class="v35-modal-stat"><small>VALOR EMPRESTADO</small><strong>${money(loanPrincipalBalance(v))}</strong></div>
+            <div class="v35-modal-stat"><small>TOTAL + ATRASO</small><strong>${money(loanTotalBalance(v))}</strong></div>
+          </div>
+          <footer class="calendar-vale-actions v35-modal-history-actions">
+            <button class="btn btn-success btn-sm" onclick="closeCalendarDayModal(); openWhatsLoan('${v.id}')"><i class="bi bi-whatsapp me-1"></i>WHATSAPP</button>
+            <button class="btn btn-danger btn-sm" onclick="closeCalendarDayModal(); downloadLoanPdf('${v.id}')"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</button>
+            <button class="btn btn-primary btn-sm" onclick="closeCalendarDayModal(); openReceiveModal('${v.id}')"><i class="bi bi-cash-coin me-1"></i>RECEBER</button>
+          </footer>
         </div>
-        <div class="calendar-vale-money">
-          <span><small>EMPRÉSTIMO</small><b>${money(loanPrincipalBalance(v))}</b></span>
-          <span><small>TOTAL + ATRASO</small><b>${money(loanTotalBalance(v))}</b></span>
-        </div>
-        <div class="calendar-vale-status ${info.key}">${h(info.label)}</div>
-        <div class="calendar-vale-actions">
-          <button class="v3-whats" onclick="closeCalendarDayModal(); openWhatsLoan('${v.id}')">💬 WhatsApp</button>
-          <button class="v3-pdf" onclick="closeCalendarDayModal(); downloadLoanPdf('${v.id}')">📄 PDF</button>
-          <button class="v3-receber" onclick="closeCalendarDayModal(); openReceiveModal('${v.id}')">💵 Receber</button>
-        </div>
-      </div>`;
+      </article>`;
   }).join('') : '<div class="empty-state">Nenhum vale neste dia.</div>';
   modal.classList.add('show');
   document.body.classList.add('calendar-modal-open');
@@ -3742,7 +3751,7 @@ function renderPremiumMiniCalendar(openVales){
     }
     html += `<div class="premium-cal-day ${cls}">${d.getDate()}${dot}</div>`;
   }
-  html += '</div><button type="button" class="ghost" onclick="switchScreen(\'calendario\')">📅 Ver calendário completo</button>';
+  html += '</div>';
   box.innerHTML = html;
 }
 function renderPremiumClientList(id, list, empty){
@@ -3876,9 +3885,9 @@ function v35ClienteStats(){
     if (pago) {
       o.pagos++;
       o.recebido += total + jurosRec;
-      const atraso = venc && dataPg ? Math.max(0, v35DaysBetween(venc, dataPg)) : 0;
-      if (atraso > 0) o.pagosAtrasados++;
-      o.maiorAtraso = Math.max(o.maiorAtraso, atraso);
+      // Vale quitado deixa de ser considerado atraso ativo no relatório.
+      // A data do pagamento continua registrada, mas não reduz o score nem
+      // permanece no contador "Atrasos" do cliente.
     } else {
       o.abertos++;
       o.abertoValor += v35LoanBalance(v);
@@ -3892,12 +3901,13 @@ function v35ClienteStats(){
     if (obsLine) o.ultimaObs = obsLine;
   });
   return Object.values(map).map(o => {
-    const totalAtrasos = o.atrasados + o.pagosAtrasados;
+    // O contador de atrasos e o score consideram somente vales vencidos
+    // que ainda não foram pagos. Ao quitar, o atraso é removido imediatamente.
+    const totalAtrasos = o.atrasados;
     const taxaPago = o.qtd ? Math.round((o.pagos/o.qtd)*100) : 0;
-    const pontual = o.pagos ? Math.max(0, Math.round(((o.pagos - o.pagosAtrasados)/o.pagos)*100)) : (o.atrasados ? 0 : 100);
+    const pontual = o.atrasados ? 0 : 100;
     let score = 100;
     score -= o.atrasados * 32;
-    score -= o.pagosAtrasados * 14;
     score -= Math.min(25, Math.floor(o.maiorAtraso / 3) * 5);
     if (o.abertoValor > 0 && o.pagos === 0 && o.qtd >= 2) score -= 10;
     if (o.qtd === 0) score = 70;

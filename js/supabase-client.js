@@ -203,7 +203,10 @@
     let completeData = data && typeof data === 'object' ? clone(data) : {};
     try {
       if (completeData.settings) {
+        // Configurações financeiras são individuais de cada usuário de serviço
+        // e ficam em service_permissions, não no workspace compartilhado.
         delete completeData.settings.percentualJuros50;
+        delete completeData.settings.percentualJuros;
         delete completeData.settings.taxaAtrasoDiario;
         delete completeData.settings.tipoTaxaAtrasoDiario;
       }

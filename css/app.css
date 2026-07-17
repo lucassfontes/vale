@@ -10772,7 +10772,7 @@ body.v35-history-modal-open{
 }
 @media (max-width:575.98px){
   .app-alert-container{
-    top:calc(env(safe-area-inset-top, 0px) + 0px);
+    top:calc(env(safe-area-inset-top, 0px) + 68px);
     left:12px;
     right:12px;
     width:auto;
@@ -10786,3 +10786,226 @@ body.v35-history-modal-open{
 }
 @media (prefers-reduced-motion:reduce){.app-bootstrap-alert{transition:none!important}}
 
+
+/* Configuração financeira individual do usuário de serviço */
+.service-financial-box{border:1px solid var(--border,#dfe5ee);border-radius:14px;padding:14px;margin:4px 0 12px;background:rgba(59,130,246,.04)}
+.service-financial-box legend{font-weight:800;padding:0 6px;font-size:.9rem}
+.service-financial-box label{display:flex;flex-direction:column;gap:7px;font-weight:700}
+.service-financial-box input{width:100%;min-height:44px;border:1px solid var(--border,#d6dce5);border-radius:10px;padding:10px 12px;background:var(--card,#fff);color:inherit}
+.service-financial-box small{display:block;margin-top:7px;opacity:.7}
+.service-interest-label{display:block;margin-top:5px;font-weight:800;color:#2563eb}
+
+/* ===== MODAL DO CALENDÁRIO NO PADRÃO DO MODAL VER HISTÓRICO ===== */
+#calendarDayModal.calendar-day-modal{
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  height:100dvh!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:14px!important;
+  z-index:2147483647!important;
+  isolation:isolate!important;
+  overflow:hidden!important;
+  display:none!important;
+  align-items:center!important;
+  justify-content:center!important;
+  background:rgba(2,6,23,.78)!important;
+  backdrop-filter:blur(10px)!important;
+  -webkit-backdrop-filter:blur(10px)!important;
+}
+#calendarDayModal.calendar-day-modal.show{
+  display:flex!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+#calendarDayModal .calendar-day-card{
+  position:relative!important;
+  width:min(980px,100%)!important;
+  max-width:980px!important;
+  max-height:92dvh!important;
+  min-height:0!important;
+  overflow:auto!important;
+  display:block!important;
+  padding:18px!important;
+  border-radius:24px!important;
+  border:1px solid rgba(148,163,184,.24)!important;
+  background:#0b1220!important;
+  color:#f8fafc!important;
+  box-shadow:0 30px 80px rgba(0,0,0,.55)!important;
+}
+body:not(.dark) #calendarDayModal .calendar-day-card{
+  background:#fff!important;
+  color:#0f172a!important;
+}
+#calendarDayModal .calendar-day-close{
+  position:absolute!important;
+  top:14px!important;
+  right:14px!important;
+  z-index:4!important;
+  width:40px!important;
+  height:40px!important;
+  padding:0!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:12px!important;
+}
+#calendarDayModal .calendar-day-head{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  align-items:start!important;
+  padding:0 50px 0 14px!important;
+  margin:0!important;
+  border:0!important;
+  border-left:5px solid var(--bs-primary)!important;
+}
+#calendarDayModal .calendar-day-head .v35-report-person{
+  display:flex!important;
+  align-items:center!important;
+  gap:12px!important;
+}
+#calendarDayModal .calendar-day-head .v35-report-avatar{
+  width:48px!important;
+  height:48px!important;
+  flex:0 0 48px!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:50%!important;
+  background:var(--bs-primary)!important;
+  color:#fff!important;
+  font-size:1.25rem!important;
+}
+#calendarDayModal .calendar-day-head h2{
+  margin:0!important;
+  font-size:1.35rem!important;
+  font-weight:900!important;
+  line-height:1.2!important;
+}
+#calendarDayModal .calendar-day-head p{
+  margin:4px 0 0!important;
+  color:#94a3b8!important;
+  font-size:.9rem!important;
+  font-weight:700!important;
+}
+#calendarDayModal .calendar-day-list{
+  display:grid!important;
+  gap:12px!important;
+  padding:0!important;
+  overflow:visible!important;
+}
+#calendarDayModal .calendar-vale-row{
+  display:block!important;
+  width:100%!important;
+  padding:0!important;
+  border-radius:18px!important;
+  overflow:hidden!important;
+  background:#1e293b!important;
+  color:#f8fafc!important;
+}
+body:not(.dark) #calendarDayModal .calendar-vale-row{
+  background:#f8fafc!important;
+  color:#0f172a!important;
+}
+#calendarDayModal .calendar-vale-row:before{display:none!important}
+#calendarDayModal .calendar-vale-row .card-body{padding:16px!important}
+#calendarDayModal .calendar-vale-main{
+  display:flex!important;
+  justify-content:space-between!important;
+  align-items:flex-start!important;
+  gap:12px!important;
+  flex-wrap:wrap!important;
+}
+#calendarDayModal .calendar-vale-main h4{
+  margin:0!important;
+  font-size:1rem!important;
+  font-weight:900!important;
+  overflow-wrap:anywhere!important;
+}
+#calendarDayModal .calendar-vale-main small{
+  display:block!important;
+  margin-top:5px!important;
+  color:#94a3b8!important;
+  font-size:.78rem!important;
+  font-weight:700!important;
+}
+#calendarDayModal .calendar-vale-status{
+  justify-self:auto!important;
+  padding:7px 10px!important;
+  font-size:.68rem!important;
+  font-weight:900!important;
+  white-space:nowrap!important;
+}
+#calendarDayModal .calendar-vale-money{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:10px!important;
+  margin-top:14px!important;
+}
+#calendarDayModal .calendar-vale-money .v35-modal-stat{
+  min-width:0!important;
+  padding:11px!important;
+  border:1px solid rgba(148,163,184,.18)!important;
+  border-radius:13px!important;
+  background:rgba(15,23,42,.35)!important;
+}
+body:not(.dark) #calendarDayModal .calendar-vale-money .v35-modal-stat{background:#fff!important}
+#calendarDayModal .calendar-vale-money small{
+  display:block!important;
+  color:#94a3b8!important;
+  font-size:.68rem!important;
+  font-weight:900!important;
+}
+#calendarDayModal .calendar-vale-money strong{
+  display:block!important;
+  margin-top:3px!important;
+  color:#22c55e!important;
+  font-size:.96rem!important;
+  white-space:nowrap!important;
+}
+#calendarDayModal .calendar-vale-actions{
+  display:flex!important;
+  justify-content:flex-end!important;
+  gap:8px!important;
+  flex-wrap:wrap!important;
+  margin-top:14px!important;
+}
+#calendarDayModal .calendar-vale-actions button{
+  min-height:38px!important;
+  border-radius:10px!important;
+  font-size:.76rem!important;
+  font-weight:900!important;
+}
+body.calendar-modal-open{
+  overflow:hidden!important;
+  touch-action:none!important;
+}
+@media(max-width:760px){
+  #calendarDayModal.calendar-day-modal{
+    align-items:stretch!important;
+    justify-content:stretch!important;
+    padding:0!important;
+    background:var(--bs-body-bg,#0f172a)!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+  #calendarDayModal .calendar-day-card{
+    width:100vw!important;
+    min-width:100vw!important;
+    max-width:100vw!important;
+    height:100dvh!important;
+    max-height:100dvh!important;
+    border:0!important;
+    border-radius:0!important;
+    padding:14px!important;
+  }
+  #calendarDayModal .calendar-day-head h2{font-size:1.05rem!important}
+  #calendarDayModal .calendar-day-head p{font-size:.78rem!important}
+  #calendarDayModal .calendar-vale-money{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  #calendarDayModal .calendar-vale-actions{display:grid!important;grid-template-columns:1fr!important}
+  #calendarDayModal .calendar-vale-actions button{width:100%!important}
+}
+@media(max-width:390px){
+  #calendarDayModal .calendar-vale-money{grid-template-columns:1fr!important}
+  #calendarDayModal .calendar-day-head .v35-report-avatar{width:40px!important;height:40px!important;flex-basis:40px!important}
+}
