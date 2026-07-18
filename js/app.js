@@ -1,3 +1,7 @@
+/* VERSAO DO SISTEMA */
+const versao = document.getElementById("versao_sytem")
+
+versao.innerHTML = 'Versão-3.4.2'
 /**
  * ARQUIVO PRINCIPAL DO VALLE
  * ------------------------------------------------
