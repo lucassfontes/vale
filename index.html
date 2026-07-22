@@ -1,14 +1,278 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" style="background:#070b18;color-scheme:dark">
 
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#070b18">
+  <meta name="color-scheme" content="dark light">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
   <title>VALLE</title>
+  <script>
+    /* Define o tema do aplicativo antes da primeira pintura.
+       Durante o loading, a área inferior permanece escura e estável. */
+    (function () {
+      var theme = null;
+      try {
+        theme = localStorage.getItem('valle_theme_active') || localStorage.getItem('valle_theme_guest');
+        if (theme !== 'dark' && theme !== 'light') {
+          for (var i = 0; i < localStorage.length; i++) {
+            var key = localStorage.key(i) || '';
+            if (key.indexOf('valle_theme_user_') === 0) {
+              var saved = localStorage.getItem(key);
+              if (saved === 'dark' || saved === 'light') { theme = saved; break; }
+            }
+          }
+        }
+      } catch (_) {}
+      if (theme !== 'dark' && theme !== 'light') {
+        theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      window.VALLE_PRELOAD_THEME = theme;
+      window.VALLE_ACTIVE_THEME = theme;
+      // Durante o loading, não permita que o tema do sistema altere o fundo/área inferior.
+      // A preferência real fica guardada e é aplicada apenas quando o loading terminar.
+      document.documentElement.classList.remove('valle-preload-light');
+      document.documentElement.classList.add('valle-preload-dark', 'dark', 'valle-loading-active');
+      document.documentElement.setAttribute('data-bs-theme', 'dark');
+      document.documentElement.style.colorScheme = 'dark';
+      var themeMeta = document.querySelector('meta[name="theme-color"]');
+      if (themeMeta) themeMeta.setAttribute('content', '#070b18');
+
+      /* No iPhone instalado como PWA, a viewport visual pode mudar alguns
+         instantes depois da primeira pintura. O tamanho físico da tela é
+         guardado em variáveis CSS para o loading nunca terminar antes da
+         área do indicador de início. */
+      var loadingViewportFrame = 0;
+      function syncValleLoadingViewport() {
+        if (!document.documentElement.classList.contains('valle-loading-active')) return;
+        if (loadingViewportFrame) cancelAnimationFrame(loadingViewportFrame);
+        loadingViewportFrame = requestAnimationFrame(function () {
+          var root = document.documentElement;
+          var visual = window.visualViewport;
+          var viewportWidth = Math.max(
+            root.clientWidth || 0,
+            window.innerWidth || 0,
+            visual ? Math.ceil(visual.width + Math.max(0, visual.offsetLeft || 0)) : 0
+          );
+          var viewportHeight = Math.max(
+            root.clientHeight || 0,
+            window.innerHeight || 0,
+            visual ? Math.ceil(visual.height + Math.max(0, visual.offsetTop || 0)) : 0
+          );
+          var standalone = window.navigator.standalone === true ||
+            (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+          var physicalWidth = standalone && window.screen ? Number(window.screen.width) || 0 : 0;
+          var physicalHeight = standalone && window.screen ? Number(window.screen.height) || 0 : 0;
+          var loadingWidth = Math.max(viewportWidth, physicalWidth);
+          var loadingHeight = Math.max(viewportHeight, physicalHeight);
+
+          root.style.setProperty('--valle-loading-physical-width', Math.ceil(loadingWidth) + 'px');
+          root.style.setProperty('--valle-loading-physical-height', Math.ceil(loadingHeight) + 'px');
+          root.style.setProperty('--valle-loading-center-y', Math.ceil(loadingHeight / 2) + 'px');
+          root.style.setProperty('background-color', '#070b18', 'important');
+          root.style.setProperty('background-image', 'none', 'important');
+        });
+      }
+
+      function stopValleLoadingViewportSync() {
+        if (loadingViewportFrame) cancelAnimationFrame(loadingViewportFrame);
+        window.removeEventListener('resize', syncValleLoadingViewport);
+        window.removeEventListener('orientationchange', syncValleLoadingViewport);
+        if (window.visualViewport) {
+          window.visualViewport.removeEventListener('resize', syncValleLoadingViewport);
+          window.visualViewport.removeEventListener('scroll', syncValleLoadingViewport);
+        }
+      }
+
+      window.VALLE_SYNC_LOADING_VIEWPORT = syncValleLoadingViewport;
+      window.VALLE_STOP_LOADING_VIEWPORT_SYNC = stopValleLoadingViewportSync;
+      syncValleLoadingViewport();
+      window.addEventListener('resize', syncValleLoadingViewport, { passive: true });
+      window.addEventListener('orientationchange', syncValleLoadingViewport, { passive: true });
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', syncValleLoadingViewport, { passive: true });
+        window.visualViewport.addEventListener('scroll', syncValleLoadingViewport, { passive: true });
+      }
+      window.setTimeout(syncValleLoadingViewport, 80);
+      window.setTimeout(syncValleLoadingViewport, 320);
+    })();
+  </script>
+  <style id="valle-critical-loading">
+    /* Loading v37: base sólida e estável para o iPhone.
+       A viewport pode aumentar quando a barra inferior desaparece, mas a cor
+       exposta permanece exatamente igual e não produz faixa nem ajuste visual. */
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      background-color: #070b18;
+    }
+
+    html.valle-loading-active,
+    html.valle-loading-active body {
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      overscroll-behavior: none !important;
+      background: #070b18 !important;
+      background-color: #070b18 !important;
+      background-image: none !important;
+      color-scheme: dark !important;
+      transition: none !important;
+      animation: none !important;
+    }
+
+    #valleLoadingScreen {
+      position: fixed !important;
+      top: -2px !important;
+      left: -2px !important;
+      right: auto !important;
+      bottom: auto !important;
+      inset: auto !important;
+      z-index: 2147483647 !important;
+      display: block !important;
+      width: calc(var(--valle-loading-physical-width, 100vw) + 4px) !important;
+      height: calc(var(--valle-loading-physical-height, 100vh) + 164px) !important;
+      min-width: calc(100vw + 4px) !important;
+      min-height: calc(100vh + 164px) !important;
+      max-width: none !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      box-sizing: border-box !important;
+      overflow: hidden !important;
+      isolation: isolate !important;
+      transform: translateZ(0) !important;
+      -webkit-transform: translateZ(0) !important;
+      background: #070b18 !important;
+      color: #ffffff !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      pointer-events: auto;
+    }
+
+    /* O brilho é separado do fundo sólido. Mesmo que o Safari altere a
+       viewport durante o carregamento, a extensão inferior continua coberta. */
+    #valleLoadingScreen::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-image:
+        radial-gradient(circle at 50% var(--valle-loading-center-y, 50vh), rgba(124, 58, 237, .20) 0%, rgba(124, 58, 237, .08) 25%, rgba(7, 11, 24, 0) 58%);
+      background-repeat: no-repeat;
+      opacity: 1;
+      transition: opacity .20s ease;
+    }
+
+    #valleLoadingScreen .valle-loading-card {
+      position: fixed !important;
+      top: var(--valle-loading-center-y, 50%) !important;
+      left: 50% !important;
+      z-index: 1 !important;
+      transform: translate(-50%, -50%) !important;
+      padding:
+        max(24px, env(safe-area-inset-top, 0px))
+        max(24px, env(safe-area-inset-right, 0px))
+        max(24px, env(safe-area-inset-bottom, 0px))
+        max(24px, env(safe-area-inset-left, 0px)) !important;
+      box-sizing: border-box !important;
+      opacity: 1;
+      transition: opacity .20s ease, transform .20s ease;
+    }
+
+    @supports (height: 100lvh) {
+      #valleLoadingScreen {
+        min-height: calc(100lvh + 164px) !important;
+      }
+    }
+
+    /* Na saída, somente o conteúdo desaparece. O fundo permanece totalmente
+       opaco até a remoção da camada, evitando a faixa inferior no iPhone. */
+    #valleLoadingScreen.is-hiding {
+      pointer-events: none;
+    }
+
+    #valleLoadingScreen.is-hiding::before {
+      opacity: .55;
+    }
+
+    #valleLoadingScreen.is-hiding .valle-loading-card {
+      opacity: 0;
+      transform: translate(-50%, -48%) !important;
+    }
+
+    .valle-loading-card {
+      width: min(330px, 88vw);
+      text-align: center;
+      color: #ffffff;
+    }
+
+    .valle-loading-logo {
+      width: 88px;
+      height: 88px;
+      object-fit: contain;
+      filter: drop-shadow(0 14px 30px rgba(130, 70, 255, .35));
+      animation: valleLoadingPulse 1.55s ease-in-out infinite;
+    }
+
+    .valle-loading-card h2 {
+      margin: 18px 0 4px;
+      color: #ffffff !important;
+      opacity: 1 !important;
+      font-size: 1.65rem;
+      font-weight: 900;
+      letter-spacing: .09em;
+    }
+
+    .valle-loading-card p {
+      margin: 0 0 22px;
+      color: rgba(255, 255, 255, .78) !important;
+      opacity: 1 !important;
+      font-size: .9rem;
+      font-weight: 600;
+    }
+
+    .valle-loading-progress {
+      height: 5px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .12);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .05);
+    }
+
+    .valle-loading-progress span {
+      display: block;
+      width: 44%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #7047ff, #b150ff);
+      animation: valleLoadingBar 1.15s ease-in-out infinite;
+    }
+
+    @keyframes valleLoadingPulse {
+      0%, 100% { transform: scale(.96); opacity: .82; }
+      50% { transform: scale(1.04); opacity: 1; }
+    }
+
+    @keyframes valleLoadingBar {
+      0% { transform: translateX(-115%); }
+      100% { transform: translateX(330%); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .valle-loading-logo,
+      .valle-loading-progress span { animation: none; }
+      .valle-loading-progress span { width: 100%; }
+    }
+  </style>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
@@ -16,10 +280,92 @@
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="vendor/bootstrap/bootstrap.min.css">
   <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="css/app.css?v=20260717-preview-fullscreen-v2">
+  <link rel="stylesheet" href="css/app.css?v=40">
 </head>
 
-<body class="bootstrap-only-ui">
+<body class="bootstrap-only-ui" style="background:#070b18">
+  <script>
+    (function () {
+      var theme = window.VALLE_PRELOAD_THEME === 'dark' ? 'dark' : 'light';
+      document.body.classList.add('dark');
+      document.body.dataset.vallePreloadTheme = theme;
+      document.body.style.setProperty('background-color', '#070b18', 'important');
+      document.body.style.setProperty('background-image', 'none', 'important');
+      if (window.VALLE_SYNC_LOADING_VIEWPORT) window.VALLE_SYNC_LOADING_VIEWPORT();
+    })();
+  </script>
+  <div id="valleLoadingScreen" class="valle-loading-screen" role="status" aria-live="polite" aria-label="Carregando o sistema">
+    <div class="valle-loading-card">
+      <img src="icons/dashboard-icon.png" alt="" class="valle-loading-logo">
+      <h2>VALLE</h2>
+      <p>Carregando seus dados...</p>
+      <div class="valle-loading-progress" aria-hidden="true"><span></span></div>
+    </div>
+  </div>
+
+  <script>
+    /* Controle do loading registrado antes de qualquer script do aplicativo. */
+    (function () {
+      let hidden = false;
+      const startedAt = Date.now();
+      const minimumVisibleMs = 650;
+
+      function finishLoading() {
+        if (hidden) return;
+        const elapsed = Date.now() - startedAt;
+        if (elapsed < minimumVisibleMs) {
+          window.setTimeout(finishLoading, minimumVisibleMs - elapsed);
+          return;
+        }
+        hidden = true;
+        const loading = document.getElementById('valleLoadingScreen');
+        if (!loading) {
+          document.documentElement.classList.remove('valle-loading-active');
+          return;
+        }
+        loading.classList.add('is-hiding');
+        window.setTimeout(function () {
+          var activeTheme = (window.VALLE_PENDING_THEME || window.VALLE_ACTIVE_THEME || window.VALLE_PRELOAD_THEME) === 'dark' ? 'dark' : 'light';
+          window.VALLE_ACTIVE_THEME = activeTheme;
+          window.VALLE_PENDING_THEME = null;
+
+          // A troca é feita em uma única etapa, depois da animação, para a área inferior não piscar.
+          document.body.classList.toggle('dark', activeTheme === 'dark');
+          document.documentElement.classList.toggle('dark', activeTheme === 'dark');
+          document.documentElement.setAttribute('data-bs-theme', activeTheme);
+          document.documentElement.style.colorScheme = activeTheme;
+          var themeMeta = document.querySelector('meta[name="theme-color"]');
+          if (themeMeta) themeMeta.setAttribute('content', activeTheme === 'dark' ? '#070b18' : '#f4f2ff');
+          if (window.VALLE_STOP_LOADING_VIEWPORT_SYNC) window.VALLE_STOP_LOADING_VIEWPORT_SYNC();
+          document.documentElement.classList.remove('valle-loading-active', 'valle-preload-dark', 'valle-preload-light');
+          loading.remove();
+          document.documentElement.style.removeProperty('background');
+          document.documentElement.style.removeProperty('background-color');
+          document.documentElement.style.removeProperty('background-image');
+          document.documentElement.style.removeProperty('color-scheme');
+          document.documentElement.style.removeProperty('--valle-loading-physical-width');
+          document.documentElement.style.removeProperty('--valle-loading-physical-height');
+          document.documentElement.style.removeProperty('--valle-loading-center-y');
+          document.body.style.removeProperty('background');
+          document.body.style.removeProperty('background-color');
+          document.body.style.removeProperty('background-image');
+          delete document.body.dataset.vallePreloadTheme;
+          window.dispatchEvent(new CustomEvent('valle-loading-finished', { detail: { theme: activeTheme } }));
+        }, 240);
+      }
+
+      window.hideValleLoadingScreen = finishLoading;
+      window.addEventListener('valle-app-ready', finishLoading, { once: true });
+      window.addEventListener('load', function () {
+        // Segurança: se algum serviço remoto atrasar, não mantém o usuário
+        // preso na tela de carregamento depois que a interface já existe.
+        window.setTimeout(function () {
+          if (document.getElementById('authGate') || document.querySelector('.app')) finishLoading();
+        }, 1800);
+      }, { once: true });
+    })();
+  </script>
+
   <div class="app">
     <!-- Cabeçalho principal: título do sistema. A badge de prazo fica somente na aba Novo. -->
     <header class="topbar glass">
@@ -73,8 +419,15 @@
           <div class="dashboard-user-info"><strong id="dashboardUserDropdownName">Usuário</strong>
             <small id="dashboardUserDropdownEmail"></small>
           </div>
-          <button type="button" id="dashboardThemeBtn"
-            class="user-theme-menu-btn">Modo escuro</button>
+          <div class="valle-theme-picker valle-theme-picker--embedded" data-theme-picker="dashboard">
+            <button type="button" class="valle-theme-trigger" data-theme-trigger aria-haspopup="true" aria-expanded="false" aria-label="Choose theme"><i class="bi bi-moon-stars-fill" data-theme-current-icon aria-hidden="true"></i><span class="valle-theme-trigger-label" data-theme-current-label>Auto</span><i class="bi bi-chevron-down valle-theme-chevron" aria-hidden="true"></i></button>
+            <div class="valle-theme-popover hidden" data-theme-popover role="radiogroup" aria-label="Select theme">
+              <button type="button" class="valle-theme-option" data-theme-mode="light" role="radio" aria-checked="false"><i class="bi bi-sun-fill valle-theme-option-icon" aria-hidden="true"></i><span>Light</span><i class="bi bi-check-lg valle-theme-check" aria-hidden="true"></i></button>
+              <button type="button" class="valle-theme-option" data-theme-mode="dark" role="radio" aria-checked="false"><i class="bi bi-moon-stars-fill valle-theme-option-icon" aria-hidden="true"></i><span>Dark</span><i class="bi bi-check-lg valle-theme-check" aria-hidden="true"></i></button>
+              <button type="button" class="valle-theme-option" data-theme-mode="auto" role="radio" aria-checked="false"><i class="bi bi-circle-half valle-theme-option-icon" aria-hidden="true"></i><span>Auto</span><i class="bi bi-check-lg valle-theme-check" aria-hidden="true"></i></button>
+            </div>
+          </div>
+          <button type="button" id="dashboardPushNoticesBtn" class="user-theme-menu-btn user-notices-menu-btn"><span>🔔</span><span>Avisos no celular</span></button>
           <button type="button" id="dashboardLogoutBtn">Sair</button>
           <p id="versao_sytem"></p>
         </div>
@@ -569,15 +922,87 @@
     <div id="partialPaymentBody" class="partial-payment-card"></div>
   </div>
 
+
+  <div class="modal fade avisos-celular-modal" id="avisosCelularModal" tabindex="-1"
+    aria-labelledby="avisosCelularModalTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header avisos-celular-modal-header">
+          <div class="d-flex align-items-center gap-3">
+            <span class="avisos-celular-modal-icon" aria-hidden="true"><i class="bi bi-phone-vibrate"></i></span>
+            <div>
+              <h2 class="modal-title" id="avisosCelularModalTitulo">AVISOS NO CELULAR</h2>
+              <p class="mb-0">Receba notificações mesmo com o VALLE fechado.</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p class="avisos-celular-description">Ative, desative ou teste os avisos deste aparelho.</p>
+          <div id="pushNotificationStatus" class="alert alert-secondary py-2 px-3 mb-3">Verificando este aparelho…</div>
+          <div class="avisos-celular-actions">
+            <button id="activatePushNotifications" type="button" class="btn btn-success" aria-pressed="false"><i class="bi bi-bell-fill me-1"></i><span>ATIVAR NOTIFICAÇÕES</span></button>
+            <button id="testPushNotifications" type="button" class="btn btn-outline-primary" disabled aria-disabled="true"><i class="bi bi-send me-1"></i>TESTAR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade abrir-vale-senha-modal" id="abrirValeSenhaModal" tabindex="-1"
+    aria-labelledby="abrirValeSenhaTitulo" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered abrir-vale-senha-dialog">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header abrir-vale-senha-header border-0">
+          <span class="abrir-vale-senha-icon" aria-hidden="true"><i class="bi bi-shield-lock-fill"></i></span>
+          <div class="abrir-vale-senha-titulos">
+            <h2 class="modal-title" id="abrirValeSenhaTitulo">CONFIRMAR SENHA</h2>
+            <p>Digite a senha do usuário de serviço para reabrir este vale.</p>
+          </div>
+        </div>
+        <div class="modal-body p-4">
+          <label class="form-label fw-semibold" for="abrirValeSenhaInput">SENHA</label>
+          <div class="input-group input-group-lg">
+            <span class="input-group-text"><i class="bi bi-key-fill"></i></span>
+            <input class="form-control" id="abrirValeSenhaInput" type="password" autocomplete="current-password"
+              placeholder="DIGITE SUA SENHA" aria-describedby="abrirValeSenhaAjuda">
+          </div>
+          <div id="abrirValeSenhaAjuda" class="form-text mt-2">A senha é obrigatória para reabrir o vale.</div>
+          <div class="alert alert-danger d-none mt-3 mb-0 py-2" id="abrirValeSenhaErro" role="alert"></div>
+        </div>
+        <div class="modal-footer border-0 px-4 pb-4 pt-0 d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary flex-fill" id="cancelarAbrirValeBtn">
+            <i class="bi bi-x-circle me-1"></i>CANCELAR
+          </button>
+          <button type="button" class="btn btn-success flex-fill" id="confirmarAbrirValeBtn" disabled>
+            <i class="bi bi-check-circle me-1"></i>CONFIRMAR
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="toastContainer" class="app-alert-container" aria-live="polite" aria-atomic="false"></div>
   <!-- JavaScript principal do sistema. Toda a lógica fica em js/app.js. -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // Carrega o Supabase sem bloquear a montagem da tela. Em conexão lenta,
+    // o login aparece e a sessão é restaurada assim que a biblioteca terminar.
+    window.VALLE_SUPABASE_READY = new Promise(function (resolve) {
+      var script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+      script.async = true;
+      script.onload = function () { resolve(true); };
+      script.onerror = function () { resolve(false); };
+      document.head.appendChild(script);
+    });
+  </script>
   <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
-  <script src="js/supabase-config.js"></script>
-  <script src="js/supabase-client.js?v=20260716-auditoria-v1"></script>
-  <script src="js/app.js?v=20260717-preview-fullscreen-v2"></script>
-  <script src="js/auth-ui.js?v=20260716-alertas-compactos-v2"></script>
-  <script src="js/bootstrap-enhance.js?v=20260712-standard-v4"></script>
+  <script src="js/supabase-config.js?v=34"></script>
+  <script src="js/supabase-client.js?v=34"></script>
+  <script src="js/app.js?v=40"></script>
+  <script src="js/auth-ui.js?v=40"></script>
+  <script src="js/bootstrap-enhance.js?v=40"></script>
+  <script src="js/push-notifications.js?v=34"></script>
   <script>
     (function () {
       if (!('serviceWorker' in navigator)) return;
@@ -594,7 +1019,7 @@
       window.addEventListener('load', async function () {
         try {
           const registro = await navigator.serviceWorker.register(
-            'service-worker.js?v=20260717-preview-sem-fechar-v1',
+            'service-worker.js?v=40',
             { updateViaCache: 'none' }
           );
 

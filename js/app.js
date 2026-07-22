@@ -1,7 +1,7 @@
 /* VERSAO DO SISTEMA */
 const versao = document.getElementById("versao_sytem")
 
-versao.innerHTML = 'Versão-3.4.2'
+versao.innerHTML = 'Versão-3.5.1'
 /**
  * ARQUIVO PRINCIPAL DO VALLE
  * ------------------------------------------------
@@ -110,7 +110,7 @@ function appAlert(message, options = {}) {
  * Cria a estrutura padrão do banco local quando o sistema é aberto pela primeira vez ou quando os dados são apagados.
  */
 function seed() {
-  return { settings: { theme: 'light', seq: 1, capitalInvestido: 0, percentualJuros50: 50, taxaAtrasoDiario: 0, tipoTaxaAtrasoDiario: 'percentual' }, clientes: [], vales: [] };
+  return { settings: { theme: 'auto', seq: 1, capitalInvestido: 0, percentualJuros50: 50, taxaAtrasoDiario: 0, tipoTaxaAtrasoDiario: 'percentual' }, clientes: [], vales: [] };
 }
 
 /**
@@ -520,18 +520,41 @@ function lateFeeLabel(v = null) {
  * Aplica o modo claro ou escuro na tela conforme a configuração salva.
  */
 function applyTheme() {
-  let theme = window.VALLE_ACTIVE_THEME;
-  if (theme !== 'dark' && theme !== 'light') {
-    try { theme = localStorage.getItem('valle_theme_guest'); } catch (_) {}
+  const validModes = ['auto', 'light', 'dark'];
+  let mode = validModes.includes(window.VALLE_THEME_MODE) ? window.VALLE_THEME_MODE : null;
+  if (!mode) {
+    try {
+      const saved = localStorage.getItem('valle_theme_active') || localStorage.getItem('valle_theme_guest');
+      if (validModes.includes(saved)) mode = saved;
+    } catch (_) {}
   }
-  if (theme !== 'dark' && theme !== 'light') theme = db?.settings?.theme === 'dark' ? 'dark' : 'light';
+  if (!mode) mode = validModes.includes(db?.settings?.theme) ? db.settings.theme : 'auto';
+
+  const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  const theme = mode === 'auto' ? (systemDark ? 'dark' : 'light') : mode;
+  window.VALLE_THEME_MODE = mode;
   window.VALLE_ACTIVE_THEME = theme;
+  window.VALLE_PENDING_THEME = theme;
+  try { localStorage.setItem('valle_theme_active', mode); } catch (_) {}
+
+  const loadingActive = document.documentElement.classList.contains('valle-loading-active');
   const isDark = theme === 'dark';
+  if ($('themeBtn')) $('themeBtn').textContent = mode === 'auto' ? '◐ AUTOMÁTICO' : (isDark ? '☀️ MODO CLARO' : '🌙 MODO ESCURO');
+
+  if (loadingActive) {
+    document.documentElement.style.colorScheme = 'dark';
+    const loadingMeta = document.querySelector('meta[name="theme-color"]');
+    if (loadingMeta) loadingMeta.setAttribute('content', '#070b18');
+    return;
+  }
+
+  window.VALLE_PENDING_THEME = null;
   document.body.classList.toggle('dark', isDark);
   document.documentElement.classList.toggle('dark', isDark);
+  document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
+  document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   if (themeMeta) themeMeta.setAttribute('content', isDark ? '#070b18' : '#f4f2ff');
-  if ($('themeBtn')) $('themeBtn').textContent = isDark ? '☀️ MODO CLARO' : '🌙 MODO ESCURO';
 }
 
 
@@ -1188,6 +1211,87 @@ function togglePaid(id) {
  * Botão ABRIR VALE no histórico: reabre somente vales quitados.
  * Se o vale já está aberto, apenas avisa para não confundir com Receber.
  */
+let valeAguardandoSenhaId = null;
+
+function getAbrirValeSenhaModal() {
+  const modalEl = $('abrirValeSenhaModal');
+  if (!modalEl || !window.bootstrap?.Modal) return null;
+  return bootstrap.Modal.getOrCreateInstance(modalEl, {
+    backdrop: 'static',
+    keyboard: false,
+    focus: true
+  });
+}
+
+function limparModalSenhaAbrirVale() {
+  const senha = $('abrirValeSenhaInput');
+  const erro = $('abrirValeSenhaErro');
+  const confirmar = $('confirmarAbrirValeBtn');
+  if (senha) senha.value = '';
+  if (erro) {
+    erro.textContent = '';
+    erro.classList.add('d-none');
+  }
+  if (confirmar) {
+    confirmar.disabled = true;
+    confirmar.innerHTML = '<i class="bi bi-check-circle me-1"></i>CONFIRMAR';
+  }
+}
+
+function abrirModalSenhaVale(id) {
+  valeAguardandoSenhaId = id;
+  limparModalSenhaAbrirVale();
+  const modal = getAbrirValeSenhaModal();
+  if (!modal) {
+    toast('NÃO FOI POSSÍVEL ABRIR A CONFIRMAÇÃO DE SENHA');
+    return;
+  }
+  modal.show();
+  setTimeout(() => $('abrirValeSenhaInput')?.focus(), 180);
+}
+
+async function confirmarSenhaAbrirVale() {
+  const senha = $('abrirValeSenhaInput');
+  const confirmar = $('confirmarAbrirValeBtn');
+  const cancelar = $('cancelarAbrirValeBtn');
+  const erro = $('abrirValeSenhaErro');
+  const valor = String(senha?.value || '');
+  if (!valor || !valeAguardandoSenhaId) return;
+
+  confirmar.disabled = true;
+  cancelar.disabled = true;
+  senha.disabled = true;
+  confirmar.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>CONFIRMANDO';
+  if (erro) {
+    erro.textContent = '';
+    erro.classList.add('d-none');
+  }
+
+  try {
+    if (!window.ValleCloud?.verifyCurrentPassword) throw new Error('Verificação de senha indisponível.');
+    await ValleCloud.verifyCurrentPassword(valor);
+    const id = valeAguardandoSenhaId;
+    valeAguardandoSenhaId = null;
+    getAbrirValeSenhaModal()?.hide();
+    togglePaid(id);
+  } catch (e) {
+    if (erro) {
+      erro.textContent = e?.message || 'Senha incorreta.';
+      erro.classList.remove('d-none');
+    }
+    senha.value = '';
+    senha.focus();
+  } finally {
+    senha.disabled = false;
+    cancelar.disabled = false;
+    confirmar.innerHTML = '<i class="bi bi-check-circle me-1"></i>CONFIRMAR';
+    confirmar.disabled = !String(senha.value || '');
+  }
+}
+
+/**
+ * Exige a senha do usuário conectado antes de reabrir um vale quitado.
+ */
 function abrirValeHistorico(id) {
   const v = db.vales.find(x => x.id === id);
   if (!v) return;
@@ -1195,8 +1299,35 @@ function abrirValeHistorico(id) {
     toast('ESTE VALE JÁ ESTÁ EM ABERTO');
     return;
   }
-  togglePaid(id);
+  abrirModalSenhaVale(id);
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const senha = $('abrirValeSenhaInput');
+  const confirmar = $('confirmarAbrirValeBtn');
+  const cancelar = $('cancelarAbrirValeBtn');
+  const modalEl = $('abrirValeSenhaModal');
+
+  if (senha && confirmar) {
+    senha.addEventListener('input', () => {
+      confirmar.disabled = !String(senha.value || '');
+      const erro = $('abrirValeSenhaErro');
+      if (erro) erro.classList.add('d-none');
+    });
+    senha.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !confirmar.disabled) {
+        e.preventDefault();
+        confirmarSenhaAbrirVale();
+      }
+    });
+  }
+  if (confirmar) confirmar.addEventListener('click', confirmarSenhaAbrirVale);
+  if (cancelar) cancelar.addEventListener('click', () => {
+    valeAguardandoSenhaId = null;
+    getAbrirValeSenhaModal()?.hide();
+  });
+  if (modalEl) modalEl.addEventListener('hidden.bs.modal', limparModalSenhaAbrirVale);
+});
 
 function loanPrincipalBalance(v) {
   return Math.max(0, originalLoanValue(v) - Number(v.principalRecebido || 0));
@@ -3212,7 +3343,7 @@ function renderNotificationBootstrapCard(v) {
       ? 'Vencimento hoje'
       : `Vence em ${info.dias} dia${info.dias === 1 ? '' : 's'}`;
 
-  return `<article class="card notification-bootstrap-item border-${statusClass}">
+  return `<article class="card notification-bootstrap-item border-${statusClass}" data-notification-vale-id="${h(String(v.id ?? v.numero ?? ''))}">
     <div class="card-body p-3 p-md-4">
       <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
         <div class="d-flex align-items-start gap-2 min-w-0 notification-client-wrap">
@@ -4137,17 +4268,6 @@ if (document.readyState === 'loading') {
 }
 
 
-// Corrige a altura visual do Safari no iPhone, incluindo barras e safe-area.
-(function valleFixIOSViewport(){
-  const update = () => {
-    const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    document.documentElement.style.setProperty('--valle-vh', `${h * 0.01}px`);
-  };
-  update();
-  window.addEventListener('resize', update, { passive:true });
-  window.addEventListener('orientationchange', () => setTimeout(update, 120), { passive:true });
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', update, { passive:true });
-})();
 
 /* Navegação móvel: transforma a barra em carrossel e centraliza a aba selecionada. */
 (function setupMobileTabsCarousel() {
@@ -4399,5 +4519,78 @@ if (document.readyState === 'loading') {
     const tab = event.target.closest('.tab');
     if (!tab || !isMobile()) return;
     document.body.classList.remove('mobile-nav-hidden');
+  });
+})();
+
+
+/* Abre diretamente a cobrança indicada por uma notificação push. */
+(function setupPushNotificationDeepLink() {
+  let handledKey = '';
+
+  function getDeepLink() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      screen: params.get('screen') || (window.location.hash === '#notificacoes' ? 'notificacoes' : ''),
+      valeId: params.get('vale') || ''
+    };
+  }
+
+  function cleanDeepLinkUrl() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('screen');
+    url.searchParams.delete('vale');
+    url.hash = 'notificacoes';
+    history.replaceState({}, '', url.pathname + url.search + url.hash);
+  }
+
+  function openPushTarget(attempt = 0) {
+    const target = getDeepLink();
+    if (target.screen !== 'notificacoes') return;
+
+    const key = `${target.screen}:${target.valeId}`;
+    if (handledKey === key && attempt === 0) return;
+
+    if (typeof window.switchScreen !== 'function' && typeof switchScreen !== 'function') {
+      if (attempt < 20) setTimeout(() => openPushTarget(attempt + 1), 300);
+      return;
+    }
+
+    try {
+      switchScreen('notificacoes');
+      notificationActiveFilter = 'hoje';
+      document.querySelectorAll('.notif-filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.notifFilter === 'hoje');
+      });
+      renderNotifications();
+    } catch (_) {
+      if (attempt < 20) setTimeout(() => openPushTarget(attempt + 1), 300);
+      return;
+    }
+
+    if (!target.valeId) {
+      handledKey = key;
+      cleanDeepLinkUrl();
+      return;
+    }
+
+    const selectorId = (window.CSS && CSS.escape) ? CSS.escape(target.valeId) : target.valeId.replace(/["\\]/g, '\\$&');
+    const card = document.querySelector(`[data-notification-vale-id="${selectorId}"]`);
+    if (!card) {
+      if (attempt < 20) setTimeout(() => openPushTarget(attempt + 1), 300);
+      return;
+    }
+
+    handledKey = key;
+    card.classList.add('push-notification-target');
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => card.classList.remove('push-notification-target'), 5000);
+    cleanDeepLinkUrl();
+  }
+
+  window.addEventListener('load', () => setTimeout(() => openPushTarget(), 700));
+  window.addEventListener('hashchange', () => setTimeout(() => openPushTarget(), 100));
+  window.addEventListener('popstate', () => setTimeout(() => openPushTarget(), 100));
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) setTimeout(() => openPushTarget(), 150);
   });
 })();
