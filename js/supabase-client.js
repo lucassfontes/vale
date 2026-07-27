@@ -459,12 +459,24 @@
     catch(e){ console.warn('Log guardado localmente:',e); return true; }
   }
 
-  async function listAuditLogs(limit=1000){
+  async function listAuditLogs(limit=1000, sessionId=null){
     if(!profile || !['session','service'].includes(profile.role)) return [];
-    const sid=currentSessionId();
-    if(!isOnline()) return safeGet(auditCacheKey(sid),[]).slice(0,limit);
-    const {data,error}=await getClient().from('audit_logs').select('*').eq('session_user_id',sid).order('created_at',{ascending:false}).limit(limit);
-    if(error) throw error; safeSet(auditCacheKey(sid),data||[]); return data||[];
+    const sid=String(sessionId || currentSessionId() || '').trim();
+    if(!sid) return [];
+    const belongsToCurrentSession=row => String(row?.session_user_id || '') === sid;
+    if(!isOnline()) {
+      return (safeGet(auditCacheKey(sid),[]) || []).filter(belongsToCurrentSession).slice(0,limit);
+    }
+    const {data,error}=await getClient()
+      .from('audit_logs')
+      .select('*')
+      .eq('session_user_id',sid)
+      .order('created_at',{ascending:false})
+      .limit(limit);
+    if(error) throw error;
+    const filtered=(data||[]).filter(belongsToCurrentSession);
+    safeSet(auditCacheKey(sid),filtered);
+    return filtered;
   }
 
   async function listManagedUsers(options={}){
@@ -518,7 +530,7 @@
     get profile(){return profile}, get sessionProfile(){return sessionProfile},
     accessState, setMyTheme, loadWorkspace, loadWorkspaceSnapshot, saveWorkspace, queueWorkspace, flushWorkspace,
     syncPendingWorkspace, invokeManage, createAdminMessage, listAdminMessages, deactivateAdminMessage, deleteAdminMessage, getUnreadAdminMessage, markAdminMessageSeen,
-    listManagedUsers, getPermissions, savePermissions, loadMyPermissions, recordAudit, listAuditLogs,
+    listManagedUsers, getPermissions, savePermissions, loadMyPermissions, recordAudit, listAuditLogs, getCurrentSessionId:currentSessionId,
     normalizePhone, isOnline,
     get syncState(){return syncState},
     get lastSyncError(){return lastSyncError},

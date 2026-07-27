@@ -28,6 +28,13 @@
     return range;
   }
 
+  function activeSessionId(){
+    const profile=window.ValleCloud?.profile || {};
+    if(profile.role==='session') return String(profile.id || '').trim();
+    if(profile.role==='service') return String(profile.session_user_id || '').trim();
+    return '';
+  }
+
   const dateTimeBR = value => {
     const d = new Date(value || Date.now());
     return Number.isNaN(d.getTime()) ? { date:'—', time:'—', iso:'' } : {
@@ -314,8 +321,11 @@
     state.loading = true;
     list.innerHTML = '<div class="lancamentos-loading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> CARREGANDO LANÇAMENTOS...</div>';
     try {
-      const logs = await window.ValleCloud.listAuditLogs(2000);
+      const sessionId=activeSessionId();
+      if(!sessionId) throw new Error('Não foi possível identificar a sessão atual.');
+      const logs = await window.ValleCloud.listAuditLogs(2000, sessionId);
       state.entries = enrichPaymentBreakdown((logs || [])
+        .filter(log => String(log.session_user_id || '') === sessionId)
         .filter(log => ACTIONS.has(String(log.action || '').toUpperCase()))
         .map(normalizeLog));
       state.loadedAt = Date.now();

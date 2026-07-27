@@ -1,0 +1,6 @@
+VALLE v75 — correção de isolamento da aba Lançamentos
+
+- A aba Lançamentos agora aceita somente registros cujo session_user_id seja igual ao da sessão atual.
+- Usuários de serviço veem apenas os lançamentos da sessão à qual estão vinculados.
+- O cache local também é filtrado por sessão.
+- Foi adicionada uma política RLS reforçada para impedir vazamento entre sessões no Supabase.
