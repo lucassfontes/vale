@@ -1,0 +1,1 @@
+VALLE v74 — botão de fechar dos modais sem borda e sem fundo, mostrando somente o X.

@@ -1,0 +1,6 @@
+VALLE v58 — filtros mensais e resumos detalhados
+
+- Filtros de Histórico, Lançamentos e Auditoria iniciam no primeiro dia do mês atual e terminam hoje.
+- Limpar filtros restaura o período mensal padrão.
+- Lançamentos separa quitados, parciais, juros e novos vales.
+- Lucro do período considera somente juros recebidos, sem misturar devolução de principal.

@@ -1,0 +1,5 @@
+VALLE v60 — mensagens do administrador direcionadas por sessão.
+
+- Permite enviar para todas as sessões ou escolher uma sessão específica.
+- Usuários de serviço vinculados à sessão escolhida também recebem.
+- Modal de envio e modal de leitura seguem o mesmo estilo do modal de confirmação de senha.

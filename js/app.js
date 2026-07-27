@@ -1,7 +1,7 @@
 /* VERSAO DO SISTEMA */
 const versao = document.getElementById("versao_sytem")
 
-versao.innerHTML = 'Versão-3.5.1'
+versao.innerHTML = 'Versão-3.6.7'
 /**
  * ARQUIVO PRINCIPAL DO VALLE
  * ------------------------------------------------
@@ -34,6 +34,8 @@ var db = load();
 window.db = db;
 // Quando está editando um vale, guarda aqui o ID dele. Se for null, é vale novo.
 let editLoanId = null;
+// Guarda de qual tela a edição foi aberta para voltar ao mesmo local ao cancelar ou atualizar.
+let loanEditReturnScreen = 'historico';
 let clientFormSnapshot = '';
 let clientModalForceClose = false;
 let loanFormSnapshot = '';
@@ -449,6 +451,26 @@ function brDate(s) { if (!s) return '--/--/----'; const p = String(s).split('-')
  * Converte um objeto Date do JavaScript para o formato usado em input type=date (AAAA-MM-DD).
  */
 function inputDate(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+
+/** Período financeiro padrão do VALLE: primeiro dia do mês atual até hoje. */
+function valleCurrentMonthRange() {
+  const hoje = new Date();
+  const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  return { from: inputDate(inicio), to: inputDate(hoje) };
+}
+function applyValleMonthRange(fromId, toId, force = false) {
+  const range = valleCurrentMonthRange();
+  const from = $(fromId);
+  const to = $(toId);
+  if (from && (force || !from.value)) from.value = range.from;
+  if (to && (force || !to.value)) to.value = range.to;
+  return range;
+}
+window.VallePeriod = {
+  currentMonth: valleCurrentMonthRange,
+  apply: applyValleMonthRange
+};
+
 /**
  * Calcula a diferença em dias entre duas datas.
  */
@@ -672,10 +694,26 @@ function syncLoanRatesFromSelectedClient() {
 }
 
 /**
+ * Descobre de qual aba a edição do vale foi aberta.
+ * Apenas Histórico e Lançamentos são destinos válidos para o retorno da edição.
+ */
+function resolveLoanEditReturnScreen(preferred = '') {
+  const requested = String(preferred || '').toLowerCase();
+  if (requested === 'historico' || requested === 'lancamentos') return requested;
+  const active = String(document.querySelector('.screen.active')?.id || '').toLowerCase();
+  return active === 'lancamentos' ? 'lancamentos' : 'historico';
+}
+
+function getLoanEditReturnScreen() {
+  return loanEditReturnScreen === 'lancamentos' ? 'lancamentos' : 'historico';
+}
+
+/**
  * Limpa o formulário de novo VALLE e coloca as datas padrão: hoje e +30 dias.
  */
 function clearLoan() {
   editLoanId = null;
+  loanEditReturnScreen = 'historico';
   if ($('saveOnlyBtn')) $('saveOnlyBtn').innerHTML = '💾 Salvar';
   $('loanCliente').value = '';
   $('loanValor').value = '';
@@ -809,7 +847,7 @@ function saveLoan() {
   } else {
     v.numero = db.settings.seq++;
     db.vales.unshift(v);
-    valleAudit('CRIAR_VALE','vale',v,{new_data:v});
+    valleAudit('CRIAR_VALE','vale',v,{new_data:v,valor_lancamento:v.valor,total_lancamento:v.total,data_lancamento:new Date().toISOString()});
     toast('VALLE SALVO');
   }
   editLoanId = null;
@@ -829,7 +867,11 @@ async function saveSendPdf() { const v = saveLoan(); if (v) { await sharePdf(v);
 /**
  * Salva o vale sem imprimir e leva o usuário para o histórico.
  */
-function saveOnly() { const v = saveLoan(); if (v) { clearLoan(); switchScreen('historico'); } }
+function saveOnly() {
+  const destination = editLoanId ? getLoanEditReturnScreen() : 'historico';
+  const v = saveLoan();
+  if (v) { clearLoan(); switchScreen(destination); }
+}
 
 /**
  * Cancela o cadastro/edição do vale, limpa o formulário e volta para o histórico.
@@ -867,7 +909,11 @@ async function confirmLoanBeforeLeave(afterLeave) {
 }
 
 async function cancelLoan() {
-  await confirmLoanBeforeLeave(() => switchScreen('historico'));
+  const destination = editLoanId ? getLoanEditReturnScreen() : 'historico';
+  await confirmLoanBeforeLeave(() => {
+    clearLoan();
+    switchScreen(destination);
+  });
 }
 
 /**
@@ -876,6 +922,7 @@ async function cancelLoan() {
  */
 function openNewLoan() {
   clearLoan();
+  loanEditReturnScreen = 'historico';
   switchScreen('emprestimo');
 }
 
@@ -1138,9 +1185,10 @@ async function deleteClient(id) {
 /**
  * Carrega um vale do histórico no formulário de VALLE para edição.
  */
-function editLoan(id) {
+function startLoanEdit(id, originScreen = '') {
   const v = db.vales.find(x => x.id === id);
   if (!v) return;
+  loanEditReturnScreen = resolveLoanEditReturnScreen(originScreen);
   editLoanId = id;
   if ($('saveOnlyBtn')) $('saveOnlyBtn').innerHTML = '💾 Atualizar';
   $('loanCliente').value = v.cliente;
@@ -1157,6 +1205,20 @@ function editLoan(id) {
   markLoanFormClean();
   switchScreen('emprestimo');
   toast('EDITANDO VALE');
+}
+
+/**
+ * Carrega um vale para edição. Vales quitados exigem confirmação de senha.
+ */
+function editLoan(id, originScreen = '') {
+  const v = db.vales.find(x => x.id === id);
+  if (!v) return;
+  const origin = resolveLoanEditReturnScreen(originScreen);
+  if (String(v.status || '').toUpperCase() === 'PAGO') {
+    abrirModalSenhaVale(id, 'editar', origin);
+    return;
+  }
+  startLoanEdit(id, origin);
 }
 
 /**
@@ -1212,6 +1274,8 @@ function togglePaid(id) {
  * Se o vale já está aberto, apenas avisa para não confundir com Receber.
  */
 let valeAguardandoSenhaId = null;
+let valeAguardandoSenhaAcao = 'reabrir';
+let valeAguardandoSenhaOrigem = 'historico';
 
 function getAbrirValeSenhaModal() {
   const modalEl = $('abrirValeSenhaModal');
@@ -1221,6 +1285,20 @@ function getAbrirValeSenhaModal() {
     keyboard: false,
     focus: true
   });
+}
+
+function atualizarTextoModalSenhaVale(acao = 'reabrir') {
+  const editing = acao === 'editar';
+  const titulo = $('abrirValeSenhaTitulo');
+  const descricao = $('abrirValeSenhaDescricao') || document.querySelector('.abrir-vale-senha-titulos p');
+  const ajuda = $('abrirValeSenhaAjuda');
+  if (titulo) titulo.textContent = editing ? 'CONFIRMAR EDIÇÃO' : 'CONFIRMAR SENHA';
+  if (descricao) descricao.textContent = editing
+    ? 'Digite sua senha para editar este vale quitado.'
+    : 'Digite sua senha para reabrir este vale.';
+  if (ajuda) ajuda.textContent = editing
+    ? 'A senha é obrigatória para editar um vale quitado.'
+    : 'A senha é obrigatória para reabrir o vale.';
 }
 
 function limparModalSenhaAbrirVale() {
@@ -1238,9 +1316,12 @@ function limparModalSenhaAbrirVale() {
   }
 }
 
-function abrirModalSenhaVale(id) {
+function abrirModalSenhaVale(id, acao = 'reabrir', originScreen = '') {
   valeAguardandoSenhaId = id;
+  valeAguardandoSenhaAcao = acao === 'editar' ? 'editar' : 'reabrir';
+  valeAguardandoSenhaOrigem = resolveLoanEditReturnScreen(originScreen);
   limparModalSenhaAbrirVale();
+  atualizarTextoModalSenhaVale(valeAguardandoSenhaAcao);
   const modal = getAbrirValeSenhaModal();
   if (!modal) {
     toast('NÃO FOI POSSÍVEL ABRIR A CONFIRMAÇÃO DE SENHA');
@@ -1271,9 +1352,23 @@ async function confirmarSenhaAbrirVale() {
     if (!window.ValleCloud?.verifyCurrentPassword) throw new Error('Verificação de senha indisponível.');
     await ValleCloud.verifyCurrentPassword(valor);
     const id = valeAguardandoSenhaId;
+    const acao = valeAguardandoSenhaAcao;
+    const origem = valeAguardandoSenhaOrigem;
     valeAguardandoSenhaId = null;
-    getAbrirValeSenhaModal()?.hide();
-    togglePaid(id);
+    valeAguardandoSenhaAcao = 'reabrir';
+    valeAguardandoSenhaOrigem = 'historico';
+
+    const modalEl = $('abrirValeSenhaModal');
+    const executarAcao = () => {
+      if (acao === 'editar') startLoanEdit(id, origem);
+      else togglePaid(id);
+    };
+    if (modalEl) {
+      modalEl.addEventListener('hidden.bs.modal', executarAcao, { once: true });
+      getAbrirValeSenhaModal()?.hide();
+    } else {
+      executarAcao();
+    }
   } catch (e) {
     if (erro) {
       erro.textContent = e?.message || 'Senha incorreta.';
@@ -1299,7 +1394,7 @@ function abrirValeHistorico(id) {
     toast('ESTE VALE JÁ ESTÁ EM ABERTO');
     return;
   }
-  abrirModalSenhaVale(id);
+  abrirModalSenhaVale(id, 'reabrir', resolveLoanEditReturnScreen());
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1324,6 +1419,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (confirmar) confirmar.addEventListener('click', confirmarSenhaAbrirVale);
   if (cancelar) cancelar.addEventListener('click', () => {
     valeAguardandoSenhaId = null;
+    valeAguardandoSenhaAcao = 'reabrir';
+    valeAguardandoSenhaOrigem = 'historico';
     getAbrirValeSenhaModal()?.hide();
   });
   if (modalEl) modalEl.addEventListener('hidden.bs.modal', limparModalSenhaAbrirVale);
@@ -1554,9 +1651,13 @@ function receiveQuitado(id) {
   if (Number(v.valorOriginal || 0) <= 0) v.valorOriginal = originalLoanValue(v);
   if (Number(v.totalOriginal || 0) <= 0) v.totalOriginal = originalLoanTotal(v);
   const anterior=JSON.parse(JSON.stringify(v));
+  const valorQuitacao=loanTotalBalance(v);
   v.status = 'PAGO';
   v.ultimoRecebimento = 'QUITADO';
-  valleAudit('QUITAR_VALE','vale',v,{old_data:anterior,new_data:v});
+  const principalAntesQuitacao = loanPrincipalBalance(anterior);
+  const principalPagoQuitacao = Math.min(valorQuitacao, principalAntesQuitacao);
+  const jurosPagoQuitacao = Math.max(0, valorQuitacao - principalPagoQuitacao);
+  valleAudit('QUITAR_VALE','vale',v,{old_data:anterior,new_data:v,valor_pago:valorQuitacao,valor_principal_pago:principalPagoQuitacao,valor_juros_pago:jurosPagoQuitacao,data_pagamento:new Date().toISOString(),description:`Pagamento total de ${money(valorQuitacao)} no Vale #${v.numero||v.id}.`});
   save(); closeReceiveModal(); renderAll(); toast('VALE MARCADO COMO QUITADO');
 }
 
@@ -1675,7 +1776,7 @@ function receiveSoJuros(id) {
   const observacaoAtual = String(v.observacao || '').trim();
   v.observacao = observacaoAtual ? `${observacaoAtual}\n${novoRegistroObs}` : novoRegistroObs;
 
-  valleAudit('PAGAMENTO_JUROS','vale',v,{new_data:v,valor_pago:juros});
+  valleAudit('PAGAMENTO_JUROS','vale',v,{new_data:v,valor_pago:juros,valor_principal_pago:0,valor_juros_pago:juros,data_pagamento:new Date().toISOString()});
   save(); closeReceiveModal(); renderAll(); toast('JUROS REGISTRADO E VENCIMENTO ADIADO POR MAIS 30 DIAS');
 }
 
@@ -1732,7 +1833,7 @@ function receiveParcial(id) {
   if (loanTotalBalance(v) <= 0) v.status = 'PAGO';
   else v.status = 'ABERTO';
 
-  valleAudit('PAGAMENTO_PARCIAL','vale',v,{new_data:v,valor_pago:valorRecebido,saldo_anterior:totalAtual,saldo_novo:loanTotalBalance(v),description:`Pagamento parcial de ${money(valorRecebido)} no Vale #${v.numero||v.id}. Saldo: ${money(totalAtual)} → ${money(loanTotalBalance(v))}.`});
+  valleAudit('PAGAMENTO_PARCIAL','vale',v,{new_data:v,valor_pago:valorRecebido,valor_principal_pago:abatidoPrincipal,valor_juros_pago:abatidoJuros,data_pagamento:new Date().toISOString(),saldo_anterior:totalAtual,saldo_novo:loanTotalBalance(v),description:`Pagamento parcial de ${money(valorRecebido)} no Vale #${v.numero||v.id}. Saldo: ${money(totalAtual)} → ${money(loanTotalBalance(v))}.`});
   save();
   closePartialPaymentModal();
   partialPaymentValeId = null;
@@ -2053,7 +2154,7 @@ function renderHistory() {
           <button type="button" class="btn btn-danger btn-sm" onclick="downloadLoanPdf('${v.id}')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
           <button type="button" class="btn btn-primary btn-sm" onclick="openReceiveModal('${v.id}')"><i class="bi bi-cash-coin"></i> RECEBER</button>
           <button type="button" class="btn btn-info btn-sm text-white" onclick="abrirValeHistorico('${v.id}')"><i class="bi bi-unlock"></i> ABRIR VALE</button>
-          <button type="button" class="btn btn-warning btn-sm" onclick="editLoan('${v.id}')"><i class="bi bi-pencil-square"></i> EDITAR</button>
+          <button type="button" class="btn btn-warning btn-sm" onclick="editLoan('${v.id}', 'historico')"><i class="bi bi-pencil-square"></i> EDITAR</button>
           <button type="button" class="btn btn-danger btn-sm" onclick="deleteLoan('${v.id}')"><i class="bi bi-trash3"></i> EXCLUIR</button>
         </div>
       </div>
@@ -2508,6 +2609,7 @@ function renderAll() {
   // Renderiza a aba ativa imediatamente e adia telas pesadas que não estão abertas.
   if (active === 'clientes') safeRender(renderClients, 'clientes');
   if (active === 'historico') safeRender(renderHistory, 'histórico');
+  if (active === 'lancamentos') safeRender(window.renderLancamentos, 'lançamentos');
   if (active === 'relatorios') safeRender(renderReports, 'relatórios');
   if (active === 'calendario') safeRender(renderCalendario, 'calendário');
 
@@ -3104,7 +3206,9 @@ async function wipe() {
  * Inicializa o sistema: normaliza dados, aplica tema, configura eventos dos botões e renderiza a tela.
  */
 function init() {
-  db = normalizeDb(db); save(); applyTheme(); clearLoan(); renderAll();
+  db = normalizeDb(db); save(); applyTheme(); clearLoan();
+  applyValleMonthRange('filtroHistoricoInicio', 'filtroHistoricoFim');
+  renderAll();
   document.querySelectorAll('.tab').forEach(b => b.onclick = async (event) => {
     const targetScreen = b.dataset.screen;
     const activeScreen = document.querySelector('.screen.active')?.id;
@@ -3140,7 +3244,8 @@ function init() {
 
     event.preventDefault();
     event.stopPropagation();
-    await confirmLoanBeforeLeave(() => switchScreen('historico'));
+    const destination = editLoanId ? getLoanEditReturnScreen() : 'historico';
+    await confirmLoanBeforeLeave(() => switchScreen(destination));
   }, true);
   if ($('themeBtn')) $('themeBtn').onclick = () => { window.ValleUserTheme?.toggle(); };
   if ($('configCapitalInvestido')) {
@@ -3215,8 +3320,7 @@ function init() {
   if ($('filtrarHistoricoBtn')) $('filtrarHistoricoBtn').onclick = renderHistory;
   if ($('limparHistoricoFiltrosBtn')) $('limparHistoricoFiltrosBtn').onclick = () => {
     if ($('filtroHistoricoStatus')) $('filtroHistoricoStatus').value = 'TODOS';
-    if ($('filtroHistoricoInicio')) $('filtroHistoricoInicio').value = '';
-    if ($('filtroHistoricoFim')) $('filtroHistoricoFim').value = '';
+    applyValleMonthRange('filtroHistoricoInicio', 'filtroHistoricoFim', true);
     if ($('searchHistorico')) $('searchHistorico').value = '';
     renderHistory();
   };

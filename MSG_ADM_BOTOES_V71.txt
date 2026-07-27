@@ -1,0 +1,1 @@
+VALLE v71 — botões de desativar e deletar alinhados e visíveis no modal MSG ADM.

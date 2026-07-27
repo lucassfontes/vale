@@ -1,0 +1,9 @@
+VALLE v32
+
+- Tema claro e escuro restaurados como na v30.
+- Botões de tema restaurados no login, dashboard e painel administrativo.
+- Preferência continua salva por usuário no Supabase e no aparelho.
+- O loading permanece escuro e estável até desaparecer completamente.
+- theme-color e color-scheme não mudam durante o loading.
+- A área inferior usa #171238 durante todo o carregamento, evitando o piscar.
+- O tema selecionado é revelado somente quando o loading termina.

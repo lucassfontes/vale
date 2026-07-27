@@ -1,0 +1,6 @@
+VALLE v53 — layout melhorado da aba Lançamentos
+
+- Valor pago reorganizado no topo à direita do conteúdo.
+- Observações e ações melhor distribuídas.
+- Card mais limpo e harmonioso no desktop e no celular.
+- Mantidos VALE # à direita, remoção de hora e remoção de texto do tipo de usuário.

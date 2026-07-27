@@ -1,0 +1,3 @@
+VALLE v61 — mensagem do usuário com o mesmo estilo visual da div abrirValeSenhaAjuda.
+- Removidos fundo, borda e caixa da mensagem.
+- Aplicados tamanho, espaçamento, cor e altura de linha do texto de ajuda da senha.

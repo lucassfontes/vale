@@ -1,0 +1,1 @@
+VALLE v67 — ADMINISTRADOR movido para o rodapé do modal, abaixo da mensagem. A data permanece na faixa superior, alinhada à direita.

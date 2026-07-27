@@ -361,6 +361,78 @@
     return data;
   }
 
+  async function createAdminMessage(payload={}){
+    if (!profile || profile.role !== 'admin') throw new Error('Somente o administrador pode enviar mensagens.');
+    if (!isOnline()) throw new Error('O envio da mensagem precisa de internet.');
+    const title=String(payload.title||'ATUALIZAÇÃO DO SISTEMA').trim()||'ATUALIZAÇÃO DO SISTEMA';
+    const message=String(payload.message||'').trim();
+    if (!message) throw new Error('Digite a mensagem da atualização.');
+    const targetSessionId=String(payload.targetSessionId||'').trim()||null;
+    const item={admin_user_id:profile.id,target_session_user_id:targetSessionId,title,message,active:true,published_at:new Date().toISOString()};
+    const {data,error}=await getClient().from('admin_messages').insert(item).select('*').single();
+    if(error) throw error;
+    return data;
+  }
+
+  async function listAdminMessages(limit=20){
+    if (!profile || profile.role !== 'admin') return [];
+    if (!isOnline()) return safeGet('admin_messages_recent',[]).slice(0,limit);
+    const {data,error}=await getClient().from('admin_messages').select('*').order('created_at',{ascending:false}).limit(limit);
+    if(error) throw error;
+    safeSet('admin_messages_recent',data||[]);
+    return data||[];
+  }
+
+  async function deactivateAdminMessage(messageId){
+    if (!profile || profile.role !== 'admin') throw new Error('Somente o administrador pode alterar mensagens.');
+    if (!isOnline()) throw new Error('Esta ação precisa de internet.');
+    const {error}=await getClient().from('admin_messages').update({active:false}).eq('id',messageId);
+    if(error) throw error;
+    return true;
+  }
+
+  async function deleteAdminMessage(messageId){
+    if (!profile || profile.role !== 'admin') throw new Error('Somente o administrador pode excluir mensagens.');
+    if (!isOnline()) throw new Error('Esta ação precisa de internet.');
+    const id=String(messageId||'').trim();
+    if(!id) throw new Error('Mensagem inválida.');
+    const {error}=await getClient().from('admin_messages').delete().eq('id',id);
+    if(error) throw error;
+    const recent=safeGet('admin_messages_recent',[]).filter(item=>String(item.id)!==id);
+    safeSet('admin_messages_recent',recent);
+    return true;
+  }
+
+  function localAdminMessageSeenKey(messageId){
+    return `admin_message_seen_${profile?.id||'guest'}_${messageId}`;
+  }
+
+  async function getUnreadAdminMessage(){
+    if (!profile || profile.role === 'admin') return null;
+    if (!isOnline()) return null;
+    const {data,error}=await getClient()
+      .from('admin_messages')
+      .select('id,title,message,target_session_user_id,created_at,published_at,admin_message_reads(user_id)')
+      .eq('active',true)
+      .lte('published_at',new Date().toISOString())
+      .order('published_at',{ascending:false})
+      .limit(20);
+    if(error) throw error;
+    return (data||[]).find(item=>{
+      if(safeGet(localAdminMessageSeenKey(item.id),false)) return false;
+      return !Array.isArray(item.admin_message_reads)||item.admin_message_reads.length===0;
+    })||null;
+  }
+
+  async function markAdminMessageSeen(messageId){
+    if (!profile || !messageId) return false;
+    safeSet(localAdminMessageSeenKey(messageId),true);
+    if (!isOnline()) return true;
+    const {error}=await getClient().from('admin_message_reads').upsert({message_id:messageId,user_id:profile.id,seen_at:new Date().toISOString()},{onConflict:'message_id,user_id'});
+    if(error) throw error;
+    return true;
+  }
+
 
   function auditCacheKey(id){ return `audit_logs_${id}`; }
   function auditHash(input){
@@ -381,13 +453,14 @@
       changes:d.changes||{}, details:d, signature, created_at:now
     };
     const cached=safeGet(auditCacheKey(sid),[]); cached.unshift(item); safeSet(auditCacheKey(sid),cached.slice(0,2000));
+    try{window.dispatchEvent(new CustomEvent('valle-audit-recorded',{detail:item}))}catch(_){}
     if(!isOnline()) return true;
     try{ const {error}=await getClient().from('audit_logs').insert(item); if(error) throw error; return true; }
     catch(e){ console.warn('Log guardado localmente:',e); return true; }
   }
 
   async function listAuditLogs(limit=1000){
-    if(!profile || profile.role!=='session') return [];
+    if(!profile || !['session','service'].includes(profile.role)) return [];
     const sid=currentSessionId();
     if(!isOnline()) return safeGet(auditCacheKey(sid),[]).slice(0,limit);
     const {data,error}=await getClient().from('audit_logs').select('*').eq('session_user_id',sid).order('created_at',{ascending:false}).limit(limit);
@@ -444,7 +517,8 @@
     configured, getClient, signIn, signOut, verifyCurrentPassword, restoreSession, loadProfile,
     get profile(){return profile}, get sessionProfile(){return sessionProfile},
     accessState, setMyTheme, loadWorkspace, loadWorkspaceSnapshot, saveWorkspace, queueWorkspace, flushWorkspace,
-    syncPendingWorkspace, invokeManage, listManagedUsers, getPermissions, savePermissions, loadMyPermissions, recordAudit, listAuditLogs,
+    syncPendingWorkspace, invokeManage, createAdminMessage, listAdminMessages, deactivateAdminMessage, deleteAdminMessage, getUnreadAdminMessage, markAdminMessageSeen,
+    listManagedUsers, getPermissions, savePermissions, loadMyPermissions, recordAudit, listAuditLogs,
     normalizePhone, isOnline,
     get syncState(){return syncState},
     get lastSyncError(){return lastSyncError},

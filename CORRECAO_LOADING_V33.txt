@@ -1,0 +1,8 @@
+VALLE v33 — execução e correção da tela de carregamento
+
+- O aplicativo foi renderizado em viewport móvel 390x844 para testar o loading.
+- Corrigido o título VALLE que ficava escuro/invisível por conflito com o CSS global.
+- Durante o loading, html/body/Bootstrap permanecem visualmente no tema escuro fixo.
+- Alterações assíncronas de tema são enfileiradas e aplicadas somente após o loading terminar.
+- theme-color, color-scheme e fundo inferior não alternam durante o carregamento.
+- Tema claro e escuro continuam funcionando normalmente depois da abertura.

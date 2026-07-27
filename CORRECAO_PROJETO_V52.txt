@@ -1,0 +1,7 @@
+VALLE v52 — projeto corrigido
+
+- Restaurado o index.html válido; a versão anterior estava com 0 bytes e não carregava.
+- Mantidos os botões Abrir vale e Editar e as observações da aba Lançamentos.
+- VALE # permanece sempre alinhado à direita.
+- Removidos o texto de função “Usuário de serviço” e a hora dos registros.
+- Cache do PWA atualizado para substituir automaticamente a versão com index vazio.

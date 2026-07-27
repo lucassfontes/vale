@@ -1,0 +1,1 @@
+VALLE v66 — modal da mensagem responsivo. Título em uma linha nas telas grandes, ADMINISTRADOR centralizado em faixa inferior com linha divisória e data à direita.

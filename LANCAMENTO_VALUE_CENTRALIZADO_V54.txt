@@ -1,0 +1,5 @@
+VALLE v54
+
+- A div lancamento-value foi centralizada verticalmente no card no desktop.
+- O VALE # permanece no topo à direita.
+- Layout responsivo do celular foi mantido.

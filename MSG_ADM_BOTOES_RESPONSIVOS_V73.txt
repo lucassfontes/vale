@@ -1,0 +1,1 @@
+VALLE v73 — botões da lista MSG ADM com mesmo tamanho no desktop e somente ícones no celular, todos com texto/ícones brancos.

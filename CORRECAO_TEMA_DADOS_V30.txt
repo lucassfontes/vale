@@ -1,0 +1,7 @@
+VALLE v30
+
+- Restaurado o tema novo VALLE.
+- Removido o bloco visual global do tema Bootstrap antigo que concorria com o tema novo.
+- Corrigida a tag do Supabase CDN que estava dentro de um comentário HTML e impedia o carregamento dos dados.
+- data-bs-theme agora é aplicado antes da primeira pintura e sincronizado em todas as trocas de tema.
+- Mantida a tela de carregamento da revisão v29.

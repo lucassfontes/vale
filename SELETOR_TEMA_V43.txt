@@ -1,0 +1,8 @@
+VALLE v43 — seletor de tema no menu do usuário
+
+- Seletor colocado no menu do usuário do Dashboard.
+- Seletor mantido nos painéis Administrador e Usuário de Sessão.
+- Tela de login com o botão roxo do sistema.
+- Botão usando o ícone antigo do sistema (lua com estrelas).
+- Opções em inglês: Light, Dark e Auto.
+- Menu de opções abre no estilo solicitado, com ícones e opção selecionada em azul.

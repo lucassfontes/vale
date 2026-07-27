@@ -5,12 +5,24 @@ const PERMS = [
  ['can_view_dashboard','Dashboard'],['can_create_client','Criar cliente'],['can_edit_client','Editar cliente'],
  ['can_delete_client','Excluir cliente'],['can_create_vale','Criar VALLE'],['can_edit_vale','Editar VALLE'],
  ['can_delete_vale','Excluir VALLE'],['can_receive_payment','Receber pagamento'],['can_view_history','Ver histórico'],
- ['can_view_reports','Ver relatórios'],['can_manage_backup','Backup'],
+ ['can_view_reports','Ver relatórios'],['can_view_transactions','Ver lançamentos'],['can_manage_backup','Backup'],
  ['can_view_session_data','Ver dados da sessão']
 ];
 
 function htmlEscape(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function el(id){return document.getElementById(id)}
+function currentMonthPeriod(){
+ const now=new Date();const first=new Date(now.getFullYear(),now.getMonth(),1);
+ const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+ return window.VallePeriod?.currentMonth?.()||{from:iso(first),to:iso(now)};
+}
+function applyAuditMonthPeriod(force=false){
+ const range=currentMonthPeriod();const from=el('auditDateFrom'),to=el('auditDateTo');
+ if(from&&(force||!from.value))from.value=range.from;
+ if(to&&(force||!to.value))to.value=range.to;
+ return range;
+}
+
 function setMsg(msg, error=true){const x=el('authMessage'); if(x){x.textContent=msg||'';x.classList.toggle('error',error)}}
 function loginIsVisible(){const gate=el('authGate');return !!gate&&!gate.classList.contains('hidden')}
 // O indicador Online/Offline foi removido da tela de login.
@@ -56,7 +68,7 @@ function inject(){
  </section>
  <section id="managementPanel" class="management-panel hidden">
    <header class="management-top"><div><img src="icons/icon-valle.png"><div><h1>VALLE</h1><p id="managementSubtitle"></p></div></div><div class="management-top-actions"><div class="management-user-menu"><button type="button" class="management-user-trigger" id="managementUserTrigger" aria-expanded="false"><span class="management-trigger-avatar">U</span><span class="management-trigger-copy"><strong id="managementUserName">Usuário</strong><small id="managementUserPanelLabel">Painel</small></span><span class="dashboard-user-chevron" aria-hidden="true">⌄</span></button><div class="management-user-dropdown hidden" id="managementUserDropdown"><div class="dashboard-user-info"><strong id="managementUserDropdownName">Usuário</strong><small id="managementUserDropdownEmail"></small></div>${themePickerMarkup('management','valle-theme-picker--embedded')}<button type="button" id="logoutBtn" class="user-logout-menu-btn">↪ Sair</button></div></div></div></header>
-   <main class="management-content"><section class="management-card"><div class="management-head"><div><h2 id="managementTitle">Usuários</h2><p id="managementHelp"></p></div><button id="newManagedUserBtn" class="btn primary">NOVO USUÁRIO</button></div><div id="managedUsers"></div></section><section id="auditPanel" class="management-card hidden"><div class="management-head"><div><h2>Auditoria dos usuários de serviço</h2><p>Histórico permanente de criações, edições, exclusões, pagamentos e quitações.</p></div><button id="refreshAuditBtn" class="btn btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> ATUALIZAR</button></div><div class="audit-filters"><div class="audit-search"><i class="bi bi-search"></i><input id="auditSearch" type="search" placeholder="Buscar usuário, cliente, vale ou ação..."></div><select id="auditUserFilter"><option value="">Todos os usuários</option></select><select id="auditModuleFilter"><option value="">Todos os módulos</option><option>CLIENTES</option><option>VALES</option><option>PAGAMENTOS</option><option>USUARIOS</option><option>SISTEMA</option></select><select id="auditActionFilter"><option value="">Todas as ações</option></select><input id="auditDateFrom" type="date" title="Data inicial"><input id="auditDateTo" type="date" title="Data final"><button id="clearAuditFilters" class="btn btn-outline-secondary">LIMPAR</button></div><div id="auditSummary" class="audit-summary"></div><div id="auditLogs"></div><div class="text-center mt-3"><button id="loadMoreAudit" class="btn btn-outline-primary hidden">CARREGAR MAIS</button></div></section></main>
+   <main class="management-content"><section class="management-card"><div class="management-head"><div><h2 id="managementTitle">Usuários</h2><p id="managementHelp"></p></div><div class="management-head-actions"><button id="adminMessageBtn" class="btn admin-message-btn hidden" type="button"><i class="bi bi-megaphone-fill"></i> MSG ADM</button><button id="newManagedUserBtn" class="btn primary">NOVO USUÁRIO</button></div></div><div id="managedUsers"></div></section><section id="auditPanel" class="management-card hidden"><div class="management-head"><div><h2>Auditoria dos usuários de serviço</h2><p>Histórico permanente de criações, edições, exclusões, pagamentos e quitações.</p></div><button id="refreshAuditBtn" class="btn btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> ATUALIZAR</button></div><div class="audit-filters"><div class="audit-search"><i class="bi bi-search"></i><input id="auditSearch" type="search" placeholder="Buscar usuário, cliente, vale ou ação..."></div><select id="auditUserFilter"><option value="">Todos os usuários</option></select><select id="auditModuleFilter"><option value="">Todos os módulos</option><option>CLIENTES</option><option>VALES</option><option>PAGAMENTOS</option><option>USUARIOS</option><option>SISTEMA</option></select><select id="auditActionFilter"><option value="">Todas as ações</option></select><input id="auditDateFrom" type="date" title="Data inicial"><input id="auditDateTo" type="date" title="Data final"><button id="clearAuditFilters" class="btn btn-outline-secondary">LIMPAR</button></div><div id="auditSummary" class="audit-summary"></div><div id="auditLogs"></div><div class="text-center mt-3"><button id="loadMoreAudit" class="btn btn-outline-primary hidden">CARREGAR MAIS</button></div></section></main>
  </section>
  <div id="userModal" class="user-modal hidden"><div class="user-modal-card"><button class="modal-x" id="closeUserModal">×</button><h2 id="userModalTitle">Novo usuário</h2>
  <form id="userForm"><input id="managedId" type="hidden"><label>Nome<input id="managedName" required></label><label>E-mail<input id="managedEmail" type="email" required></label>
@@ -73,7 +85,50 @@ function inject(){
   <span class="active-copy"><strong>Usuário ativo</strong><small>Usuário poderá acessar o sistema normalmente.</small></span>
  </label>
  <fieldset id="permissionsBox" class="permissions-box"><legend>Permissões do usuário de serviço</legend>${PERMS.map(([k,n])=>`<label><input type="checkbox" data-perm="${k}" checked> ${n}</label>`).join('')}</fieldset>
- <div class="modal-actions"><button type="button" id="cancelUserModal" class="btn light">CANCELAR</button><button class="btn primary" type="submit">SALVAR</button></div></form></div></div>`);
+ <div class="modal-actions"><button type="button" id="cancelUserModal" class="btn light">CANCELAR</button><button class="btn primary" type="submit">SALVAR</button></div></form></div></div>
+ <div id="adminMessageModal" class="admin-message-modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminMessageModalTitle">
+   <div class="admin-message-backdrop" data-admin-message-close></div>
+   <div class="admin-message-card admin-message-compose-card">
+     <header class="admin-message-confirm-header">
+       <span class="admin-message-confirm-icon" aria-hidden="true"><i class="bi bi-megaphone-fill"></i></span>
+       <div class="admin-message-confirm-titles"><h2 id="adminMessageModalTitle">MSG ADM</h2><p>Envie uma atualização para todas ou apenas uma sessão.</p></div>
+       <button type="button" class="admin-message-x" data-admin-message-close aria-label="Fechar">×</button>
+     </header>
+     <div class="admin-message-confirm-body">
+       <form id="adminMessageForm">
+         <label for="adminMessageSession">SESSÃO DESTINATÁRIA
+           <div class="admin-message-input-group"><span><i class="bi bi-people-fill"></i></span><select id="adminMessageSession"><option value="">TODAS AS SESSÕES</option></select></div>
+         </label>
+         <label for="adminMessageTitle">TÍTULO
+           <div class="admin-message-input-group"><span><i class="bi bi-type"></i></span><input id="adminMessageTitle" maxlength="80" value="ATUALIZAÇÃO DO SISTEMA" required></div>
+         </label>
+         <label for="adminMessageText">MENSAGEM<textarea id="adminMessageText" maxlength="1500" rows="5" placeholder="DIGITE A MENSAGEM DA ATUALIZAÇÃO..." required></textarea></label>
+         <div id="adminMessageStatus" class="admin-message-status"></div>
+         <div class="admin-message-actions"><button type="button" class="btn light" data-admin-message-close>CANCELAR</button><button type="submit" class="btn primary"><i class="bi bi-send-fill"></i> ENVIAR MENSAGEM</button></div>
+       </form>
+       <div class="admin-message-history-wrap"><div class="admin-message-history-title"><i class="bi bi-clock-history"></i> MENSAGENS RECENTES</div><div id="adminMessageHistory" class="admin-message-history"></div></div>
+     </div>
+   </div>
+ </div>
+ <div id="systemUpdateMessageModal" class="admin-message-modal hidden" role="dialog" aria-modal="true" aria-labelledby="systemUpdateMessageTitle">
+   <div class="admin-message-backdrop"></div>
+   <div class="admin-message-card system-update-message-card">
+     <header class="admin-message-confirm-header system-update-message-header">
+       <span class="admin-message-confirm-icon" aria-hidden="true"><i class="bi bi-megaphone-fill"></i></span>
+       <div class="admin-message-confirm-titles"><h2 id="systemUpdateMessageTitle">ATUALIZAÇÃO DO SISTEMA</h2></div>
+       <button type="button" class="admin-message-x" id="systemUpdateMessageClose" aria-label="Fechar">×</button>
+     </header>
+     <div class="system-update-message-meta" aria-label="Data da mensagem">
+       <small class="system-update-message-date"><i class="bi bi-calendar3" aria-hidden="true"></i><span id="systemUpdateMessageDate"></span></small>
+     </div>
+     <div class="admin-message-confirm-body system-update-message-body">
+       <div id="systemUpdateMessageText" class="system-update-message-text form-text mt-2"></div>
+     </div>
+     <footer class="system-update-message-footer">
+       <strong class="system-update-message-author">Ass: Administrador</strong>
+     </footer>
+   </div>
+ </div>`);
 }
 
 
@@ -196,7 +251,7 @@ window.ValleUserTheme={apply:applyUserTheme,set:persistUserTheme,toggle:toggleUs
  document.addEventListener('click',e=>{if(e.target?.id==='refreshAuditBtn')renderAuditLogs()});
  document.addEventListener('input',e=>{if(['auditSearch','auditUserFilter','auditModuleFilter','auditActionFilter','auditDateFrom','auditDateTo'].includes(e.target?.id)){auditPageSize=50;drawAuditLogs()}});
  document.addEventListener('change',e=>{if(['auditUserFilter','auditModuleFilter','auditActionFilter','auditDateFrom','auditDateTo'].includes(e.target?.id)){auditPageSize=50;drawAuditLogs()}});
- document.addEventListener('click',e=>{if(e.target?.id==='clearAuditFilters'){['auditSearch','auditUserFilter','auditModuleFilter','auditActionFilter','auditDateFrom','auditDateTo'].forEach(id=>{if(el(id))el(id).value=''});auditPageSize=50;drawAuditLogs()}if(e.target?.id==='loadMoreAudit'){auditPageSize+=50;drawAuditLogs()}});
+ document.addEventListener('click',e=>{if(e.target?.id==='clearAuditFilters'){['auditSearch','auditUserFilter','auditModuleFilter','auditActionFilter'].forEach(id=>{if(el(id))el(id).value=''});applyAuditMonthPeriod(true);auditPageSize=50;drawAuditLogs()}if(e.target?.id==='loadMoreAudit'){auditPageSize+=50;drawAuditLogs()}});
 
 function setupDashboardUserMenu(profile){
  const name=String(profile?.name||profile?.email||'Usuário').trim();
@@ -396,6 +451,85 @@ function applyServiceFinancialSettings(settings){
  }
 }
 
+
+let adminMessageSessionNames=new Map();
+let adminMessageHistoryItems=new Map();
+function adminMessageTargetLabel(item){
+ const id=String(item?.target_session_user_id||'');
+ return id?(adminMessageSessionNames.get(id)||'SESSÃO SELECIONADA'):'TODAS AS SESSÕES';
+}
+async function loadAdminMessageSessions(){
+ const select=el('adminMessageSession');if(!select)return [];
+ const current=select.value;
+ const items=(await ValleCloud.listManagedUsers()).filter(item=>item.role==='session');
+ adminMessageSessionNames=new Map(items.map(item=>[String(item.id),String(item.name||item.email||'SESSÃO').toUpperCase()]));
+ select.innerHTML='<option value="">TODAS AS SESSÕES</option>'+items.map(item=>`<option value="${htmlEscape(item.id)}">${htmlEscape(String(item.name||item.email||'SESSÃO').toUpperCase())}</option>`).join('');
+ if(current&&adminMessageSessionNames.has(String(current)))select.value=current;
+ return items;
+}
+function formatAdminMessageDate(value){
+ const date=new Date(value||Date.now());
+ return Number.isNaN(date.getTime())?'':date.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function closeAdminMessageComposer(){el('adminMessageModal')?.classList.add('hidden')}
+async function renderAdminMessageHistory(){
+ const box=el('adminMessageHistory');if(!box)return;
+ box.innerHTML='<div class="admin-message-history-loading"><span class="spinner-border spinner-border-sm"></span> CARREGANDO...</div>';
+ try{
+  const items=await ValleCloud.listAdminMessages(12);
+  adminMessageHistoryItems=new Map((items||[]).map(item=>[String(item.id),item]));
+  box.innerHTML=items.length?items.map(item=>`<article class="admin-message-history-item${item.active?'':' is-inactive'}"><div class="admin-message-history-copy"><strong>${htmlEscape(item.title)}</strong><small>${formatAdminMessageDate(item.published_at||item.created_at)} · ${htmlEscape(adminMessageTargetLabel(item))} · ${item.active?'ATIVA':'DESATIVADA'}</small></div><div class="admin-message-history-actions"><button type="button" class="admin-message-history-use" data-admin-message-use="${htmlEscape(item.id)}" title="Usar o conteúdo desta mensagem" aria-label="Usar o conteúdo desta mensagem"><i class="bi bi-arrow-repeat"></i><span>USAR</span></button>${item.active?`<button type="button" class="admin-message-history-disable" data-admin-message-disable="${htmlEscape(item.id)}" title="Desativar mensagem" aria-label="Desativar mensagem"><i class="bi bi-eye-slash"></i><span>DESATIVAR</span></button>`:''}<button type="button" class="admin-message-history-delete" data-admin-message-delete="${htmlEscape(item.id)}" title="Excluir mensagem" aria-label="Excluir mensagem"><i class="bi bi-trash"></i><span>EXCLUIR</span></button></div></article>`).join(''):'<div class="admin-message-history-empty">NENHUMA MENSAGEM ENVIADA.</div>';
+ }catch(err){adminMessageHistoryItems=new Map();box.innerHTML=`<div class="admin-message-history-empty">${htmlEscape(err.message||'Não foi possível carregar.')}</div>`}
+}
+
+function usePreviousAdminMessage(messageId){
+ const item=adminMessageHistoryItems.get(String(messageId||''));
+ if(!item){connectionToast('MENSAGEM NÃO ENCONTRADA.','error');return}
+ const session=el('adminMessageSession');
+ const target=String(item.target_session_user_id||'');
+ if(session){
+  const exists=[...session.options].some(option=>String(option.value)===target);
+  session.value=exists?target:'';
+ }
+ if(el('adminMessageTitle'))el('adminMessageTitle').value=String(item.title||'ATUALIZAÇÃO DO SISTEMA');
+ if(el('adminMessageText'))el('adminMessageText').value=String(item.message||'');
+ const status=el('adminMessageStatus');
+ if(status){status.textContent='CONTEÚDO DA MENSAGEM CARREGADO.';status.className='admin-message-status success'}
+ el('adminMessageForm')?.scrollIntoView({behavior:'smooth',block:'start'});
+ window.setTimeout(()=>el('adminMessageText')?.focus(),250);
+}
+async function openAdminMessageComposer(){
+ const modal=el('adminMessageModal');if(!modal)return;
+ el('adminMessageStatus').textContent='';
+ modal.classList.remove('hidden');
+ await loadAdminMessageSessions();
+ await renderAdminMessageHistory();
+ requestAnimationFrame(()=>el('adminMessageSession')?.focus());
+}
+async function submitAdminMessage(event){
+ event.preventDefault();const status=el('adminMessageStatus');const submit=event.currentTarget.querySelector('[type="submit"]');
+ status.textContent='ENVIANDO...';status.className='admin-message-status';submit.disabled=true;
+ try{
+  await ValleCloud.createAdminMessage({title:el('adminMessageTitle').value,message:el('adminMessageText').value,targetSessionId:el('adminMessageSession').value||null});
+  status.textContent='MENSAGEM ENVIADA COM SUCESSO.';status.className='admin-message-status success';
+  el('adminMessageText').value='';await renderAdminMessageHistory();
+ }catch(err){status.textContent=String(err.message||'Não foi possível enviar a mensagem.').toUpperCase();status.className='admin-message-status error'}
+ finally{submit.disabled=false}
+}
+async function checkAdminMessageForUser(profile){
+ if(!profile||profile.role==='admin'||!ValleCloud.isOnline())return;
+ try{
+  const item=await ValleCloud.getUnreadAdminMessage();if(!item)return;
+  const modal=el('systemUpdateMessageModal');if(!modal)return;
+  el('systemUpdateMessageTitle').textContent=item.title||'ATUALIZAÇÃO DO SISTEMA';
+  el('systemUpdateMessageText').textContent=item.message||'';
+  el('systemUpdateMessageDate').textContent=formatAdminMessageDate(item.published_at||item.created_at);
+  modal.dataset.messageId=String(item.id);modal.classList.remove('hidden');
+  await ValleCloud.markAdminMessageSeen(item.id);
+ }catch(err){console.warn('Mensagem do administrador indisponível:',err)}
+}
+function closeSystemUpdateMessage(){el('systemUpdateMessageModal')?.classList.add('hidden')}
+
 async function showRole(profile,options={}){
  const app=document.querySelector('.app'); const gate=el('authGate'); const panel=el('managementPanel');
  gate.classList.add('hidden');
@@ -450,8 +584,12 @@ async function showRole(profile,options={}){
    el('managementTitle').textContent=profile.role==='admin'?'Usuários de sessão':'Usuários de serviço';
    el('managementHelp').textContent=profile.role==='admin'?'Crie usuários de sessão, defina a validade e ative ou bloqueie o acesso.':'Crie usuários de serviço, defina permissões e ative ou bloqueie o acesso.';
    el('newManagedUserBtn').textContent=profile.role==='admin'?'NOVO USUÁRIO DE SESSÃO':'NOVO USUÁRIO DE SERVIÇO';
+   el('adminMessageBtn')?.classList.toggle('hidden',profile.role!=='admin');
    await renderUsers({preferCache:!options.background,background:!!options.background});
    if(profile.role==='session') await loadSharedWorkspaceForSession(profile,{preferCache:!options.background});
+ }
+ if(!options.background){
+   window.setTimeout(()=>checkAdminMessageForUser(profile),350);
  }
  if(!options.background && ValleCloud.isOnline()){
    window.setTimeout(()=>showRole(profile,{background:true}).catch(err=>console.warn('Atualização em segundo plano não concluída:',err)),1200);
@@ -483,6 +621,18 @@ function installContinuousCloudSync(){
  // Atualiza periodicamente a tela com mudanças feitas por outro usuário de
  // serviço da mesma sessão. Não envia o banco às cegas, evitando sobrescrever
  // alterações mais novas de outro dispositivo.
+ // Revalida as permissões do usuário de serviço sem exigir novo login.
+ // Assim, a aba Lançamentos é bloqueada ou liberada poucos segundos após
+ // a alteração feita pelo usuário de sessão.
+ setInterval(async()=>{
+   if(ValleCloud.profile?.role!=='service'||!ValleCloud.isOnline())return;
+   try{
+     const permissions=await ValleCloud.loadMyPermissions();
+     applyServiceFinancialSettings(permissions);
+     applyPermissions(permissions);
+   }catch(e){console.warn('Não foi possível atualizar as permissões do usuário:',e)}
+ },15000);
+
  setInterval(async()=>{
    if(ValleCloud.profile?.role!=='service'||!ValleCloud.isOnline())return;
    try{
@@ -513,9 +663,17 @@ function installContinuousCloudSync(){
 
 function applyPermissions(p){
  const map={
-  can_view_dashboard:'dashboard',can_create_vale:'emprestimo',can_create_client:'clientes',can_view_history:'historico',can_view_reports:'relatorios'
+  can_view_dashboard:'dashboard',can_create_vale:'emprestimo',can_create_client:'clientes',can_view_history:'historico',can_view_reports:'relatorios',can_view_transactions:'lancamentos'
  };
- Object.entries(map).forEach(([key,screen])=>{if(p[key]===false){document.querySelectorAll(`[data-screen="${screen}"]`).forEach(x=>x.classList.add('permission-hidden'));document.getElementById(screen)?.classList.add('permission-hidden')}});
+ Object.entries(map).forEach(([key,screen])=>{
+  const denied=p[key]===false;
+  document.querySelectorAll(`[data-screen="${screen}"]`).forEach(x=>x.classList.toggle('permission-hidden',denied));
+  document.getElementById(screen)?.classList.toggle('permission-hidden',denied);
+  if(denied&&document.querySelector('.screen.active')?.id===screen)setTimeout(()=>window.switchScreen?.('dashboard'),0);
+ });
+ if(p.can_view_transactions===false){
+  try{const sid=window.ValleCloud?.profile?.session_user_id; if(sid)localStorage.removeItem(`valle_offline_v1_audit_logs_${sid}`)}catch(_){}
+ }
  window.VALLE_PERMISSIONS=p;
 }
 
@@ -533,7 +691,7 @@ let auditPageSize=50;
 function applyAuditFilters(){const all=window.__valleAuditLogs||[];const q=(el('auditSearch')?.value||'').trim().toLowerCase();const user=el('auditUserFilter')?.value||'';const module=el('auditModuleFilter')?.value||'';const action=el('auditActionFilter')?.value||'';const from=el('auditDateFrom')?.value||'';const to=el('auditDateTo')?.value||'';return all.filter(x=>{const text=[x.actor_name,x.title,x.description,x.client_name,x.vale_number,x.entity_id,x.action].join(' ').toLowerCase();const day=String(x.created_at||'').slice(0,10);return(!q||text.includes(q))&&(!user||x.actor_user_id===user)&&(!module||x.module===module)&&(!action||x.action===action)&&(!from||day>=from)&&(!to||day<=to)}).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))}
 function drawAuditLogs(){const box=el('auditLogs');if(!box)return;const filtered=applyAuditFilters();const visible=filtered.slice(0,auditPageSize);el('auditSummary').textContent=`${filtered.length} registro${filtered.length===1?'':'s'} encontrado${filtered.length===1?'':'s'} · mais recentes primeiro`;el('loadMoreAudit')?.classList.toggle('hidden',visible.length>=filtered.length);box.innerHTML=visible.length?`<div class="audit-timeline">${visible.map(x=>{const m=auditActionMeta(x.action);return `<article class="audit-item border-start border-4 border-${m[0]}"><div class="audit-icon text-bg-${m[0]}"><i class="bi ${m[1]}"></i></div><div class="audit-item-main"><div class="audit-item-top"><div><span class="badge text-bg-${m[0]}">${htmlEscape(m[2])}</span><h3>${htmlEscape(x.title||m[2])}</h3></div><time>${new Date(x.created_at).toLocaleDateString('pt-BR')}<small>${new Date(x.created_at).toLocaleTimeString('pt-BR')}</small></time></div><p>${htmlEscape(x.description||'')}</p><div class="audit-item-meta"><span><i class="bi bi-person"></i>${htmlEscape(x.actor_name||'')}</span>${x.client_name?`<span><i class="bi bi-person-vcard"></i>${htmlEscape(x.client_name)}</span>`:''}${x.vale_number?`<span><i class="bi bi-receipt"></i>Vale #${htmlEscape(x.vale_number)}</span>`:''}</div><button class="btn btn-sm btn-outline-${m[0]}" data-audit-detail="${htmlEscape(String(x.id||x.signature))}">VER DETALHES</button></div></article>`}).join('')}</div>`:'<div class="empty-users">Nenhum registro encontrado com os filtros informados.</div>';box.querySelectorAll('[data-audit-detail]').forEach(b=>b.onclick=()=>openAuditDetails(b.dataset.auditDetail))}
 async function renderAuditLogs(){
- const panel=el('auditPanel'),box=el('auditLogs'); if(!panel||ValleCloud.profile?.role!=='session')return; panel.classList.remove('hidden'); box.innerHTML='<p>Carregando logs...</p>';
+ const panel=el('auditPanel'),box=el('auditLogs'); if(!panel||ValleCloud.profile?.role!=='session')return; panel.classList.remove('hidden'); applyAuditMonthPeriod(); box.innerHTML='<p>Carregando logs...</p>';
  try{const logs=await ValleCloud.listAuditLogs(1000);window.__valleAuditLogs=logs||[];const users=[...new Map(logs.map(x=>[x.actor_user_id,x.actor_name])).entries()];const actions=[...new Set(logs.map(x=>x.action).filter(Boolean))].sort();el('auditUserFilter').innerHTML='<option value="">Todos os usuários</option>'+users.map(([id,n])=>`<option value="${htmlEscape(id)}">${htmlEscape(n)}</option>`).join('');el('auditActionFilter').innerHTML='<option value="">Todas as ações</option>'+actions.map(a=>`<option value="${htmlEscape(a)}">${htmlEscape(a.replaceAll('_',' '))}</option>`).join('');auditPageSize=50;drawAuditLogs()}catch(e){box.innerHTML=`<div class="auth-message error">${htmlEscape(e.message)}</div>`}
 }
 async function renderUsers(options={}){
@@ -696,6 +854,23 @@ async function boot(){
   }catch(err){setMsg(err.message);if(err.whatsapp){const a=el('authWhatsapp');a.href=whatsappLink(err.whatsapp);a.classList.remove('hidden')}}
  };
  el('logoutBtn').onclick=async()=>{await ValleCloud.signOut();location.reload()};el('newManagedUserBtn').onclick=openNew;el('closeUserModal').onclick=closeModal;el('cancelUserModal').onclick=closeModal;el('userForm').onsubmit=saveManaged;
+ el('adminMessageBtn').onclick=openAdminMessageComposer;el('adminMessageForm').onsubmit=submitAdminMessage;el('systemUpdateMessageClose').onclick=closeSystemUpdateMessage;
+ document.addEventListener('click',async event=>{
+  if(event.target.closest('[data-admin-message-close]'))closeAdminMessageComposer();
+  const use=event.target.closest('[data-admin-message-use]');
+  if(use){usePreviousAdminMessage(use.dataset.adminMessageUse);return}
+  const disable=event.target.closest('[data-admin-message-disable]');
+  if(disable){disable.disabled=true;try{await ValleCloud.deactivateAdminMessage(disable.dataset.adminMessageDisable);await renderAdminMessageHistory()}catch(err){connectionToast(err.message||'Não foi possível desativar a mensagem.','error')}finally{disable.disabled=false}}
+  const remove=event.target.closest('[data-admin-message-delete]');
+  if(remove){
+   const confirmed=window.confirm('DESEJA EXCLUIR ESTA MENSAGEM?');
+   if(!confirmed)return;
+   remove.disabled=true;
+   try{await ValleCloud.deleteAdminMessage(remove.dataset.adminMessageDelete);connectionToast('MENSAGEM EXCLUÍDA.','success');await renderAdminMessageHistory()}
+   catch(err){connectionToast(err.message||'Não foi possível excluir a mensagem.','error')}
+   finally{remove.disabled=false}
+  }
+ });
  try{const p=await ValleCloud.restoreSession();if(p?.blocked){setMsg(p.reason);if(p.whatsapp){const a=el('authWhatsapp');a.href=whatsappLink(p.whatsapp);a.classList.remove('hidden')}}else if(p)await showRole(p)}catch(e){setMsg(e.message)}finally{window.dispatchEvent(new CustomEvent('valle-app-ready'))}
  // Se a conexão demorou mais que 1,2 s, tenta restaurar a sessão depois sem
  // prender novamente a tela de carregamento nem interromper quem está digitando.

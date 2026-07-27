@@ -1,0 +1,7 @@
+VALLE v59 — MSG ADM
+
+- Botão MSG ADM disponível somente no painel do administrador.
+- Modal para enviar mensagens de atualização.
+- Mensagem aparece uma única vez para cada usuário ao abrir o sistema.
+- Modal do usuário possui botão X para fechar.
+- Execute supabase/MENSAGENS_ADMIN_V59.sql antes de usar.

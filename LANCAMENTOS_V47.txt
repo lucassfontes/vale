@@ -1,0 +1,9 @@
+VALLE v47 — ABA LANÇAMENTOS
+
+- Nova aba Lançamentos na navegação principal.
+- Exibe abertura de novos vales, pagamentos totais, pagamentos parciais e pagamentos de juros.
+- Mostra valor, cliente, número do vale, data, hora e usuário responsável.
+- Inclui busca, filtros por tipo, usuário e período.
+- Inclui indicadores de total recebido, pagamentos, novos vales e valor liberado.
+- Nova permissão “Ver lançamentos” no painel do usuário de sessão.
+- Execute supabase/LANCAMENTOS_V47.sql para habilitar a permissão e a política de leitura no Supabase.

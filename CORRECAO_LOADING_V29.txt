@@ -1,0 +1,27 @@
+VALLE 3.4.6 — CORREÇÃO DO LOADING / IPHONE (V29)
+
+CAUSA ENCONTRADA
+- O tema inicial era colocado em html.dark, mas não em body.dark.
+- O CSS principal possui várias regras body:not(.dark) com background claro e !important.
+- No iPhone/PWA, a área inferior do indicador de gesto pode ser pintada com o fundo raiz/body,
+  mesmo quando uma camada position:fixed cobre a viewport visual.
+- Portanto, o loading ficava escuro e a área inferior recebia o background claro do body.
+
+CORREÇÕES
+1. body.dark é aplicado imediatamente, antes da primeira pintura.
+2. Durante o loading, html e body usam a mesma cor do final do gradiente do loading.
+3. O loading tem uma única definição CSS, inline e anterior ao sistema.
+4. Removidos todos os blocos duplicados de loading das versões v26, v27 e v28.
+5. Removida a rotina temporária que apagava cache, desregistrava o Service Worker e recarregava a página.
+6. O loading não usa visualViewport, --valle-vh, 100vh, 100svh, 100dvh ou -webkit-fill-available.
+7. O maior z-index do CSS do sistema é 2147483646; o loading usa 2147483647.
+8. A margem superior segura do sistema fica em uma regra separada e não altera o loading.
+9. O login continua montado depois do loading e permanece abaixo dele.
+10. Cache, manifesto e referências atualizados para v29.
+
+VALIDAÇÕES EXECUTADAS
+- Sintaxe de todos os arquivos JavaScript validada com node --check.
+- Quantidade de chaves do CSS validada: balanceada.
+- Confirmado apenas um elemento #valleLoadingScreen.
+- Confirmado que não há CSS externo definindo .valle-loading-screen.
+- Confirmado que não existe visualViewport ou --valle-vh no código do loading.

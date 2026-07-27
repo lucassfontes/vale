@@ -1,0 +1,8 @@
+VALLE v48 — revisão do layout da aba Lançamentos
+
+- Aba Lançamentos movida para a última posição da navegação.
+- Seção também movida para o final das telas no HTML.
+- Cabeçalho, indicadores, filtros e cartões de movimentação redesenhados.
+- Layout responsivo revisado para celular, tablet e computador.
+- Filtros divididos em busca/tipo/usuário e período, melhorando o alinhamento.
+- Mantidas as permissões e regras funcionais da versão 47.

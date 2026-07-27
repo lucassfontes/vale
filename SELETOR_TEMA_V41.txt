@@ -1,0 +1,8 @@
+VALLE v41 — SELETOR DE TEMA
+
+- Novo seletor visual com Claro, Escuro e Automático.
+- Aplicado na tela de login, no menu do Dashboard e nos painéis Administrador/Sessão.
+- A opção selecionada recebe fundo azul e marca de confirmação.
+- Automático é o padrão para novas instalações, novos usuários e novos espaços de trabalho.
+- Escolhas manuais já salvas por usuário continuam sendo respeitadas.
+- O modo Automático acompanha em tempo real o tema claro/escuro do aparelho.

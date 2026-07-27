@@ -1,0 +1,8 @@
+VALLE v34 — correção da tela de login
+
+- A tela de login não usa mais 100vh, 100svh, 100dvh ou -webkit-fill-available.
+- O fundo do login fica preso diretamente às quatro bordas da viewport.
+- A área segura é usada somente como padding do conteúdo, não para reduzir o fundo.
+- html e body recebem uma classe temporária enquanto o login está aberto, mantendo a área inferior com a mesma cor do login.
+- A classe é removida ao entrar no sistema.
+- Loading, dados, carrossel e temas claro/escuro foram preservados.

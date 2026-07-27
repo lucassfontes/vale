@@ -1,0 +1,6 @@
+VALLE v42 — seletor de tema refinado
+
+- Seletor de tema redesenhado para combinar com o tema visual do sistema.
+- Mesma linguagem visual do dashboard e dos painéis.
+- Melhor contraste e integração nos menus dos usuários e na tela de login.
+- Mantido o tema Automático como padrão do projeto.

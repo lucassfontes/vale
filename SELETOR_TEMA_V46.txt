@@ -1,0 +1,7 @@
+VALLE v46 — seletor harmonizado com o projeto
+
+- Botão do seletor alinhado ao estilo do menu do usuário do VALLE.
+- Bordas, tipografia, tamanhos e ícones ajustados para combinar com o projeto.
+- Popup das opções redesenhado no mesmo padrão visual do sistema.
+- Cor azul removida; a opção selecionada agora usa o roxo do VALLE.
+- Ícone do seletor continua mudando conforme a opção escolhida.

@@ -1,0 +1,13 @@
+VALLE V40 — CARREGAMENTO RÁPIDO
+
+Correções realizadas:
+- removida a espera obrigatória de 12 segundos da tela de carregamento;
+- tempo visual mínimo reduzido para 650 ms, evitando apenas o piscar da tela;
+- dados e permissões já salvos no aparelho são usados primeiro;
+- atualização do Supabase acontece em segundo plano após abrir a interface;
+- consultas repetidas possuem limite de espera e voltam ao cache local;
+- Service Worker usa cache primeiro para CSS, JavaScript e imagens;
+- biblioteca do Supabase é carregada sem bloquear toda a página;
+- atualização automática do PWA foi preservada com novo cache v40;
+- imagem principal do login reduzida de aproximadamente 1,8 MB para cerca de 175 KB;
+- correção da tela física do iPhone e tema Automático foram mantidos.

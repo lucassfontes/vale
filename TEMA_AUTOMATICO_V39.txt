@@ -1,0 +1,10 @@
+VALLE v39 — TEMA AUTOMÁTICO
+
+- Adicionada a opção Automático na tela de login.
+- Adicionada a opção Automático no menu do usuário do Dashboard.
+- Adicionada a opção Automático nos painéis Administrador e Usuário de Sessão.
+- O modo Automático identifica o tema claro/escuro do celular ou computador.
+- A tela muda em tempo real quando o tema do aparelho é alterado.
+- A preferência é individual por usuário e também funciona offline neste aparelho.
+- Execute supabase/TEMA_AUTOMATICO_V39.sql para sincronizar a opção Automático entre aparelhos.
+- Mantida a correção da tela de carregamento física do iPhone da versão 38.

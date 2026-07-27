@@ -1,0 +1,8 @@
+CORREÇÃO V35 — ÁREA INFERIOR DO IPHONE
+
+- Mantido o loading com position: fixed e inset: 0.
+- Adicionada extensão própria para safe-area-inset-bottom/home indicator.
+- O fundo do dashboard/login permanece na mesma cor enquanto o loading está ativo.
+- Nenhuma tela ou função foi desativada.
+- Tema claro/escuro continua sendo aplicado após o loading.
+- Cache e start_url atualizados para v35.

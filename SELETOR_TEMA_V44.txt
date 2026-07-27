@@ -1,0 +1,7 @@
+VALLE v44 — seletor de tema refinado
+
+- Removido o título do seletor dentro dos menus.
+- Seletor integrado ao estilo do menu do usuário.
+- Opções mantidas em inglês: Light, Dark e Auto.
+- Popup das opções mantido no estilo solicitado.
+- Tela de login permanece com o botão roxo flutuante do sistema.

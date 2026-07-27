@@ -1,0 +1,6 @@
+VALLE v45 — seletor igual ao botão de avisos
+
+- Botão do seletor no menu do usuário com o mesmo estilo do botão “Avisos no celular”.
+- Ícone do seletor muda conforme a opção escolhida: Light, Dark ou Auto.
+- Popup das opções mantido no estilo solicitado.
+- Tela de login continua com o botão roxo flutuante do sistema.

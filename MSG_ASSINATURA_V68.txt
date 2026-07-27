@@ -1,0 +1,1 @@
+VALLE v68 — removida a divisória da área da data e assinatura alterada para "Ass: Administrador" com fonte menor.

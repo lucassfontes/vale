@@ -1,0 +1,9 @@
+VALLE v38 — TELA DE CARREGAMENTO EM 100% DA TELA FÍSICA
+
+- A altura do loading passa a usar o tamanho físico da tela quando o app está instalado como PWA.
+- A camada recebe uma extensão inferior de segurança para cobrir mudanças tardias da viewport do Safari/iOS.
+- O indicador inferior do iPhone permanece coberto durante todo o carregamento.
+- O fundo do HTML e do BODY é forçado para a mesma cor enquanto o loading estiver ativo.
+- Na saída, apenas o cartão desaparece; o fundo não fica transparente antes de ser removido.
+- Tema claro e escuro continuam sendo aplicados somente depois do carregamento.
+- Cache do Service Worker e referências atualizados para a versão 38.

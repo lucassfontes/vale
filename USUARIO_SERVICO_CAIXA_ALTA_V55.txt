@@ -1,0 +1,5 @@
+VALLE v55 — nome do usuário de serviço em caixa alta
+
+- Na aba Lançamentos, o nome exibido após “REALIZADO POR” fica em caixa alta quando o responsável é usuário de serviço.
+- O nome salvo no banco de dados não é alterado.
+- Usuários de sessão e administradores mantêm a grafia original.

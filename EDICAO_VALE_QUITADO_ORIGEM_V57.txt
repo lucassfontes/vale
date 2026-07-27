@@ -1,0 +1,6 @@
+VALLE v57 — edição segura e retorno à tela de origem
+
+- Vale quitado exige confirmação de senha também para editar.
+- Funciona ao editar pelo Histórico ou por Lançamentos.
+- Ao cancelar/fechar a edição, retorna à tela de origem.
+- Ao atualizar o vale, retorna à tela de origem.

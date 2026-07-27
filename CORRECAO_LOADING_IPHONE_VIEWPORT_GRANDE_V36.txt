@@ -1,0 +1,8 @@
+VALLE v36 — correção da área inferior do iPhone
+
+- O loading agora usa duas camadas independentes.
+- A camada fixa cobre a viewport visual.
+- A camada absoluta usa 100lvh e cobre a viewport grande/área inferior.
+- O cartão permanece centralizado na viewport visual.
+- Não há cálculo JavaScript de altura.
+- Tema claro/escuro e dashboard não foram alterados.

@@ -1,0 +1,9 @@
+VALLE v37 — carregamento estável no iPhone
+
+- Removida a dupla camada com 100lvh.
+- Removida a extensão que mudava quando a barra inferior do iPhone desaparecia.
+- Fundo base de html, body, manifest e loading unificado em #070b18.
+- O efeito visual agora é apenas um brilho radial central transparente nas bordas.
+- O cartão usa 50svh quando disponível para não mudar de posição com as barras do iPhone.
+- Removido display_override fullscreen; mantido standalone para uma viewport estável.
+- Tema claro/escuro continua sendo aplicado somente depois que o loading termina.
