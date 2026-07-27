@@ -407,6 +407,14 @@
       fillUsers();
       if (document.querySelector('.screen.active')?.id === 'lancamentos') draw();
     });
+    window.addEventListener('valle-audit-deleted', event => {
+      const target=String(event.detail?.id||'');
+      if(!target)return;
+      state.entries=state.entries.filter(item=>String(item.id||item.signature||'')!==target);
+      state.loadedAt=Date.now();
+      fillUsers();
+      if(document.querySelector('.screen.active')?.id==='lancamentos')draw();
+    });
   }
 
   window.renderLancamentos = function(force=false){ bind(); return load(force); };

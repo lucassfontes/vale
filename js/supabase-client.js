@@ -292,6 +292,21 @@
     return true;
   }
 
+  async function saveWorkspaceStrict(data){
+    if (loadingRemote || !profile || !['session','service'].includes(profile.role)) {
+      throw new Error('Não foi possível identificar a sessão para restaurar os dados.');
+    }
+    if (!isOnline()) throw new Error('Para desfazer uma ação da auditoria, conecte-se à internet.');
+    syncState = 'syncing'; lastSyncError = null; emitSyncState();
+    try { return await pushWorkspace(data); }
+    catch (error) {
+      syncState = 'offline';
+      lastSyncError = error.message || String(error);
+      emitSyncState();
+      throw error;
+    }
+  }
+
   async function saveWorkspace(data){
     if (loadingRemote || !profile || !['session','service'].includes(profile.role)) return false;
     // A alteração é gravada localmente antes de qualquer tentativa de rede.
@@ -408,7 +423,8 @@
   }
 
   async function getUnreadAdminMessage(){
-    if (!profile || profile.role === 'admin') return null;
+    // Somente o usuário de sessão recebe mensagens administrativas.
+    if (!profile || profile.role !== 'session') return null;
     if (!isOnline()) return null;
     const {data,error}=await getClient()
       .from('admin_messages')
@@ -425,7 +441,7 @@
   }
 
   async function markAdminMessageSeen(messageId){
-    if (!profile || !messageId) return false;
+    if (!profile || profile.role !== 'session' || !messageId) return false;
     safeSet(localAdminMessageSeenKey(messageId),true);
     if (!isOnline()) return true;
     const {error}=await getClient().from('admin_message_reads').upsert({message_id:messageId,user_id:profile.id,seen_at:new Date().toISOString()},{onConflict:'message_id,user_id'});
@@ -479,6 +495,31 @@
     return filtered;
   }
 
+  async function deleteAuditLog(logId){
+    if(!profile || profile.role!=='session') throw new Error('Somente o usuário de sessão pode excluir registros de auditoria.');
+    const sid=String(profile.id || currentSessionId() || '').trim();
+    const target=String(logId || '').trim();
+    if(!sid || !target) throw new Error('Registro de auditoria inválido.');
+
+    const cacheKey=auditCacheKey(sid);
+    const cached=safeGet(cacheKey,[]) || [];
+    const next=cached.filter(row=>String(row?.id || row?.signature || '')!==target);
+
+    if(isOnline()){
+      let query=getClient().from('audit_logs').delete().eq('session_user_id',sid);
+      query=/^\d+$/.test(target) ? query.eq('id',Number(target)) : query.eq('signature',target);
+      const {data,error}=await query.select('id,signature');
+      if(error) throw error;
+      if(!data?.length && cached.some(row=>String(row?.id || row?.signature || '')===target)){
+        throw new Error('O registro não pôde ser excluído. Verifique a política de exclusão no Supabase.');
+      }
+    }
+
+    safeSet(cacheKey,next);
+    try{window.dispatchEvent(new CustomEvent('valle-audit-deleted',{detail:{id:target,session_user_id:sid}}))}catch(_){ }
+    return true;
+  }
+
   async function listManagedUsers(options={}){
     if (!profile) return [];
     const cached = safeGet(`managed_users_${profile.id}`, []);
@@ -528,9 +569,9 @@
   window.ValleCloud = {
     configured, getClient, signIn, signOut, verifyCurrentPassword, restoreSession, loadProfile,
     get profile(){return profile}, get sessionProfile(){return sessionProfile},
-    accessState, setMyTheme, loadWorkspace, loadWorkspaceSnapshot, saveWorkspace, queueWorkspace, flushWorkspace,
+    accessState, setMyTheme, loadWorkspace, loadWorkspaceSnapshot, saveWorkspace, saveWorkspaceStrict, queueWorkspace, flushWorkspace,
     syncPendingWorkspace, invokeManage, createAdminMessage, listAdminMessages, deactivateAdminMessage, deleteAdminMessage, getUnreadAdminMessage, markAdminMessageSeen,
-    listManagedUsers, getPermissions, savePermissions, loadMyPermissions, recordAudit, listAuditLogs, getCurrentSessionId:currentSessionId,
+    listManagedUsers, getPermissions, savePermissions, loadMyPermissions, recordAudit, listAuditLogs, deleteAuditLog, getCurrentSessionId:currentSessionId,
     normalizePhone, isOnline,
     get syncState(){return syncState},
     get lastSyncError(){return lastSyncError},

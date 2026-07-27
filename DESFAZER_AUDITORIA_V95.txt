@@ -1,0 +1,1 @@
+VALLE v95 — ao desfazer um registro de auditoria, restaura o estado anterior e remove o registro.

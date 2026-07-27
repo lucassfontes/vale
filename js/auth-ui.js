@@ -68,24 +68,46 @@ function inject(){
  </section>
  <section id="managementPanel" class="management-panel hidden">
    <header class="management-top"><div><img src="icons/icon-valle.png"><div><h1>VALLE</h1><p id="managementSubtitle"></p></div></div><div class="management-top-actions"><div class="management-user-menu"><button type="button" class="management-user-trigger" id="managementUserTrigger" aria-expanded="false"><span class="management-trigger-avatar">U</span><span class="management-trigger-copy"><strong id="managementUserName">Usuário</strong><small id="managementUserPanelLabel">Painel</small></span><span class="dashboard-user-chevron" aria-hidden="true">⌄</span></button><div class="management-user-dropdown hidden" id="managementUserDropdown"><div class="dashboard-user-info"><strong id="managementUserDropdownName">Usuário</strong><small id="managementUserDropdownEmail"></small></div>${themePickerMarkup('management','valle-theme-picker--embedded')}<button type="button" id="logoutBtn" class="user-logout-menu-btn">↪ Sair</button></div></div></div></header>
-   <main class="management-content"><section class="management-card"><div class="management-head"><div><h2 id="managementTitle">Usuários</h2><p id="managementHelp"></p></div><div class="management-head-actions"><button id="adminMessageBtn" class="btn admin-message-btn hidden" type="button"><i class="bi bi-megaphone-fill"></i> MSG ADM</button><button id="newManagedUserBtn" class="btn primary">NOVO USUÁRIO</button></div></div><div id="managedUsers"></div></section><section id="auditPanel" class="management-card hidden"><div class="management-head"><div><h2>Auditoria dos usuários de serviço</h2><p>Histórico permanente de criações, edições, exclusões, pagamentos e quitações.</p></div><button id="refreshAuditBtn" class="btn btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> ATUALIZAR</button></div><div class="audit-filters"><div class="audit-search"><i class="bi bi-search"></i><input id="auditSearch" type="search" placeholder="Buscar usuário, cliente, vale ou ação..."></div><select id="auditUserFilter"><option value="">Todos os usuários</option></select><select id="auditModuleFilter"><option value="">Todos os módulos</option><option>CLIENTES</option><option>VALES</option><option>PAGAMENTOS</option><option>USUARIOS</option><option>SISTEMA</option></select><select id="auditActionFilter"><option value="">Todas as ações</option></select><input id="auditDateFrom" type="date" title="Data inicial"><input id="auditDateTo" type="date" title="Data final"><button id="clearAuditFilters" class="btn btn-outline-secondary">LIMPAR</button></div><div id="auditSummary" class="audit-summary"></div><div id="auditLogs"></div><div class="text-center mt-3"><button id="loadMoreAudit" class="btn btn-outline-primary hidden">CARREGAR MAIS</button></div></section></main>
+   <main class="management-content"><section id="usersPanel" class="management-card"><div class="management-head"><div><h2 id="managementTitle">Usuários</h2><p id="managementHelp"></p></div><div class="management-head-actions"><button id="adminMessageBtn" class="btn admin-message-btn hidden" type="button"><i class="bi bi-megaphone-fill"></i> MSG ADM</button><button id="newManagedUserBtn" class="btn primary">NOVO USUÁRIO</button></div></div><div id="managedUsers"></div></section><section id="auditPanel" class="management-card hidden"><div class="management-head"><div><h2>Auditoria dos usuários de serviço</h2><p>Histórico permanente de criações, edições, exclusões, pagamentos e quitações.</p></div><button id="refreshAuditBtn" class="btn btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> ATUALIZAR</button></div><div class="audit-filters"><div class="audit-search"><i class="bi bi-search"></i><input id="auditSearch" type="search" placeholder="Buscar usuário, cliente, vale ou ação..."></div><select id="auditUserFilter"><option value="">Todos os usuários</option></select><select id="auditModuleFilter"><option value="">Todos os módulos</option><option>CLIENTES</option><option>VALES</option><option>PAGAMENTOS</option><option>USUARIOS</option><option>SISTEMA</option></select><select id="auditActionFilter"><option value="">Todas as ações</option></select><input id="auditDateFrom" type="date" title="Data inicial"><input id="auditDateTo" type="date" title="Data final"><button id="clearAuditFilters" class="btn btn-outline-secondary">LIMPAR</button></div><div id="auditSummary" class="audit-summary"></div><div id="auditLogs"></div><div class="text-center mt-3"><button id="loadMoreAudit" class="btn btn-outline-primary hidden">CARREGAR MAIS</button></div></section></main>
  </section>
- <div id="userModal" class="user-modal hidden"><div class="user-modal-card"><button class="modal-x" id="closeUserModal">×</button><h2 id="userModalTitle">Novo usuário</h2>
- <form id="userForm"><input id="managedId" type="hidden"><label>Nome<input id="managedName" required></label><label>E-mail<input id="managedEmail" type="email" required></label>
- <label id="managedPasswordLabel">Senha inicial<input id="managedPassword" type="password" minlength="6"></label>
- <label id="managedValidityWrap">Validade da sessão<input id="managedValidity" type="date"></label>
- <label id="managedWhatsappWrap">WhatsApp do administrador<input id="managedWhatsapp" inputmode="tel" placeholder="Ex: 5594999999999"></label>
- <fieldset id="serviceFinancialBox" class="service-financial-box"><legend>Configuração financeira individual</legend>
-  <label for="managedInterestPercent">Juros configurável (%)<input id="managedInterestPercent" type="number" inputmode="decimal" min="0" step="0.01" value="30" placeholder="Ex: 30"></label>
-  <small>Este percentual será usado somente por este usuário de serviço.</small>
- </fieldset>
- <label class="check-line" for="managedActive">
-  <input id="managedActive" type="checkbox" checked>
-  <span class="active-check" aria-hidden="true">✓</span>
-  <span class="active-copy"><strong>Usuário ativo</strong><small>Usuário poderá acessar o sistema normalmente.</small></span>
- </label>
- <fieldset id="permissionsBox" class="permissions-box"><legend>Permissões do usuário de serviço</legend>${PERMS.map(([k,n])=>`<label><input type="checkbox" data-perm="${k}" checked> ${n}</label>`).join('')}</fieldset>
- <div class="modal-actions"><button type="button" id="cancelUserModal" class="btn light">CANCELAR</button><button class="btn primary" type="submit">SALVAR</button></div></form></div></div>
+ <div id="userModal" class="user-modal hidden" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+   <div class="user-modal-card">
+     <header class="user-modal-header">
+       <span class="user-modal-header-icon" aria-hidden="true"><i class="bi bi-person-plus-fill"></i></span>
+       <div class="user-modal-header-copy">
+         <h2 id="userModalTitle">Novo usuário</h2>
+         <p id="userModalSubtitle">Cadastre os dados e defina as permissões de acesso.</p>
+       </div>
+       <button type="button" class="modal-x" id="closeUserModal" aria-label="Fechar">×</button>
+     </header>
+     <form id="userForm" class="user-modal-body user-modal-layout">
+       <div class="user-modal-scroll">
+       <input id="managedId" type="hidden">
+       <label>Nome<input id="managedName" required autocomplete="name"></label>
+       <label>E-mail<input id="managedEmail" type="email" required autocomplete="email"></label>
+       <label id="managedPasswordLabel">Senha inicial<input id="managedPassword" type="password" minlength="6" autocomplete="new-password"></label>
+       <label id="managedValidityWrap">Validade da sessão<input id="managedValidity" type="date"></label>
+       <label id="managedWhatsappWrap" hidden>WhatsApp do administrador<input id="managedWhatsapp" inputmode="tel" placeholder="Ex: 5594999999999" autocomplete="tel"></label>
+       <fieldset id="serviceFinancialBox" class="service-financial-box">
+         <legend><i class="bi bi-percent"></i> Configuração financeira individual</legend>
+         <label for="managedInterestPercent" class="financial-field">
+           <span>Juros configurável (%)</span>
+           <input id="managedInterestPercent" type="number" inputmode="decimal" min="0" step="0.01" value="30" placeholder="Ex: 30">
+         </label>
+         <small>Este percentual será usado somente por este usuário de serviço.</small>
+       </fieldset>
+       <fieldset id="permissionsBox" class="permissions-box">
+         <legend><i class="bi bi-shield-check"></i> Permissões do usuário de serviço</legend>
+         ${PERMS.map(([k,n])=>`<label><input type="checkbox" data-perm="${k}" checked><span>${n}</span></label>`).join('')}
+       </fieldset>
+       </div>
+       <div class="modal-actions">
+         <button type="button" id="cancelUserModal" class="btn light"><i class="bi bi-x-circle"></i><span>CANCELAR</span></button>
+         <button class="btn primary" type="submit"><i class="bi bi-check-circle"></i><span>SALVAR</span></button>
+       </div>
+     </form>
+   </div>
+ </div>
  <div id="adminMessageModal" class="admin-message-modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminMessageModalTitle">
    <div class="admin-message-backdrop" data-admin-message-close></div>
    <div class="admin-message-card admin-message-compose-card">
@@ -129,8 +151,23 @@ function inject(){
      </footer>
    </div>
  </div>`);
+ const userModalNode=el('userModal');
+ if(userModalNode&&userModalNode.parentElement!==document.body)document.body.appendChild(userModalNode);
+ syncUserModalViewport();
+ if(!window.__valleUserModalViewportBound){
+  window.__valleUserModalViewportBound=true;
+  const refresh=()=>syncUserModalViewport();
+  window.addEventListener('resize',refresh,{passive:true});
+  window.addEventListener('orientationchange',refresh,{passive:true});
+  window.visualViewport?.addEventListener('resize',refresh,{passive:true});
+ }
 }
 
+function syncUserModalViewport(){
+ const modal=el('userModal');if(!modal)return;
+ const viewportHeight=Math.max(320,Math.round(window.visualViewport?.height||window.innerHeight||document.documentElement.clientHeight||720));
+ modal.style.setProperty('--user-modal-viewport-height',`${viewportHeight}px`);
+}
 
 
 const THEME_MODES=['auto','light','dark'];
@@ -401,17 +438,88 @@ function setupManagementUserMenu(profile){
  }
 }
 
+function setupSessionPanelTabs(){
+ if(ValleCloud.profile?.role!=='session')return;
+ const content=document.querySelector('.management-content');
+ const usersPanel=el('usersPanel');
+ const auditPanel=el('auditPanel');
+ const settingsSection=el('configuracoes');
+ const configCard=settingsSection?.querySelector('.config-card');
+ const backupCard=settingsSection?.querySelector('.backup-card');
+ if(!content||!usersPanel||!auditPanel||!settingsSection||!configCard||!backupCard)return;
+
+ settingsSection.style.setProperty('display','contents','important');
+ configCard.id='sessionConfigPanel';
+ backupCard.id='sessionBackupPanel';
+
+ const panels={users:usersPanel,audit:auditPanel,config:configCard,backup:backupCard};
+ Object.entries(panels).forEach(([name,panel])=>{
+  panel.classList.add('session-panel-tab-card');
+  panel.dataset.sessionPanel=name;
+ });
+
+ let nav=content.querySelector('.session-panel-tabs');
+ if(!nav){
+  nav=document.createElement('nav');
+  nav.className='session-panel-tabs';
+  nav.setAttribute('role','tablist');
+  nav.setAttribute('aria-label','Áreas do painel de sessão');
+  nav.innerHTML=`
+   <button type="button" class="session-panel-tab" data-session-panel-tab="users" role="tab"><i class="bi bi-people-fill"></i><span>USUÁRIOS</span></button>
+   <button type="button" class="session-panel-tab" data-session-panel-tab="audit" role="tab"><i class="bi bi-clock-history"></i><span>AUDITORIA</span></button>
+   <button type="button" class="session-panel-tab" data-session-panel-tab="config" role="tab"><i class="bi bi-gear-fill"></i><span>CONFIGURAÇÃO</span></button>
+   <button type="button" class="session-panel-tab" data-session-panel-tab="backup" role="tab"><i class="bi bi-cloud-arrow-down-fill"></i><span>BACKUP</span></button>`;
+  content.insertBefore(nav,content.firstChild);
+ }
+
+ const activate=name=>{
+  const next=panels[name]?name:'users';
+  window.__valleSessionPanelTab=next;
+  Object.entries(panels).forEach(([key,panel])=>{
+   const active=key===next;
+   panel.classList.toggle('session-panel-tab-card-active',active);
+   panel.setAttribute('aria-hidden',active?'false':'true');
+  });
+  nav.querySelectorAll('[data-session-panel-tab]').forEach(button=>{
+   const active=button.dataset.sessionPanelTab===next;
+   button.classList.toggle('active',active);
+   button.setAttribute('aria-selected',active?'true':'false');
+   button.tabIndex=active?0:-1;
+   if(active)button.scrollIntoView({block:'nearest',inline:'center'});
+  });
+  if(next==='audit' && !(window.__valleAuditLogs||[]).length) renderAuditLogs();
+ };
+
+ const buttons=[...nav.querySelectorAll('[data-session-panel-tab]')];
+ buttons.forEach((button,index)=>{
+  button.onclick=()=>activate(button.dataset.sessionPanelTab);
+  button.onkeydown=event=>{
+   if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+   event.preventDefault();
+   let next=index;
+   if(event.key==='ArrowLeft')next=(index-1+buttons.length)%buttons.length;
+   if(event.key==='ArrowRight')next=(index+1)%buttons.length;
+   if(event.key==='Home')next=0;
+   if(event.key==='End')next=buttons.length-1;
+   const target=buttons[next];
+   activate(target.dataset.sessionPanelTab);
+   target.focus({preventScroll:true});
+  };
+ });
+
+ activate(window.__valleSessionPanelTab||'users');
+}
 function mountSessionSettings(){
  const section=el('configuracoes');
  const content=document.querySelector('.management-content');
  if(!section||!content)return;
  section.classList.add('session-settings-panel','active');
- section.style.display='block';
  content.appendChild(section);
  const title=section.querySelector('.config-card h2');
  if(title) title.textContent='⚙️ Configurações da sessão';
  const help=section.querySelector('.backup-help');
  if(help) help.textContent='As configurações e backups desta sessão são compartilhados com todos os usuários de serviço vinculados.';
+ setupSessionPanelTabs();
 }
 function hideServiceSettingsTab(){
  const tab=document.querySelector('.tab[data-screen="configuracoes"]');
@@ -517,7 +625,8 @@ async function submitAdminMessage(event){
  finally{submit.disabled=false}
 }
 async function checkAdminMessageForUser(profile){
- if(!profile||profile.role==='admin'||!ValleCloud.isOnline())return;
+ // A mensagem administrativa aparece somente no painel do usuário de sessão.
+ if(!profile||profile.role!=='session'||!ValleCloud.isOnline())return;
  try{
   const item=await ValleCloud.getUnreadAdminMessage();if(!item)return;
   const modal=el('systemUpdateMessageModal');if(!modal)return;
@@ -572,7 +681,7 @@ async function showRole(profile,options={}){
      await ValleCloud.saveWorkspace(current);
      lastAppliedWorkspaceAt=ValleCloud.lastSyncedAt||null;
    }
-   const perms=await ValleCloud.loadMyPermissions({preferCache:!options.background});
+   const perms=await ValleCloud.loadMyPermissions({preferCache:!ValleCloud.isOnline()});
    applyServiceFinancialSettings(perms);
    applyPermissions(perms);
    if(window.renderAll) renderAll();
@@ -584,11 +693,19 @@ async function showRole(profile,options={}){
    el('managementTitle').textContent=profile.role==='admin'?'Usuários de sessão':'Usuários de serviço';
    el('managementHelp').textContent=profile.role==='admin'?'Crie usuários de sessão, defina a validade e ative ou bloqueie o acesso.':'Crie usuários de serviço, defina permissões e ative ou bloqueie o acesso.';
    el('newManagedUserBtn').textContent=profile.role==='admin'?'NOVO USUÁRIO DE SESSÃO':'NOVO USUÁRIO DE SERVIÇO';
-   el('adminMessageBtn')?.classList.toggle('hidden',profile.role!=='admin');
+   const adminMessageButton=el('adminMessageBtn');
+   const managementHeadActions=document.querySelector('#usersPanel .management-head-actions');
+   const isAdminPanel=profile.role==='admin';
+   if(adminMessageButton){
+    adminMessageButton.classList.toggle('hidden',!isAdminPanel);
+    adminMessageButton.hidden=!isAdminPanel;
+    adminMessageButton.setAttribute('aria-hidden',String(!isAdminPanel));
+   }
+   managementHeadActions?.classList.toggle('management-head-actions-single',!isAdminPanel);
    await renderUsers({preferCache:!options.background,background:!!options.background});
    if(profile.role==='session') await loadSharedWorkspaceForSession(profile,{preferCache:!options.background});
  }
- if(!options.background){
+ if(!options.background && profile.role==='session'){
    window.setTimeout(()=>checkAdminMessageForUser(profile),350);
  }
  if(!options.background && ValleCloud.isOnline()){
@@ -675,6 +792,7 @@ function applyPermissions(p){
   try{const sid=window.ValleCloud?.profile?.session_user_id; if(sid)localStorage.removeItem(`valle_offline_v1_audit_logs_${sid}`)}catch(_){}
  }
  window.VALLE_PERMISSIONS=p;
+ window.applyVallePermissionVisibility?.();
 }
 
 function auditActionMeta(action){
@@ -687,9 +805,41 @@ function openAuditDetails(id){const x=(window.__valleAuditLogs||[]).find(v=>Stri
  el('auditDetailContent').innerHTML=`<div class="audit-detail-head"><span class="badge text-bg-${m[0]}"><i class="bi ${m[1]}"></i> ${htmlEscape(m[2])}</span><h3>${htmlEscape(x.title||m[2])}</h3><p>${htmlEscape(x.description||'')}</p></div><dl class="audit-detail-grid"><div><dt>REALIZADO POR</dt><dd>${htmlEscape(x.actor_name||'')}<small>${htmlEscape(roleLabel(x.actor_role))}</small></dd></div><div><dt>DATA E HORA</dt><dd>${new Date(x.created_at).toLocaleString('pt-BR')}</dd></div><div><dt>REGISTRO</dt><dd>${htmlEscape(x.vale_number?`Vale #${x.vale_number}`:(x.client_name||x.entity_id||'—'))}</dd></div><div><dt>MÓDULO</dt><dd>${htmlEscape(x.module||x.entity_type||'SISTEMA')}</dd></div></dl><h4>ALTERAÇÕES</h4>${auditChangesHtml(x)}<div class="audit-signature"><i class="bi bi-shield-check"></i><div><strong>Assinatura eletrônica</strong><code>${htmlEscape(x.signature||x.details?.assinatura?.signedAt||'Não disponível')}</code></div></div>`;
  modal.classList.remove('hidden');
 }
+
+async function deleteAuditRecord(id){
+ const logs=window.__valleAuditLogs||[];
+ const record=logs.find(v=>String(v.id||v.signature)===String(id));
+ if(!record)return;
+ const label=record.vale_number?`Vale #${record.vale_number}`:(record.client_name||record.title||'este registro');
+ const message=`Desfazer a ação registrada em “${label}”?
+
+O sistema restaurará o estado anterior e depois removerá este registro da Auditoria e dos Lançamentos.`;
+ const confirmed=window.appConfirm
+  ? await appConfirm(message,{title:'Desfazer ação da auditoria?',icon:'↶',confirmText:'Desfazer',cancelText:'Cancelar'})
+  : confirm(message);
+ if(!confirmed)return;
+ try{
+  if(typeof window.valleUndoAuditRecord!=='function')throw new Error('O recurso de restauração não foi carregado. Atualize a página.');
+  const undoMarker=`valle_audit_undo_applied_${String(id)}`;
+  let alreadyRestored=false;
+  try{alreadyRestored=localStorage.getItem(undoMarker)==='1'}catch(_){ }
+  if(!alreadyRestored){
+   await window.valleUndoAuditRecord(record,logs);
+   try{localStorage.setItem(undoMarker,'1')}catch(_){ }
+  }
+  await ValleCloud.deleteAuditLog(id);
+  try{localStorage.removeItem(undoMarker)}catch(_){ }
+  window.__valleAuditLogs=logs.filter(v=>String(v.id||v.signature)!==String(id));
+  drawAuditLogs();
+  try{await window.renderLancamentos?.(true)}catch(_){ }
+  toast('Ação desfeita e registro removido.');
+ }catch(error){
+  toast(error?.message||'Não foi possível desfazer este registro de auditoria.','error');
+ }
+}
 let auditPageSize=50;
 function applyAuditFilters(){const all=window.__valleAuditLogs||[];const q=(el('auditSearch')?.value||'').trim().toLowerCase();const user=el('auditUserFilter')?.value||'';const module=el('auditModuleFilter')?.value||'';const action=el('auditActionFilter')?.value||'';const from=el('auditDateFrom')?.value||'';const to=el('auditDateTo')?.value||'';return all.filter(x=>{const text=[x.actor_name,x.title,x.description,x.client_name,x.vale_number,x.entity_id,x.action].join(' ').toLowerCase();const day=String(x.created_at||'').slice(0,10);return(!q||text.includes(q))&&(!user||x.actor_user_id===user)&&(!module||x.module===module)&&(!action||x.action===action)&&(!from||day>=from)&&(!to||day<=to)}).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))}
-function drawAuditLogs(){const box=el('auditLogs');if(!box)return;const filtered=applyAuditFilters();const visible=filtered.slice(0,auditPageSize);el('auditSummary').textContent=`${filtered.length} registro${filtered.length===1?'':'s'} encontrado${filtered.length===1?'':'s'} · mais recentes primeiro`;el('loadMoreAudit')?.classList.toggle('hidden',visible.length>=filtered.length);box.innerHTML=visible.length?`<div class="audit-timeline">${visible.map(x=>{const m=auditActionMeta(x.action);return `<article class="audit-item border-start border-4 border-${m[0]}"><div class="audit-icon text-bg-${m[0]}"><i class="bi ${m[1]}"></i></div><div class="audit-item-main"><div class="audit-item-top"><div><span class="badge text-bg-${m[0]}">${htmlEscape(m[2])}</span><h3>${htmlEscape(x.title||m[2])}</h3></div><time>${new Date(x.created_at).toLocaleDateString('pt-BR')}<small>${new Date(x.created_at).toLocaleTimeString('pt-BR')}</small></time></div><p>${htmlEscape(x.description||'')}</p><div class="audit-item-meta"><span><i class="bi bi-person"></i>${htmlEscape(x.actor_name||'')}</span>${x.client_name?`<span><i class="bi bi-person-vcard"></i>${htmlEscape(x.client_name)}</span>`:''}${x.vale_number?`<span><i class="bi bi-receipt"></i>Vale #${htmlEscape(x.vale_number)}</span>`:''}</div><button class="btn btn-sm btn-outline-${m[0]}" data-audit-detail="${htmlEscape(String(x.id||x.signature))}">VER DETALHES</button></div></article>`}).join('')}</div>`:'<div class="empty-users">Nenhum registro encontrado com os filtros informados.</div>';box.querySelectorAll('[data-audit-detail]').forEach(b=>b.onclick=()=>openAuditDetails(b.dataset.auditDetail))}
+function drawAuditLogs(){const box=el('auditLogs');if(!box)return;const filtered=applyAuditFilters();const visible=filtered.slice(0,auditPageSize);el('auditSummary').textContent=`${filtered.length} registro${filtered.length===1?'':'s'} encontrado${filtered.length===1?'':'s'} · mais recentes primeiro`;el('loadMoreAudit')?.classList.toggle('hidden',visible.length>=filtered.length);box.innerHTML=visible.length?`<div class="audit-timeline">${visible.map(x=>{const m=auditActionMeta(x.action);const auditId=htmlEscape(String(x.id||x.signature));return `<article class="audit-item border-start border-4 border-${m[0]}"><div class="audit-icon text-bg-${m[0]}"><i class="bi ${m[1]}"></i></div><div class="audit-item-main"><div class="audit-item-top"><div><span class="badge text-bg-${m[0]}">${htmlEscape(m[2])}</span><h3>${htmlEscape(x.title||m[2])}</h3></div><time>${new Date(x.created_at).toLocaleDateString('pt-BR')}<small>${new Date(x.created_at).toLocaleTimeString('pt-BR')}</small></time></div><p>${htmlEscape(x.description||'')}</p><div class="audit-item-meta"><span><i class="bi bi-person"></i>${htmlEscape(x.actor_name||'')}</span>${x.client_name?`<span><i class="bi bi-person-vcard"></i>${htmlEscape(x.client_name)}</span>`:''}${x.vale_number?`<span><i class="bi bi-receipt"></i>Vale #${htmlEscape(x.vale_number)}</span>`:''}</div><div class="audit-item-actions"><button class="btn btn-sm btn-outline-${m[0]}" data-audit-detail="${auditId}"><i class="bi bi-eye"></i><span>VER DETALHES</span></button><button class="btn btn-sm audit-delete-btn" data-audit-delete="${auditId}"><i class="bi bi-arrow-counterclockwise"></i><span>DESFAZER</span></button></div></div></article>`}).join('')}</div>`:'<div class="empty-users">Nenhum registro encontrado com os filtros informados.</div>';box.querySelectorAll('[data-audit-detail]').forEach(b=>b.onclick=()=>openAuditDetails(b.dataset.auditDetail));box.querySelectorAll('[data-audit-delete]').forEach(b=>b.onclick=()=>deleteAuditRecord(b.dataset.auditDelete))}
 async function renderAuditLogs(){
  const panel=el('auditPanel'),box=el('auditLogs'); if(!panel||ValleCloud.profile?.role!=='session')return; panel.classList.remove('hidden'); applyAuditMonthPeriod(); box.innerHTML='<p>Carregando logs...</p>';
  try{const logs=await ValleCloud.listAuditLogs(1000);window.__valleAuditLogs=logs||[];const users=[...new Map(logs.map(x=>[x.actor_user_id,x.actor_name])).entries()];const actions=[...new Set(logs.map(x=>x.action).filter(Boolean))].sort();el('auditUserFilter').innerHTML='<option value="">Todos os usuários</option>'+users.map(([id,n])=>`<option value="${htmlEscape(id)}">${htmlEscape(n)}</option>`).join('');el('auditActionFilter').innerHTML='<option value="">Todas as ações</option>'+actions.map(a=>`<option value="${htmlEscape(a)}">${htmlEscape(a.replaceAll('_',' '))}</option>`).join('');auditPageSize=50;drawAuditLogs()}catch(e){box.innerHTML=`<div class="auth-message error">${htmlEscape(e.message)}</div>`}
@@ -712,7 +862,35 @@ async function renderUsers(options={}){
 }
 function userCard(u,children,financial){
  const expired=u.role==='session'&&u.valid_until&&u.valid_until<new Date().toISOString().slice(0,10);
- return `<article class="user-card ${!u.active||expired?'blocked':''}"><div class="user-main"><div class="user-avatar">${htmlEscape((u.name||'?')[0])}</div><div><h3>${htmlEscape(u.name)}</h3><p>${htmlEscape(u.email||'')} · ${u.role==='session'?'SESSÃO':'SERVIÇO'}</p>${u.role==='session'?`<small>Validade: ${u.valid_until?new Date(u.valid_until+'T00:00:00').toLocaleDateString('pt-BR'):'sem validade'} ${expired?'· VENCIDA':''}</small>`:`<small class="service-interest-label">Juros configurável: ${Number(financial?.interest_percent??30).toLocaleString('pt-BR',{maximumFractionDigits:2})}%</small>`}</div></div><div class="user-actions"><span class="status-pill ${u.active&&!expired?'on':'off'}">${u.active&&!expired?'ATIVO':'BLOQUEADO'}</span><button class="btn light" data-edit-user="${u.id}">EDITAR</button><button class="btn ${u.active?'danger':'success'}" data-toggle-user="${u.id}" data-active="${u.active}">${u.active?'BLOQUEAR':'ATIVAR'}</button><button class="btn delete-user-btn" data-delete-user="${u.id}" title="Excluir usuário">🗑️ EXCLUIR</button></div>${children.length?`<div class="hierarchy-children"><b>Usuários de serviço</b>${children.map(c=>`<div><span>${htmlEscape(c.name)} <small>${htmlEscape(c.email||'')}</small></span><em class="${c.active?'on':'off'}">${c.active?'ATIVO':'BLOQUEADO'}</em></div>`).join('')}</div>`:''}</article>`;
+ const statusText=u.active&&!expired?'ATIVO':'BLOQUEADO';
+ const roleLabel=u.role==='session'?'SESSÃO':'SERVIÇO';
+ const extraMeta=u.role==='session'
+  ? `<span class="user-meta-chip user-validity-chip"><i class="bi bi-calendar3"></i><span>VALIDADE: ${u.valid_until?new Date(u.valid_until+'T00:00:00').toLocaleDateString('pt-BR'):'SEM VALIDADE'}${expired?' · VENCIDA':''}</span></span>`
+  : `<span class="user-meta-chip user-interest-chip"><i class="bi bi-percent"></i><span>JUROS CONFIGURÁVEL: ${Number(financial?.interest_percent??30).toLocaleString('pt-BR',{maximumFractionDigits:2})}%</span></span>`;
+ return `<article class="user-card ${!u.active||expired?'blocked':''} ${u.role==='session'?'is-session':'is-service'}">
+   <div class="user-card-top">
+     <div class="user-main">
+       <div class="user-avatar">${htmlEscape((u.name||'?')[0])}</div>
+       <div class="user-copy">
+         <div class="user-copy-top">
+           <h3>${htmlEscape(u.name)}</h3>
+           <span class="status-pill ${u.active&&!expired?'on':'off'}">${statusText}</span>
+         </div>
+         <p class="user-email">${htmlEscape(u.email||'')}</p>
+         <div class="user-meta-row">
+           <span class="user-meta-chip user-role-chip"><i class="bi ${u.role==='session'?'bi-person-badge':'bi-person-workspace'}"></i><span>${roleLabel}</span></span>
+           ${extraMeta}
+         </div>
+       </div>
+     </div>
+   </div>
+   <div class="user-actions">
+     <button class="btn light" data-edit-user="${u.id}"><i class="bi bi-pencil-square"></i><span>EDITAR</span></button>
+     <button class="btn ${u.active?'danger':'success'}" data-toggle-user="${u.id}" data-active="${u.active}"><i class="bi ${u.active?'bi-slash-circle':'bi-check-circle'}"></i><span>${u.active?'BLOQUEAR':'ATIVAR'}</span></button>
+     <button class="btn delete-user-btn" data-delete-user="${u.id}" title="Excluir usuário"><i class="bi bi-trash3"></i><span>EXCLUIR</span></button>
+   </div>
+   ${children.length?`<div class="hierarchy-children"><b>Usuários de serviço</b>${children.map(c=>`<div><span>${htmlEscape(c.name)} <small>${htmlEscape(c.email||'')}</small></span><em class="${c.active?'on':'off'}">${c.active?'ATIVO':'BLOQUEADO'}</em></div>`).join('')}</div>`:''}
+ </article>`;
 }
 
 function configureManagedForm(role, editing=false){
@@ -720,13 +898,20 @@ function configureManagedForm(role, editing=false){
  const isSession=ValleCloud.profile.role==='session';
  const validity=el('managedValidityWrap');
  const whatsapp=el('managedWhatsappWrap');
+ const whatsappInput=el('managedWhatsapp');
  const perms=el('permissionsBox');
  const financial=el('serviceFinancialBox');
- // Validade e WhatsApp pertencem somente ao usuário de sessão criado pelo ADM.
+ // Validade e WhatsApp pertencem somente ao painel do administrador.
  validity.classList.toggle('hidden',!isAdmin);
  whatsapp.classList.toggle('hidden',!isAdmin);
- validity.style.display=isAdmin?'':'none';
- whatsapp.style.display=isAdmin?'':'none';
+ validity.hidden=!isAdmin;
+ whatsapp.hidden=!isAdmin;
+ validity.style.setProperty('display',isAdmin?'flex':'none','important');
+ whatsapp.style.setProperty('display',isAdmin?'flex':'none','important');
+ if(whatsappInput){
+  whatsappInput.disabled=!isAdmin;
+  whatsappInput.required=false;
+ }
  perms.classList.toggle('hidden',!isSession);
  perms.style.display=isSession?'':'none';
  financial.classList.toggle('hidden',!isSession);
@@ -738,11 +923,14 @@ function configureManagedForm(role, editing=false){
  el('managedPasswordLabel').classList.toggle('hidden',editing);
 }
 function openNew(){
- el('userForm').reset(); el('managedId').value=''; el('managedActive').checked=true; el('managedInterestPercent').value='30';
+ el('userForm').reset(); el('managedId').value=''; el('managedInterestPercent').value='30';
  const admin=ValleCloud.profile.role==='admin';
  el('userModalTitle').textContent=admin?'Novo usuário de sessão':'Novo usuário de serviço';
- document.querySelector('#userForm .btn.primary').textContent='Salvar';
+ const subtitle=el('userModalSubtitle'); if(subtitle)subtitle.textContent=admin?'Cadastre uma nova sessão e defina a validade de acesso.':'Cadastre um usuário de serviço e configure suas permissões.';
+ const saveBtn=document.querySelector('#userForm .btn.primary span'); if(saveBtn)saveBtn.textContent='SALVAR';
  configureManagedForm(admin?'session':'service',false);
+ syncUserModalViewport();
+ document.body.classList.add('user-modal-open');
  el('userModal').classList.remove('hidden');
 }
 async function openEdit(id,users){
@@ -751,18 +939,22 @@ async function openEdit(id,users){
  if((callerRole==='admin'&&u.role!=='session')||(callerRole==='session'&&u.role!=='service')){
   toast('Você não tem permissão para administrar este tipo de usuário.', 'warn'); return;
  }
- el('managedId').value=u.id;el('managedName').value=u.name||'';el('managedEmail').value=u.email||'';el('managedPassword').value='';el('managedValidity').value=u.valid_until||'';el('managedWhatsapp').value=u.admin_whatsapp||'';el('managedActive').checked=!!u.active;
+ el('managedId').value=u.id;el('managedName').value=u.name||'';el('managedEmail').value=u.email||'';el('managedPassword').value='';el('managedValidity').value=u.valid_until||'';el('managedWhatsapp').value=u.admin_whatsapp||'';
  el('userModalTitle').textContent=callerRole==='admin'?'Administrar usuário de sessão':'Administrar usuário de serviço';
- document.querySelector('#userForm .btn.primary').textContent='Atualizar';
+ const subtitle=el('userModalSubtitle'); if(subtitle)subtitle.textContent=callerRole==='admin'?'Atualize a validade desta sessão.':'Atualize os dados, juros e permissões deste usuário.';
+ const saveBtn=document.querySelector('#userForm .btn.primary span'); if(saveBtn)saveBtn.textContent='ATUALIZAR';
  configureManagedForm(u.role,true);
  if(u.role==='service'){
   const p=await ValleCloud.getPermissions(u.id);
   document.querySelectorAll('[data-perm]').forEach(x=>x.checked=p[x.dataset.perm]!==false);
   el('managedInterestPercent').value=String(Number(p.interest_percent??30));
  }
+ syncUserModalViewport();
+ document.body.classList.add('user-modal-open');
  el('userModal').classList.remove('hidden');
 }
 function closeModal(){
+ document.body.classList.remove('user-modal-open');
  el('userModal').classList.add('hidden');
  el('managedName').disabled=false;el('managedEmail').disabled=false;el('managedPasswordLabel').classList.remove('hidden');
 }
@@ -791,9 +983,9 @@ async function saveManaged(e){
  const role=callerRole==='admin'?'session':'service';
  const payload={
   userId:id||undefined,
-  role,
-  active:el('managedActive').checked
+  role
  };
+ if(!id)payload.active=true;
  if(!id){
   payload.name=el('managedName').value.trim();
   payload.email=el('managedEmail').value.trim();

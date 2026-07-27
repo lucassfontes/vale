@@ -1,0 +1,1 @@
+VALLE v93 — botão Receber desativado para vales com status PAGO/QUITADO e proteção na função de recebimento.

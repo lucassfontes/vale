@@ -1,0 +1,1 @@
+VALLE v94 — botão Excluir em cada registro de auditoria, disponível somente ao usuário de sessão.

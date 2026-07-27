@@ -1,0 +1,1 @@
+VALLE v85 — modal novo usuário sem corte e com checkboxes visíveis.

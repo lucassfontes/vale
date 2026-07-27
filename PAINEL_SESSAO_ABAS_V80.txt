@@ -1,0 +1,5 @@
+VALLE v80
+
+- Usuários voltaram a aparecer em cards simultâneos.
+- Painel de sessão agora possui abas: Usuários, Auditoria, Configuração e Backup.
+- Abas responsivas com rolagem horizontal no celular.

@@ -287,8 +287,11 @@ drop policy if exists audit_logs_insert on public.audit_logs;
 create policy audit_logs_insert on public.audit_logs for insert to authenticated with check (
   actor_user_id=auth.uid() and session_user_id=public.my_session_id()
 );
--- Não existem policies de UPDATE ou DELETE: o histórico é permanente.
-comment on table public.audit_logs is 'Histórico imutável e detalhado: criação, edição, exclusão, quitação e pagamentos.';
+drop policy if exists audit_logs_delete_session on public.audit_logs;
+create policy audit_logs_delete_session on public.audit_logs for delete to authenticated using (
+  public.my_role()='session' and session_user_id=auth.uid()
+);
+comment on table public.audit_logs is 'Histórico detalhado da sessão. O usuário de sessão pode excluir registros da própria sessão.';
 
 
 -- VALLE v59 — mensagens de atualização enviadas pelo administrador
@@ -411,3 +414,86 @@ with check (public.my_role() = 'admin');
 
 comment on column public.admin_messages.target_session_user_id is
 'Sessão destinatária. NULL envia a mensagem para todas as sessões.';
+
+
+-- VALLE v91 — bloqueio real de exclusões conforme permissões do usuário de serviço
+-- Execute no SQL Editor do Supabase.
+
+create or replace function public.valle_enforce_workspace_delete_permissions_v91()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_role public.user_role;
+  allow_delete_client boolean := false;
+  allow_delete_vale boolean := false;
+begin
+  v_user_role := public.my_role();
+
+  -- Usuário de sessão continua administrando integralmente o banco da própria sessão.
+  if v_user_role <> 'service' then
+    return new;
+  end if;
+
+  select
+    coalesce(sp.can_delete_client, false),
+    coalesce(sp.can_delete_vale, false)
+  into allow_delete_client, allow_delete_vale
+  from public.service_permissions sp
+  where sp.service_user_id = auth.uid();
+
+  if not found then
+    allow_delete_client := false;
+    allow_delete_vale := false;
+  end if;
+
+  if not allow_delete_client and exists (
+    select 1
+    from jsonb_array_elements(coalesce(old.data -> 'clientes', '[]'::jsonb)) old_client
+    where nullif(old_client ->> 'id', '') is not null
+      and not exists (
+        select 1
+        from jsonb_array_elements(coalesce(new.data -> 'clientes', '[]'::jsonb)) new_client
+        where new_client ->> 'id' = old_client ->> 'id'
+      )
+  ) then
+    raise exception 'Usuário sem permissão para excluir clientes.'
+      using errcode = '42501';
+  end if;
+
+  if not allow_delete_vale and exists (
+    select 1
+    from jsonb_array_elements(coalesce(old.data -> 'vales', '[]'::jsonb)) old_vale
+    where nullif(old_vale ->> 'id', '') is not null
+      and not exists (
+        select 1
+        from jsonb_array_elements(coalesce(new.data -> 'vales', '[]'::jsonb)) new_vale
+        where new_vale ->> 'id' = old_vale ->> 'id'
+      )
+  ) then
+    raise exception 'Usuário sem permissão para excluir vales.'
+      using errcode = '42501';
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke all on function public.valle_enforce_workspace_delete_permissions_v91() from public;
+grant execute on function public.valle_enforce_workspace_delete_permissions_v91() to authenticated;
+
+drop trigger if exists valle_workspace_delete_permissions_v91 on public.session_workspaces;
+create trigger valle_workspace_delete_permissions_v91
+before update of data on public.session_workspaces
+for each row
+execute function public.valle_enforce_workspace_delete_permissions_v91();
+
+-- Proteção equivalente para instalações antigas que ainda utilizam workspace_states.
+drop trigger if exists valle_workspace_states_delete_permissions_v91 on public.workspace_states;
+create trigger valle_workspace_states_delete_permissions_v91
+before update of data on public.workspace_states
+for each row
+execute function public.valle_enforce_workspace_delete_permissions_v91();
+

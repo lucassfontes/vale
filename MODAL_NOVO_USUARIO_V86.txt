@@ -1,0 +1,1 @@
+VALLE v86 — checkbox centralizado, usuário ativo removido do modal e card financeiro ajustado.

@@ -1,0 +1,5 @@
+VALLE v90
+- WhatsApp do administrador visível somente no painel do administrador.
+- Campo removido do modal do usuário de sessão.
+- MSG ADM exibida somente ao usuário de sessão.
+- Cada mensagem aparece uma única vez por usuário de sessão.

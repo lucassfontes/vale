@@ -11,4 +11,4 @@ function atualizarValeEditado(){if(!editandoId){toast('NENHUM VALE EM EDIÇÃO')
 function cancelarEdicao(){editandoId=null;modoEdicao(false);limparFormulario();toast('EDIÇÃO CANCELADA');}
 function reimprimir(id){const v=dados.vales.find(x=>x.id===id);if(v)imprimirVale(v);}
 function marcarPago(id){const v=dados.vales.find(x=>x.id===id);if(v){v.status=v.status==='PAGO'?'ABERTO':'PAGO';salvar();renderTudo();}}
-async function excluirVale(id){const ok=window.appConfirm?await appConfirm('Deseja realmente excluir este vale?',{title:'Excluir vale?',icon:'🗑️',confirmText:'Excluir',cancelText:'Cancelar'}):confirm('EXCLUIR ESTE VALE?');if(ok){dados.vales=dados.vales.filter(v=>v.id!==id);salvar();renderTudo();}}
+async function excluirVale(id){if(!(await window.valleRequireFreshPermission?.('can_delete_vale')))return;const ok=window.appConfirm?await appConfirm('Deseja realmente excluir este vale?',{title:'Excluir vale?',icon:'🗑️',confirmText:'Excluir',cancelText:'Cancelar'}):confirm('EXCLUIR ESTE VALE?');if(ok){dados.vales=dados.vales.filter(v=>v.id!==id);salvar();renderTudo();}}

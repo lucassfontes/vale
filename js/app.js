@@ -1,7 +1,7 @@
 /* VERSAO DO SISTEMA */
 const versao = document.getElementById("versao_sytem")
 
-versao.innerHTML = 'Versão-3.6.8'
+versao.innerHTML = 'Versão-3.6.9'
 /**
  * ARQUIVO PRINCIPAL DO VALLE
  * ------------------------------------------------
@@ -41,6 +41,85 @@ let clientModalForceClose = false;
 let loanFormSnapshot = '';
 // Atalho para buscar elementos HTML pelo ID. Exemplo: $('loanValor').
 const $ = (id) => document.getElementById(id);
+
+
+/**
+ * Permissões efetivas do usuário de serviço.
+ * Usuários de sessão e administrador continuam com acesso total às ações do app.
+ */
+const VALLE_PERMISSION_LABELS = {
+  can_create_client: 'criar clientes',
+  can_edit_client: 'editar clientes',
+  can_delete_client: 'excluir clientes',
+  can_create_vale: 'criar vales',
+  can_edit_vale: 'editar vales',
+  can_delete_vale: 'excluir vales',
+  can_receive_payment: 'receber pagamentos'
+};
+
+function valleIsServiceUser() {
+  return window.ValleCloud?.profile?.role === 'service';
+}
+
+function valleHasPermission(permission) {
+  if (!valleIsServiceUser()) return true;
+  return window.VALLE_PERMISSIONS?.[permission] !== false;
+}
+
+function vallePermissionDenied(permission) {
+  const label = VALLE_PERMISSION_LABELS[permission] || 'realizar esta ação';
+  toast(`SEM PERMISSÃO PARA ${label.toUpperCase()}`);
+  return false;
+}
+
+function valleRequirePermission(permission) {
+  return valleHasPermission(permission) || vallePermissionDenied(permission);
+}
+
+function valeEstaQuitado(v) {
+  const status = String(v?.status || '').trim().toUpperCase();
+  return status === 'PAGO' || status === 'QUITADO';
+}
+
+async function valleRequireFreshPermission(permission) {
+  if (!valleIsServiceUser()) return true;
+  try {
+    if (window.ValleCloud?.isOnline?.()) {
+      const fresh = await window.ValleCloud.loadMyPermissions({ preferCache: false });
+      if (fresh && typeof fresh === 'object') window.VALLE_PERMISSIONS = fresh;
+    }
+  } catch (_) {
+    // Sem internet, usa a última permissão salva no aparelho.
+  }
+  return valleRequirePermission(permission);
+}
+
+function applyVallePermissionVisibility(root = document) {
+  if (!root?.querySelectorAll) return;
+  const selectors = {
+    can_create_client: ['[onclick*="openClientModal(false"]'],
+    can_edit_client: ['[onclick*="editClient("]', '[onclick*="editarCliente("]'],
+    can_delete_client: ['[onclick*="deleteClient("]', '[onclick*="excluirCliente("]'],
+    can_edit_vale: ['[onclick*="editLoan("]', '[onclick*="editarVale("]'],
+    can_delete_vale: ['[onclick*="deleteLoan("]', '[onclick*="excluirVale("]'],
+    can_receive_payment: ['[onclick*="openReceiveModal("]', '[onclick*="togglePaid("]', '[onclick*="marcarPago("]', '[onclick*="abrirValeHistorico("]']
+  };
+  Object.entries(selectors).forEach(([permission, list]) => {
+    const denied = !valleHasPermission(permission);
+    list.forEach(selector => {
+      root.querySelectorAll(selector).forEach(node => {
+        node.classList.toggle('permission-hidden', denied);
+        if ('disabled' in node) node.disabled = denied;
+        node.setAttribute('aria-hidden', String(denied));
+      });
+    });
+  });
+}
+
+window.valleHasPermission = valleHasPermission;
+window.valleRequirePermission = valleRequirePermission;
+window.valleRequireFreshPermission = valleRequireFreshPermission;
+window.applyVallePermissionVisibility = applyVallePermissionVisibility;
 
 
 /**
@@ -756,6 +835,168 @@ function valleAudit(action,type,record,extra={}){
   }catch(e){console.warn(e)}
 }
 
+
+function valleAuditClone(value){
+  try{return JSON.parse(JSON.stringify(value))}catch(_){return value}
+}
+function valleAuditExtra(record,key){
+  if(record && record[key]!==undefined && record[key]!==null)return record[key];
+  return record?.details?.[key] ?? null;
+}
+function valleAuditRecordId(record){return String(record?.id ?? record?.signature ?? '')}
+function valleAuditSameEntity(a,b){
+  if(!a||!b)return false;
+  const at=String(a.entity_type||'').toLowerCase(),bt=String(b.entity_type||'').toLowerCase();
+  const ai=String(a.entity_id||''),bi=String(b.entity_id||'');
+  if(at&&bt&&at===bt&&ai&&bi&&ai===bi)return true;
+  if(String(a.vale_number||'')&&String(a.vale_number||'')===String(b.vale_number||''))return true;
+  return at==='cliente'&&bt==='cliente'&&String(a.client_name||'')&&String(a.client_name||'').toUpperCase()===String(b.client_name||'').toUpperCase();
+}
+function valleAuditFindVale(record){
+  const id=String(record?.entity_id||'');
+  return db.vales.find(v=>String(v.id)===id)
+    || db.vales.find(v=>String(v.numero||'')===String(record?.vale_number||''))
+    || null;
+}
+function valleAuditFindClient(record){
+  const id=String(record?.entity_id||'');
+  return db.clientes.find(c=>String(c.id)===id)
+    || db.clientes.find(c=>String(c.nome||'').toUpperCase()===String(record?.client_name||'').toUpperCase())
+    || null;
+}
+function valleAuditReplace(list,current,previous){
+  const index=current ? list.findIndex(item=>String(item.id)===String(current.id)) : -1;
+  const restored=valleAuditClone(previous);
+  if(index>=0)list[index]=restored;else list.push(restored);
+  return restored;
+}
+function valleAuditShiftDate(dateStr,days){
+  if(!dateStr)return dateStr;
+  const d=new Date(String(dateStr).slice(0,10)+'T00:00:00');
+  if(Number.isNaN(d.getTime()))return dateStr;
+  d.setDate(d.getDate()+days);
+  return inputDate(d);
+}
+function valleAuditRemoveLastPaymentObservation(vale,action,amount){
+  const lines=String(vale?.observacao||'').split(/\r?\n/);
+  if(!lines.length)return;
+  const value=Number(amount||0);
+  let index=-1;
+  for(let i=lines.length-1;i>=0;i--){
+    const text=lines[i].toUpperCase();
+    const typeMatch=action==='PAGAMENTO_JUROS'?text.includes('PAGO JUROS'):text.includes('PAGO');
+    const amountMatch=!value||text.includes(value.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
+    if(typeMatch&&amountMatch){index=i;break}
+  }
+  if(index<0)index=lines.length-1;
+  lines.splice(index,1);
+  vale.observacao=lines.join('\n').trim();
+}
+function valleAuditLegacyPaymentUndo(record,action){
+  const vale=valleAuditFindVale(record);
+  if(!vale)throw new Error('O vale relacionado a este pagamento não foi encontrado.');
+  const amount=Number(valleAuditExtra(record,'valor_pago')||0);
+  const principal=Number(valleAuditExtra(record,'valor_principal_pago')||0);
+  const juros=Number(valleAuditExtra(record,'valor_juros_pago')||0);
+  if(action==='PAGAMENTO_PARCIAL'){
+    vale.parcialRecebido=Math.max(0,Number(vale.parcialRecebido||0)-amount);
+    vale.principalRecebido=Math.max(0,Number(vale.principalRecebido||0)-principal);
+    vale.jurosRecebidos=Math.max(0,Number(vale.jurosRecebidos||0)-juros);
+    vale.status='ABERTO';
+    vale.ultimoRecebimento='';
+    valleAuditRemoveLastPaymentObservation(vale,action,amount);
+    return true;
+  }
+  if(action==='PAGAMENTO_JUROS'){
+    vale.jurosRecebidos=Math.max(0,Number(vale.jurosRecebidos||0)-(juros||amount));
+    vale.dataFinal=valleAuditShiftDate(vale.dataFinal,-30);
+    vale.status='ABERTO';
+    vale.ultimoRecebimento='';
+    valleAuditRemoveLastPaymentObservation(vale,action,juros||amount);
+    return true;
+  }
+  if(action==='NAO_PAGOU'){
+    vale.status='ABERTO';
+    vale.ultimoRecebimento='';
+    return true;
+  }
+  return false;
+}
+
+window.valleUndoAuditRecord=async function(record,logs=[]){
+  if(window.ValleCloud?.profile?.role!=='session')throw new Error('Somente o usuário de sessão pode desfazer registros da auditoria.');
+  if(!window.ValleCloud?.isOnline?.())throw new Error('Conecte-se à internet para desfazer este registro com segurança.');
+  if(!record)throw new Error('Registro de auditoria inválido.');
+
+  const all=Array.isArray(logs)?logs:[];
+  const index=all.findIndex(item=>valleAuditRecordId(item)===valleAuditRecordId(record));
+  const newer=(index>0?all.slice(0,index):[]).find(item=>valleAuditSameEntity(item,record));
+  if(newer)throw new Error('Existe uma movimentação mais recente neste mesmo registro. Desfaça primeiro a movimentação mais recente.');
+
+  const action=String(record.action||'').toUpperCase();
+  const oldData=valleAuditClone(valleAuditExtra(record,'old_data'));
+  const beforeDatabase=valleAuditClone(db);
+  let changed=false;
+
+  try{
+    if(action==='CRIAR_CLIENTE'){
+      const current=valleAuditFindClient(record);
+      if(current){
+        const linked=db.vales.some(v=>String(v.clienteId||'')===String(current.id)||String(v.cliente||'').toUpperCase()===String(current.nome||'').toUpperCase());
+        if(linked)throw new Error('Este cliente já possui vales vinculados. Desfaça ou exclua esses vales antes de desfazer a criação do cliente.');
+        db.clientes=db.clientes.filter(c=>String(c.id)!==String(current.id));changed=true;
+      }
+    }else if(action==='ATUALIZAR_CLIENTE'){
+      if(!oldData)throw new Error('Este registro antigo não possui os dados anteriores necessários para restaurar o cliente.');
+      valleAuditReplace(db.clientes,valleAuditFindClient(record),oldData);changed=true;
+    }else if(action==='EXCLUIR_CLIENTE'){
+      if(!oldData)throw new Error('Não há cópia do cliente excluído neste registro.');
+      valleAuditReplace(db.clientes,valleAuditFindClient(record),oldData);changed=true;
+    }else if(action==='CRIAR_VALE'){
+      const current=valleAuditFindVale(record);
+      if(current){db.vales=db.vales.filter(v=>String(v.id)!==String(current.id));changed=true}
+    }else if(['ATUALIZAR_VALE','QUITAR_VALE'].includes(action)){
+      if(!oldData)throw new Error('Este registro não possui o estado anterior do vale.');
+      valleAuditReplace(db.vales,valleAuditFindVale(record),oldData);changed=true;
+    }else if(action==='EXCLUIR_VALE'){
+      if(!oldData)throw new Error('Não há cópia do vale excluído neste registro.');
+      valleAuditReplace(db.vales,valleAuditFindVale(record),oldData);changed=true;
+    }else if(['PAGAMENTO_PARCIAL','PAGAMENTO_JUROS','NAO_PAGOU'].includes(action)){
+      if(oldData){valleAuditReplace(db.vales,valleAuditFindVale(record),oldData);changed=true}
+      else changed=valleAuditLegacyPaymentUndo(record,action);
+    }else if(action==='LISTA_NEGRA'){
+      if(oldData?.vale||oldData?.cliente){
+        if(oldData.vale)valleAuditReplace(db.vales,valleAuditFindVale(record),oldData.vale);
+        if(oldData.cliente)valleAuditReplace(db.clientes,valleAuditFindClient({entity_id:oldData.cliente.id,client_name:oldData.cliente.nome}),oldData.cliente);
+        changed=true;
+      }else if(oldData){
+        valleAuditReplace(db.clientes,valleAuditFindClient(record),oldData);changed=true;
+      }else{
+        const vale=valleAuditFindVale(record);const client=valleAuditFindClient(record);
+        if(vale){vale.listaNegra=false;changed=true}
+        if(client){client.obs=String(client.obs||'').replace(/\s*\|?\s*LISTA NEGRA/ig,'').trim();changed=true}
+      }
+    }else{
+      throw new Error('Esta ação ainda não pode ser desfeita automaticamente.');
+    }
+
+    if(changed){
+      db=normalizeDb(db);window.db=db;
+      save();
+      if(window.ValleCloud?.saveWorkspaceStrict)await window.ValleCloud.saveWorkspaceStrict(db);
+      else await window.ValleCloud?.flushWorkspace?.(db);
+    }
+    renderAll();
+    return {changed,action};
+  }catch(error){
+    db=normalizeDb(beforeDatabase);window.db=db;
+    save();
+    try{if(window.ValleCloud?.saveWorkspaceStrict)await window.ValleCloud.saveWorkspaceStrict(db)}catch(_){ }
+    renderAll();
+    throw error;
+  }
+};
+
 /**
  * Calcula o total com juros e atualiza o badge de dias entre data inicial e final.
  */
@@ -830,6 +1071,8 @@ function ensureClientByLoan(v) {
  * Salva um vale novo ou atualiza um vale em edição. Também atualiza cliente, histórico e localStorage.
  */
 function saveLoan() {
+  const requiredPermission = editLoanId ? 'can_edit_vale' : 'can_create_vale';
+  if (!valleRequirePermission(requiredPermission)) return null;
   const v = currentLoan();
   const err = validateLoan(v);
   if (err) { toast(err); return null; }
@@ -1028,6 +1271,7 @@ function updateClientModalHeading(editing = false) {
 }
 
 function openClientModal(editing = false) {
+  if (!valleRequirePermission(editing ? 'can_edit_client' : 'can_create_client')) return;
   const modal = $('clientModal');
   if (!modal) return;
   if (!editing) clearClient(false);
@@ -1095,7 +1339,9 @@ function readFileData(file) {
  * Salva um cliente novo ou edita um cliente existente. Também atualiza os vales ligados a esse cliente.
  */
 function saveClient() {
-  const id = $('clienteId').value || ('C' + Date.now());
+  const existingId = $('clienteId').value;
+  if (!valleRequirePermission(existingId ? 'can_edit_client' : 'can_create_client')) return false;
+  const id = existingId || ('C' + Date.now());
   const c = {
     id,
     nome: upper($('cliNome').value),
@@ -1139,6 +1385,7 @@ function saveClient() {
  * Carrega os dados de um cliente no formulário para edição.
  */
 function editClient(id) {
+  if (!valleRequirePermission('can_edit_client')) return;
   const c = clienteById(id);
   if (!c) return;
   switchScreen('clientes');
@@ -1168,6 +1415,7 @@ function useClient(id) {
  * Remove o cliente do cadastro, mantendo os vales antigos no histórico.
  */
 async function deleteClient(id) {
+  if (!(await valleRequireFreshPermission('can_delete_client'))) return;
   const ok = await appConfirm('OS VALES ANTIGOS CONTINUAM NO HISTÓRICO.', {
     title: 'Excluir cliente?',
     icon: '🗑️',
@@ -1186,6 +1434,7 @@ async function deleteClient(id) {
  * Carrega um vale do histórico no formulário de VALLE para edição.
  */
 function startLoanEdit(id, originScreen = '') {
+  if (!valleRequirePermission('can_edit_vale')) return;
   const v = db.vales.find(x => x.id === id);
   if (!v) return;
   loanEditReturnScreen = resolveLoanEditReturnScreen(originScreen);
@@ -1211,6 +1460,7 @@ function startLoanEdit(id, originScreen = '') {
  * Carrega um vale para edição. Vales quitados exigem confirmação de senha.
  */
 function editLoan(id, originScreen = '') {
+  if (!valleRequirePermission('can_edit_vale')) return;
   const v = db.vales.find(x => x.id === id);
   if (!v) return;
   const origin = resolveLoanEditReturnScreen(originScreen);
@@ -1225,6 +1475,7 @@ function editLoan(id, originScreen = '') {
  * Exclui um vale do histórico após confirmação.
  */
 async function deleteLoan(id) {
+  if (!(await valleRequireFreshPermission('can_delete_vale'))) return;
   const ok = await appConfirm('Deseja realmente excluir este vale?', {
     title: 'Excluir vale?',
     icon: '🗑️',
@@ -1243,30 +1494,16 @@ async function deleteLoan(id) {
  */
 
 function togglePaid(id) {
+  if (!valleRequirePermission('can_receive_payment')) return;
   const v = db.vales.find(x => x.id === id);
   if (!v) return;
-  if (v.status === 'PAGO') {
-    // Ao clicar em ABRIR no histórico, o vale volta a ficar EM ABERTO.
-    // Assim o Dashboard desconta novamente do caixa/capital disponível o VALOR DO VALE
-    // e também remove os juros que estavam aparecendo como recebidos.
-    const valorDoVale = originalLoanValue(v);
-    const totalDoVale = originalLoanTotal(v);
-
-    v.valor = Math.max(0, valorDoVale);
-    v.total = Math.max(0, totalDoVale);
-    v.principalRecebido = 0;
-    v.jurosRecebidos = 0;
-    v.parcialRecebido = 0;
-    v.status = 'ABERTO';
-    v.ultimoRecebimento = 'REABERTO';
-
-    save();
-    renderAll();
-    toast('VALE REABERTO: VALOR DESCONTADO DO DASHBOARD');
+  if (valeEstaQuitado(v)) {
+    toast('VALE JÁ QUITADO. USE ABRIR VALE PARA REABRIR.');
     return;
   }
   openReceiveModal(id);
 }
+
 
 
 /**
@@ -1481,8 +1718,13 @@ function closeReceiveModal() {
 }
 
 function openReceiveModal(id, editing = false) {
+  if (!valleRequirePermission('can_receive_payment')) return;
   const v = db.vales.find(x => x.id === id);
   if (!v) return;
+  if (valeEstaQuitado(v) && !editing) {
+    toast('VALE JÁ QUITADO. O RECEBIMENTO ESTÁ DESATIVADO.');
+    return;
+  }
   if (Number(v.valorOriginal || 0) <= 0) v.valorOriginal = originalLoanValue(v);
   if (Number(v.totalOriginal || 0) <= 0) v.totalOriginal = originalLoanTotal(v);
 
@@ -1646,6 +1888,7 @@ function saveReceiveModalEdit(id) {
   openReceiveModal(id, false);
 }
 function receiveQuitado(id) {
+  if (!valleRequirePermission('can_receive_payment')) return;
   const v = db.vales.find(x => x.id === id);
   if (!v) return;
   if (Number(v.valorOriginal || 0) <= 0) v.valorOriginal = originalLoanValue(v);
@@ -1758,8 +2001,10 @@ function closePartialPaymentModal() {
 }
 
 function receiveSoJuros(id) {
+  if (!valleRequirePermission('can_receive_payment')) return;
   const v = db.vales.find(x => x.id === id);
   if (!v) return;
+  const anterior=valleAuditClone(v);
   if (Number(v.valorOriginal || 0) <= 0) v.valorOriginal = originalLoanValue(v);
   if (Number(v.totalOriginal || 0) <= 0) v.totalOriginal = originalLoanTotal(v);
   const juros = loanInterest(v);
@@ -1776,13 +2021,15 @@ function receiveSoJuros(id) {
   const observacaoAtual = String(v.observacao || '').trim();
   v.observacao = observacaoAtual ? `${observacaoAtual}\n${novoRegistroObs}` : novoRegistroObs;
 
-  valleAudit('PAGAMENTO_JUROS','vale',v,{new_data:v,valor_pago:juros,valor_principal_pago:0,valor_juros_pago:juros,data_pagamento:new Date().toISOString()});
+  valleAudit('PAGAMENTO_JUROS','vale',v,{old_data:anterior,new_data:v,valor_pago:juros,valor_principal_pago:0,valor_juros_pago:juros,data_pagamento:new Date().toISOString()});
   save(); closeReceiveModal(); renderAll(); toast('JUROS REGISTRADO E VENCIMENTO ADIADO POR MAIS 30 DIAS');
 }
 
 function receiveParcial(id) {
+  if (!valleRequirePermission('can_receive_payment')) return;
   const v = db.vales.find(x => x.id === id);
   if (!v) return;
+  const anterior=valleAuditClone(v);
   if (Number(v.valorOriginal || 0) <= 0) v.valorOriginal = originalLoanValue(v);
   if (Number(v.totalOriginal || 0) <= 0) v.totalOriginal = originalLoanTotal(v);
 
@@ -1833,7 +2080,7 @@ function receiveParcial(id) {
   if (loanTotalBalance(v) <= 0) v.status = 'PAGO';
   else v.status = 'ABERTO';
 
-  valleAudit('PAGAMENTO_PARCIAL','vale',v,{new_data:v,valor_pago:valorRecebido,valor_principal_pago:abatidoPrincipal,valor_juros_pago:abatidoJuros,data_pagamento:new Date().toISOString(),saldo_anterior:totalAtual,saldo_novo:loanTotalBalance(v),description:`Pagamento parcial de ${money(valorRecebido)} no Vale #${v.numero||v.id}. Saldo: ${money(totalAtual)} → ${money(loanTotalBalance(v))}.`});
+  valleAudit('PAGAMENTO_PARCIAL','vale',v,{old_data:anterior,new_data:v,valor_pago:valorRecebido,valor_principal_pago:abatidoPrincipal,valor_juros_pago:abatidoJuros,data_pagamento:new Date().toISOString(),saldo_anterior:totalAtual,saldo_novo:loanTotalBalance(v),description:`Pagamento parcial de ${money(valorRecebido)} no Vale #${v.numero||v.id}. Saldo: ${money(totalAtual)} → ${money(loanTotalBalance(v))}.`});
   save();
   closePartialPaymentModal();
   partialPaymentValeId = null;
@@ -1843,25 +2090,30 @@ function receiveParcial(id) {
 }
 
 function receiveNaoPagou(id) {
+  if (!valleRequirePermission('can_receive_payment')) return;
   const v = db.vales.find(x => x.id === id);
   if (!v) return;
+  const anterior=valleAuditClone(v);
   v.status = 'ABERTO';
   v.ultimoRecebimento = 'NÃO PAGOU';
-  valleAudit('NAO_PAGOU','vale',v,{new_data:v});
+  valleAudit('NAO_PAGOU','vale',v,{old_data:anterior,new_data:v});
   save(); closeReceiveModal(); renderAll(); toast('VALE CONTINUA EM ABERTO');
 }
 
 function receiveListaNegra(id) {
+  if (!valleRequirePermission('can_receive_payment')) return;
   const v = db.vales.find(x => x.id === id);
   if (!v) return;
-  v.listaNegra = true;
   const c = clienteById(v.clienteId) || clienteByName(v.cliente);
+  const anteriorVale=valleAuditClone(v),anteriorCliente=valleAuditClone(c);
+  v.listaNegra = true;
   if (c && !String(c.obs || '').includes('LISTA NEGRA')) c.obs = String(c.obs || '').trim() + (c.obs ? ' | ' : '') + 'LISTA NEGRA';
-  valleAudit('LISTA_NEGRA','cliente',c||v,{new_data:c||v});
+  valleAudit('LISTA_NEGRA','vale',v,{old_data:{vale:anteriorVale,cliente:anteriorCliente},new_data:{vale:valleAuditClone(v),cliente:valleAuditClone(c)},client_name:v.cliente,vale_number:v.numero});
   save(); closeReceiveModal(); renderAll(); toast('CLIENTE ADICIONADO À LISTA NEGRA');
 }
 
 function receiveRemover(id) {
+  if (!valleRequirePermission('can_receive_payment')) return;
   closeReceiveModal();
   deleteLoan(id);
 }
@@ -2027,11 +2279,11 @@ function renderClients() {
 
           <div class="d-flex flex-wrap justify-content-end gap-2 pt-0">
             <button type="button" class="btn btn-primary btn-sm" onclick="useClient('${id}')"><i class="bi bi-plus-circle"></i> USAR</button>
-            <button type="button" class="btn btn-warning btn-sm" onclick="editClient('${id}')"><i class="bi bi-pencil-square"></i> EDITAR</button>
+            ${valleHasPermission('can_edit_client') ? `<button type="button" class="btn btn-warning btn-sm" onclick="editClient('${id}')"><i class="bi bi-pencil-square"></i> EDITAR</button>` : ''}
             <button type="button" class="btn btn-success btn-sm" onclick="openWhatsClient('${id}')"><i class="bi bi-whatsapp"></i> WHATSAPP</button>
             <button type="button" class="btn btn-info btn-sm text-white" onclick="callClient('${id}')"><i class="bi bi-telephone-fill"></i> LIGAR</button>
-            <button type="button" class="btn btn-outline-warning btn-sm" onclick="toggleVipClient('${id}')"><i class="bi ${c.vip ? 'bi-star-fill' : 'bi-star'}"></i> VIP</button>
-            <button type="button" class="btn btn-danger btn-sm" onclick="deleteClient('${id}')"><i class="bi bi-trash3"></i> EXCLUIR</button>
+            ${valleHasPermission('can_edit_client') ? `<button type="button" class="btn btn-outline-warning btn-sm" onclick="toggleVipClient('${id}')"><i class="bi ${c.vip ? 'bi-star-fill' : 'bi-star'}"></i> VIP</button>` : ''}
+            ${valleHasPermission('can_delete_client') ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteClient('${id}')"><i class="bi bi-trash3"></i> EXCLUIR</button>` : ''}
           </div>
         </div>
       </article>`;
@@ -2108,7 +2360,8 @@ function renderHistory() {
     const telefone = v.telefone || c.telefone || '';
     const numeroVale = String(v.numero || '').padStart(4, '0');
     const total = v35LoanTotal(v);
-    const aberto = String(v.status || '').toUpperCase() === 'PAGO' ? 0 : v35LoanBalance(v);
+    const pago = valeEstaQuitado(v);
+    const aberto = pago ? 0 : v35LoanBalance(v);
     const obs = String(v.observacao || '').trim();
     const ultimaObs = obs ? obs.split(/\n+/).map(x => x.trim()).filter(Boolean).slice(-1)[0] : '';
 
@@ -2152,10 +2405,12 @@ function renderHistory() {
         <div class="d-flex flex-wrap justify-content-end gap-2 pt-0 historico-bs-actions">
           <button type="button" class="btn btn-success btn-sm" onclick="openWhatsLoan('${v.id}')"><i class="bi bi-whatsapp"></i> WHATSAPP</button>
           <button type="button" class="btn btn-danger btn-sm" onclick="downloadLoanPdf('${v.id}')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
-          <button type="button" class="btn btn-primary btn-sm" onclick="openReceiveModal('${v.id}')"><i class="bi bi-cash-coin"></i> RECEBER</button>
-          <button type="button" class="btn btn-info btn-sm text-white" onclick="abrirValeHistorico('${v.id}')"><i class="bi bi-unlock"></i> ABRIR VALE</button>
-          <button type="button" class="btn btn-warning btn-sm" onclick="editLoan('${v.id}', 'historico')"><i class="bi bi-pencil-square"></i> EDITAR</button>
-          <button type="button" class="btn btn-danger btn-sm" onclick="deleteLoan('${v.id}')"><i class="bi bi-trash3"></i> EXCLUIR</button>
+          ${valleHasPermission('can_receive_payment') ? (pago
+            ? `<button type="button" class="btn btn-primary btn-sm vale-receber-disabled" disabled aria-disabled="true" title="Vale quitado"><i class="bi bi-cash-coin"></i> RECEBER</button>`
+            : `<button type="button" class="btn btn-primary btn-sm" onclick="openReceiveModal('${v.id}')"><i class="bi bi-cash-coin"></i> RECEBER</button>`) : ''}
+          ${valleHasPermission('can_receive_payment') ? `<button type="button" class="btn btn-info btn-sm text-white" onclick="abrirValeHistorico('${v.id}')"><i class="bi bi-unlock"></i> ABRIR VALE</button>` : ''}
+          ${valleHasPermission('can_edit_vale') ? `<button type="button" class="btn btn-warning btn-sm" onclick="editLoan('${v.id}', 'historico')"><i class="bi bi-pencil-square"></i> EDITAR</button>` : ''}
+          ${valleHasPermission('can_delete_vale') ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteLoan('${v.id}')"><i class="bi bi-trash3"></i> EXCLUIR</button>` : ''}
         </div>
       </div>
     </article>`;
@@ -2436,8 +2691,9 @@ function openClientReport(key) {
   }
   const rows = [...x.vales].sort((a,b)=>String(b.criadoEm || b.dataInicial || '').localeCompare(String(a.criadoEm || a.dataInicial || ''))).map(v => {
     const st = loanStatus(v);
-    const txt = v.status === 'PAGO' ? 'PAGO' : st === 'atrasado' ? 'ATRASADO' : 'ABERTO';
-    const saldo = v.status === 'PAGO' ? 0 : loanTotalBalance(v);
+    const pago = valeEstaQuitado(v);
+    const txt = pago ? 'PAGO' : st === 'atrasado' ? 'ATRASADO' : 'ABERTO';
+    const saldo = pago ? 0 : loanTotalBalance(v);
     const obsLines = String(v.observacao || '').split(/\n+/).map(l=>l.trim()).filter(Boolean);
     const timeline = obsLines.length ? obsLines.map(l=>`<li>${h(l)}</li>`).join('') : '<li>SEM OBSERVAÇÃO.</li>';
     return `<div class="client-history-row ${st}">
@@ -2446,7 +2702,9 @@ function openClientReport(key) {
       <p>INÍCIO: ${brDate(v.dataInicial)} • VENCIMENTO: ${brDate(v.dataFinal)} • JUROS: ${String(v.juros).replace('.', ',')}%</p>
       <ul>${timeline}</ul>
       <div class="client-history-actions">
-        <button onclick="closeClientReport(); openReceiveModal('${v.id}')">RECEBER</button>
+        ${pago
+          ? `<button class="vale-receber-disabled" disabled aria-disabled="true" title="Vale quitado">RECEBER</button>`
+          : `<button onclick="closeClientReport(); openReceiveModal('${v.id}')">RECEBER</button>`}
         <button onclick="closeClientReport(); openPdfPreviewById('${v.id}')">PDF</button>
         <button onclick="closeClientReport(); openWhatsLoan('${v.id}')">WHATSAPP</button>
       </div>
@@ -2575,7 +2833,7 @@ function renderNotifications() {
       <div class="notif-line-actions btn-group" role="group" aria-label="Ações da notificação">
         <button type="button" class="btn btn-success whats" onclick="openWhatsLoan('${v.id}')"><i class="bi bi-whatsapp"></i><span>WHATSAPP</span></button>
         <button type="button" class="btn btn-danger pdf" onclick="downloadLoanPdf('${v.id}')"><i class="bi bi-file-earmark-pdf-fill"></i><span>PDF</span></button>
-        <button type="button" class="btn btn-primary receber" onclick="togglePaid('${v.id}')"><i class="bi bi-cash-coin"></i><span>RECEBER</span></button>
+        ${valleHasPermission('can_receive_payment') ? `<button type="button" class="btn btn-primary receber" onclick="togglePaid('${v.id}')"><i class="bi bi-cash-coin"></i><span>RECEBER</span></button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -2622,8 +2880,10 @@ function renderAll() {
     safeRender(renderGlobalSearchResults, 'busca global');
   };
 
-  if (typeof requestIdleCallback === 'function') requestIdleCallback(renderExtras, { timeout: 300 });
-  else setTimeout(renderExtras, 0);
+  applyVallePermissionVisibility();
+  const renderExtrasWithPermissions = () => { renderExtras(); applyVallePermissionVisibility(); };
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(renderExtrasWithPermissions, { timeout: 300 });
+  else setTimeout(renderExtrasWithPermissions, 0);
 }
 
 /**
@@ -3540,7 +3800,9 @@ function renderGlobalSearchResults() {
   const vales = db.vales.filter(v => [v.cliente,v.telefone,v.cpf,v.observacao,String(v.numero)].join(' ').toUpperCase().includes(q)).slice(0,6);
   const rows = [
     ...clientes.map(c => `<button onclick="useClient('${c.id}');$('globalSearch').value='';renderGlobalSearchResults();">👤 ${h(c.nome)} <small>${h(c.telefone||'')}</small></button>`),
-    ...vales.map(v => `<button onclick="openReceiveModal('${v.id}');$('globalSearch').value='';renderGlobalSearchResults();">📄 Vale #${String(v.numero).padStart(4,'0')} - ${h(v.cliente)} <small>${money(originalLoanValue(v))}</small></button>`)
+    ...vales.map(v => valeEstaQuitado(v)
+      ? `<button class="vale-receber-disabled" disabled aria-disabled="true" title="Vale quitado">📄 Vale #${String(v.numero).padStart(4,'0')} - ${h(v.cliente)} <small>QUITADO</small></button>`
+      : `<button onclick="openReceiveModal('${v.id}');$('globalSearch').value='';renderGlobalSearchResults();">📄 Vale #${String(v.numero).padStart(4,'0')} - ${h(v.cliente)} <small>${money(originalLoanValue(v))}</small></button>`)
   ];
   box.innerHTML = rows.length ? rows.join('') : '<p>Nenhum resultado.</p>';
   box.classList.add('show');
@@ -4306,7 +4568,7 @@ function openClientReport(key){
           <div class="v35-modal-date-card"><small><i class="bi bi-calendar-check me-1"></i>DATA FINAL</small><strong>${v35DateBr(v.dataFinal)}</strong></div>
         </div>
         <div class="v35-modal-notes-wrap"><small><i class="bi bi-chat-left-text me-1"></i>OBSERVAÇÃO</small><ul class="v35-modal-notes">${obs}</ul></div>
-        <footer class="v35-modal-history-actions"><button class="btn btn-success btn-sm" onclick="closeClientReport();openWhatsLoan('${v.id}')"><i class="bi bi-whatsapp me-1"></i>WHATSAPP</button><button class="btn btn-danger btn-sm" onclick="closeClientReport();openPdfPreviewById('${v.id}')"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</button><button class="btn btn-primary btn-sm" onclick="closeClientReport();openReceiveModal('${v.id}')"><i class="bi bi-cash-coin me-1"></i>RECEBER</button></footer>
+        <footer class="v35-modal-history-actions"><button class="btn btn-success btn-sm" onclick="closeClientReport();openWhatsLoan('${v.id}')"><i class="bi bi-whatsapp me-1"></i>WHATSAPP</button><button class="btn btn-danger btn-sm" onclick="closeClientReport();openPdfPreviewById('${v.id}')"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</button>${pago ? `<button class="btn btn-primary btn-sm vale-receber-disabled" disabled aria-disabled="true" title="Vale quitado"><i class="bi bi-cash-coin me-1"></i>RECEBER</button>` : `<button class="btn btn-primary btn-sm" onclick="closeClientReport();openReceiveModal('${v.id}')"><i class="bi bi-cash-coin me-1"></i>RECEBER</button>`}</footer>
       </div>
     </article>`;
   }).join('') || '<div class="empty-state">Cliente ainda não possui vales.</div>';

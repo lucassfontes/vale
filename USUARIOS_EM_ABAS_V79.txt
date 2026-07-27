@@ -1,0 +1,1 @@
+VALLE v79 — cada usuário agora possui uma aba própria. Apenas um card aparece por vez, com abas responsivas e rolagem horizontal no celular.
