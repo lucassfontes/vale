@@ -359,6 +359,7 @@
       try {
         if (profile?.id) await loadProfile(profile.id); // revalida bloqueio e validade
         await syncPendingWorkspace();
+        if (profile?.id) await flushPendingAuditLogs(currentSessionId());
         if (syncState !== 'synced') { syncState='idle'; emitSyncState(); }
       } catch (e) {
         syncState='offline'; lastSyncError=e.message||String(e); emitSyncState();
@@ -451,15 +452,61 @@
 
 
   function auditCacheKey(id){ return `audit_logs_${id}`; }
+  function auditPendingKey(id){ return `audit_logs_pending_${id}`; }
   function auditHash(input){
     let h=2166136261; const str=JSON.stringify(input||{});
-    for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}
+    for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}
     return `VALLE-${Date.now().toString(36).toUpperCase()}-${(h>>>0).toString(16).padStart(8,'0').toUpperCase()}`;
   }
+
+  /*
+   * LANÇAMENTOS: o registro da auditoria não pode desaparecer se houver
+   * uma falha momentânea de rede/Supabase.
+   *
+   * Antes: o lançamento era colocado no cache, mas uma falha no INSERT era
+   * apenas avisada no console. Na próxima leitura online, listAuditLogs()
+   * substituía o cache pelos registros do servidor e o lançamento sumia.
+   *
+   * Agora:
+   * 1. o lançamento entra em uma fila pendente imediatamente;
+   * 2. o envio usa upsert pela assinatura, evitando duplicidade em retries;
+   * 3. somente após confirmação do servidor ele sai da fila;
+   * 4. a leitura online sempre mantém os pendentes junto dos registros do servidor;
+   * 5. quando a internet volta, a fila é reenviada automaticamente.
+   */
+  async function flushPendingAuditLogs(sessionId=null){
+    if(!profile || !['session','service'].includes(profile.role) || !isOnline()) return false;
+    const sid=String(sessionId || currentSessionId() || '').trim();
+    if(!sid) return false;
+
+    const pending=safeGet(auditPendingKey(sid),[]) || [];
+    if(!pending.length) return true;
+
+    const remaining=[];
+    for(const item of pending){
+      try{
+        const payload={...item, session_user_id:sid};
+        const {error}=await getClient()
+          .from('audit_logs')
+          .upsert(payload,{onConflict:'signature'});
+        if(error) throw error;
+      }catch(error){
+        console.warn('Lançamento ainda pendente de sincronização:',error);
+        remaining.push(item);
+      }
+    }
+    safeSet(auditPendingKey(sid),remaining);
+    return remaining.length===0;
+  }
+
   async function recordAudit(action, entityType, entityId, details={}){
     if (!profile || !['session','service'].includes(profile.role)) return false;
-    const sid=currentSessionId(); const now=new Date().toISOString();
-    const d=clone(details||{}); const signature=auditHash({sid,uid:profile.id,action,entityType,entityId,d,now});
+    const sid=String(currentSessionId() || '').trim();
+    if(!sid) return false;
+
+    const now=new Date().toISOString();
+    const d=clone(details||{});
+    const signature=auditHash({sid,uid:profile.id,action,entityType,entityId,d,now});
     const item={
       session_user_id:sid, actor_user_id:profile.id, actor_name:profile.name||profile.email||'Usuário',
       actor_role:profile.role, action:String(action||'').toUpperCase(), module:String(d.module||entityType||'SISTEMA').toUpperCase(),
@@ -468,31 +515,65 @@
       vale_number:d.vale_number||d.numero||null, old_data:d.old_data||null, new_data:d.new_data||null,
       changes:d.changes||{}, details:d, signature, created_at:now
     };
-    const cached=safeGet(auditCacheKey(sid),[]); cached.unshift(item); safeSet(auditCacheKey(sid),cached.slice(0,2000));
-    try{window.dispatchEvent(new CustomEvent('valle-audit-recorded',{detail:item}))}catch(_){}
+
+    const cacheKey=auditCacheKey(sid);
+    const pendingKey=auditPendingKey(sid);
+    const cached=safeGet(cacheKey,[]) || [];
+    const withoutSame=cached.filter(row=>String(row?.signature||'')!==signature);
+    withoutSame.unshift(item);
+    safeSet(cacheKey,withoutSame.slice(0,2000));
+
+    const pending=safeGet(pendingKey,[]) || [];
+    if(!pending.some(row=>String(row?.signature||'')===signature)){
+      pending.unshift(item);
+      safeSet(pendingKey,pending.slice(0,2000));
+    }
+
+    try{window.dispatchEvent(new CustomEvent('valle-audit-recorded',{detail:item}));}catch(_){}
+
     if(!isOnline()) return true;
-    try{ const {error}=await getClient().from('audit_logs').insert(item); if(error) throw error; return true; }
-    catch(e){ console.warn('Log guardado localmente:',e); return true; }
+
+    await flushPendingAuditLogs(sid);
+    return true;
   }
 
   async function listAuditLogs(limit=1000, sessionId=null){
     if(!profile || !['session','service'].includes(profile.role)) return [];
     const sid=String(sessionId || currentSessionId() || '').trim();
     if(!sid) return [];
+
     const belongsToCurrentSession=row => String(row?.session_user_id || '') === sid;
-    if(!isOnline()) {
-      return (safeGet(auditCacheKey(sid),[]) || []).filter(belongsToCurrentSession).slice(0,limit);
+
+    if(isOnline()){
+      // Tenta enviar pendências antes da consulta, mas nunca descarta as que falharem.
+      await flushPendingAuditLogs(sid);
+      const pending=safeGet(auditPendingKey(sid),[]) || [];
+
+      const {data,error}=await getClient()
+        .from('audit_logs')
+        .select('*')
+        .eq('session_user_id',sid)
+        .order('created_at',{ascending:false})
+        .limit(limit);
+      if(error) throw error;
+
+      const server=(data||[]).filter(belongsToCurrentSession);
+      const merged=[...server,...pending].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+      const seen=new Set();
+      const unique=merged.filter(row=>{
+        const key=String(row?.signature||row?.id||'');
+        if(!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).slice(0,limit);
+
+      safeSet(auditCacheKey(sid),unique);
+      return unique;
     }
-    const {data,error}=await getClient()
-      .from('audit_logs')
-      .select('*')
-      .eq('session_user_id',sid)
-      .order('created_at',{ascending:false})
-      .limit(limit);
-    if(error) throw error;
-    const filtered=(data||[]).filter(belongsToCurrentSession);
-    safeSet(auditCacheKey(sid),filtered);
-    return filtered;
+
+    return (safeGet(auditCacheKey(sid),[]) || [])
+      .filter(belongsToCurrentSession)
+      .slice(0,limit);
   }
 
   async function deleteAuditLog(logId){
@@ -502,21 +583,24 @@
     if(!sid || !target) throw new Error('Registro de auditoria inválido.');
 
     const cacheKey=auditCacheKey(sid);
+    const pendingKey=auditPendingKey(sid);
     const cached=safeGet(cacheKey,[]) || [];
-    const next=cached.filter(row=>String(row?.id || row?.signature || '')!==target);
+    const pending=safeGet(pendingKey,[]) || [];
+    const isTarget=row=>String(row?.id || row?.signature || '')===target;
 
     if(isOnline()){
       let query=getClient().from('audit_logs').delete().eq('session_user_id',sid);
       query=/^\d+$/.test(target) ? query.eq('id',Number(target)) : query.eq('signature',target);
       const {data,error}=await query.select('id,signature');
       if(error) throw error;
-      if(!data?.length && cached.some(row=>String(row?.id || row?.signature || '')===target)){
+      if(!data?.length && cached.some(isTarget) && !pending.some(isTarget)){
         throw new Error('O registro não pôde ser excluído. Verifique a política de exclusão no Supabase.');
       }
     }
 
-    safeSet(cacheKey,next);
-    try{window.dispatchEvent(new CustomEvent('valle-audit-deleted',{detail:{id:target,session_user_id:sid}}))}catch(_){ }
+    safeSet(cacheKey,cached.filter(row=>!isTarget(row)));
+    safeSet(pendingKey,pending.filter(row=>!isTarget(row)));
+    try{window.dispatchEvent(new CustomEvent('valle-audit-deleted',{detail:{id:target,session_user_id:sid}}));}catch(_){}
     return true;
   }
 
