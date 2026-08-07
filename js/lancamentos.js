@@ -19,13 +19,11 @@
     const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     return { from:iso(first), to:iso(now) };
   };
-  function applyDefaultPeriod(force=false){
-    const range=monthRange();
+  function clearPeriodFilters(){
     const from=el('lancamentosDataInicial');
     const to=el('lancamentosDataFinal');
-    if(from && (force || !from.value)) from.value=range.from;
-    if(to && (force || !to.value)) to.value=range.to;
-    return range;
+    if(from) from.value='';
+    if(to) to.value='';
   }
 
   function activeSessionId(){
@@ -299,7 +297,8 @@
     if (info) {
       const f=currentFilters();
       const fmt=value=>value?value.split('-').reverse().join('/'):'—';
-      info.textContent = `${entries.length} LANÇAMENTO${entries.length === 1 ? '' : 'S'} · PERÍODO ${fmt(f.from)} A ${fmt(f.to)} · MAIS RECENTES PRIMEIRO`;
+      const periodo = f.from && f.to ? `PERÍODO ${fmt(f.from)} A ${fmt(f.to)}` : f.from ? `A PARTIR DE ${fmt(f.from)}` : f.to ? `ATÉ ${fmt(f.to)}` : 'TODOS OS PERÍODOS';
+      info.textContent = `${entries.length} LANÇAMENTO${entries.length === 1 ? '' : 'S'} · ${periodo} · MAIS RECENTES PRIMEIRO`;
     }
     list.innerHTML = entries.length ? entries.map(entryHtml).join('') : `<div class="lancamentos-empty"><i class="bi bi-journal-x"></i><strong>NENHUM LANÇAMENTO ENCONTRADO</strong><span>AJUSTE OS FILTROS OU AGUARDE UM NOVO PAGAMENTO/VALE.</span></div>`;
   }
@@ -374,7 +373,8 @@
   function bind(){
     if (state.bound) return;
     state.bound = true;
-    applyDefaultPeriod();
+    // As datas iniciam vazias: sem período informado, todos os lançamentos são exibidos.
+    clearPeriodFilters();
     el('lancamentosLista')?.addEventListener('click', event => {
       const openButton = event.target.closest('[data-lancamento-open]');
       if (openButton && !openButton.disabled) {
@@ -395,7 +395,7 @@
       if (el('lancamentosSearch')) el('lancamentosSearch').value = '';
       if (el('lancamentosTipo')) el('lancamentosTipo').value = 'todos';
       if (el('lancamentosUsuario')) el('lancamentosUsuario').value = '';
-      applyDefaultPeriod(true);
+      clearPeriodFilters();
       draw();
     });
     window.addEventListener('valle-audit-recorded', event => {

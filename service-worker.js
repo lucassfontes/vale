@@ -1,10 +1,11 @@
 /** VALLE PWA — atualização automática no celular + suporte offline */
-const CACHE = 'valle-auto-update-20260727-v95-desfazer-auditoria';
+importScripts('./js/version.js');
+const CACHE = `valle-auto-update-${globalThis.VALLE_VERSION || '3.6.10'}`;
 const APP_SHELL = [
   './', './index.html', './manifest.json', './favicon.ico',
   './vendor/bootstrap/bootstrap.min.css', './vendor/bootstrap/bootstrap.bundle.min.js',
   './vendor/bootstrap-icons/bootstrap-icons.min.css', './css/app.css',
-  './js/app.js', './js/lancamentos.js', './js/auth-ui.js', './js/bootstrap-enhance.js',
+  './js/version.js', './js/app.js', './js/lancamentos.js', './js/auth-ui.js', './js/bootstrap-enhance.js',
   './js/supabase-config.js', './js/supabase-client.js',
   './js/pdf.js', './js/whatsapp.js', './js/clientes.js', './js/historico.js',
   './js/dashboard.js', './js/backup.js', './js/storage.js', './js/util.js', './js/push-notifications.js',

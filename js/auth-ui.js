@@ -1063,7 +1063,21 @@ async function boot(){
    finally{remove.disabled=false}
   }
  });
- try{const p=await ValleCloud.restoreSession();if(p?.blocked){setMsg(p.reason);if(p.whatsapp){const a=el('authWhatsapp');a.href=whatsappLink(p.whatsapp);a.classList.remove('hidden')}}else if(p)await showRole(p)}catch(e){setMsg(e.message)}finally{window.dispatchEvent(new CustomEvent('valle-app-ready'))}
+ try{
+  const p=await ValleCloud.restoreSession();
+  if(p?.blocked){
+    setMsg(p.reason);
+    if(p.whatsapp){const a=el('authWhatsapp');a.href=whatsappLink(p.whatsapp);a.classList.remove('hidden')}
+  }else if(p){
+    await showRole(p);
+    if(typeof window.preloadValleAllData==='function') await window.preloadValleAllData();
+  }
+ }catch(e){
+  setMsg(e.message);
+ }finally{
+  window.__VALLE_APP_READY__ = true;
+  window.dispatchEvent(new CustomEvent('valle-app-ready'));
+ }
  // Se a conexão demorou mais que 1,2 s, tenta restaurar a sessão depois sem
  // prender novamente a tela de carregamento nem interromper quem está digitando.
  if(!supabaseReady&&window.VALLE_SUPABASE_READY){

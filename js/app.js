@@ -1,7 +1,8 @@
-/* VERSAO DO SISTEMA */
-const versao = document.getElementById("versao_sytem")
-
-versao.innerHTML = 'Versão-3.6.10'
+/* VERSÃO DO SISTEMA — controlada em js/version.js */
+const versao = document.getElementById("versao_sytem");
+if (versao) {
+  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.10.'}`;
+}
 /**
  * ARQUIVO PRINCIPAL DO VALLE
  * ------------------------------------------------
@@ -3467,7 +3468,9 @@ async function wipe() {
  */
 function init() {
   db = normalizeDb(db); save(); applyTheme(); clearLoan();
-  applyValleMonthRange('filtroHistoricoInicio', 'filtroHistoricoFim');
+  // Datas do Histórico começam vazias para consultar todos os vales.
+  if ($('filtroHistoricoInicio')) $('filtroHistoricoInicio').value = '';
+  if ($('filtroHistoricoFim')) $('filtroHistoricoFim').value = '';
   renderAll();
   document.querySelectorAll('.tab').forEach(b => b.onclick = async (event) => {
     const targetScreen = b.dataset.screen;
@@ -3580,7 +3583,8 @@ function init() {
   if ($('filtrarHistoricoBtn')) $('filtrarHistoricoBtn').onclick = renderHistory;
   if ($('limparHistoricoFiltrosBtn')) $('limparHistoricoFiltrosBtn').onclick = () => {
     if ($('filtroHistoricoStatus')) $('filtroHistoricoStatus').value = 'TODOS';
-    applyValleMonthRange('filtroHistoricoInicio', 'filtroHistoricoFim', true);
+    if ($('filtroHistoricoInicio')) $('filtroHistoricoInicio').value = '';
+    if ($('filtroHistoricoFim')) $('filtroHistoricoFim').value = '';
     if ($('searchHistorico')) $('searchHistorico').value = '';
     renderHistory();
   };
@@ -4596,6 +4600,67 @@ function v35ExportReportCsv(){
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
   const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='relatorio-clientes.csv'; a.click(); URL.revokeObjectURL(a.href);
 }
+
+/* =========================================================
+   PRÉ-CARREGAMENTO COMPLETO V97
+   ---------------------------------------------------------
+   O loading do VALLE só é encerrado depois que todas as telas e
+   dados necessários à sessão atual foram preparados. Isso evita
+   abrir o Dashboard antes do workspace/auditoria e depois corrigir
+   os números na tela.
+   ========================================================= */
+let __valleFullPreloadPromise = null;
+window.preloadValleAllData = async function preloadValleAllData() {
+  if (__valleFullPreloadPromise) return __valleFullPreloadPromise;
+  __valleFullPreloadPromise = (async () => {
+    const render = (fn, name) => {
+      try { if (typeof fn === 'function') fn(); }
+      catch (e) { console.error('Pré-carregamento '+name+':', e); }
+    };
+
+    // O banco principal já deve ter sido restaurado pelo auth-ui para usuários
+    // autenticados. Primeiro renderizamos tudo que depende diretamente dele.
+    render(renderClientOptions, 'clientes');
+    render(renderDashboard, 'dashboard');
+    render(renderNotifications, 'notificações');
+    render(renderClients, 'clientes completo');
+    render(renderHistory, 'histórico');
+    render(renderReports, 'relatórios');
+    render(renderCalendario, 'calendário');
+    render(renderCobranca, 'cobrança');
+    render(renderGlobalSearchResults, 'busca global');
+    try { applyVallePermissionVisibility(); } catch (_) {}
+
+    // Lançamentos dependem da auditoria remota e por isso são aguardados.
+    // Se a rede estiver indisponível, o módulo usa o cache/local disponível.
+    try {
+      if (typeof window.renderLancamentos === 'function') {
+        await window.renderLancamentos(true);
+      }
+    } catch (e) {
+      console.warn('Pré-carregamento de lançamentos não concluído:', e);
+    }
+
+    // Uma segunda renderização garante que qualquer dado restaurado pelo
+    // workspace/auditoria reflita no Dashboard antes de remover o loading.
+    render(renderDashboard, 'dashboard final');
+    render(renderNotifications, 'notificações finais');
+    render(renderHistory, 'histórico final');
+    render(renderReports, 'relatórios finais');
+    render(renderCalendario, 'calendário final');
+    render(renderCobranca, 'cobrança final');
+    render(renderGlobalSearchResults, 'busca global final');
+    try { applyVallePermissionVisibility(); } catch (_) {}
+
+    window.dispatchEvent(new CustomEvent('valle-data-preloaded', { detail: {
+      version: globalThis.VALLE_VERSION || '3.6.10', online: navigator.onLine !== false,
+      userRole: window.ValleCloud?.profile?.role || null
+    }}));
+    return true;
+  })();
+  try { return await __valleFullPreloadPromise; }
+  catch (e) { __valleFullPreloadPromise = null; throw e; }
+};
 
 /* =========================================================
    INICIALIZAÇÃO FINAL REVISADA

@@ -273,7 +273,7 @@
       .valle-loading-progress span { width: 100%; }
     }
   </style>
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="manifest.json?v=97">
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
@@ -356,12 +356,28 @@
 
       window.hideValleLoadingScreen = finishLoading;
       window.addEventListener('valle-app-ready', finishLoading, { once: true });
+      // Erros fatais de carregamento não liberam uma interface incompleta.
+      // Apenas substituem a mensagem por uma tela de erro e permitem tentar
+      // novamente, mantendo o princípio de que o sistema só abre pronto.
+      window.addEventListener('error', function (event) {
+        if (window.__VALLE_APP_READY__) return;
+        window.__VALLE_BOOT_FATAL__ = true;
+        var p = document.querySelector('#valleLoadingScreen .valle-loading-card p');
+        if (p) p.textContent = 'Não foi possível carregar o sistema. Atualize a página para tentar novamente.';
+      }, true);
+      window.addEventListener('unhandledrejection', function () {
+        if (window.__VALLE_APP_READY__) return;
+        // Rejeições remotas são tratadas pelo próprio aplicativo; não abrimos
+        // uma tela parcialmente carregada apenas por uma falha de rede.
+      });
       window.addEventListener('load', function () {
-        // Segurança: se algum serviço remoto atrasar, não mantém o usuário
-        // preso na tela de carregamento depois que a interface já existe.
+        // A tela de carregamento só sai quando o aplicativo sinalizar que o
+        // banco local, sessão, workspace, permissões e dados das abas críticas
+        // já foram preparados. Não existe mais timeout que revele a interface
+        // parcialmente carregada.
         window.setTimeout(function () {
-          if (document.getElementById('authGate') || document.querySelector('.app')) finishLoading();
-        }, 1800);
+          if (window.__VALLE_BOOT_FATAL__) finishLoading();
+        }, 15000);
       }, { once: true });
     })();
   </script>
@@ -1092,11 +1108,12 @@
     });
   </script>
   <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="js/version.js?v=3.6.10"></script>
   <script src="js/supabase-config.js?v=34"></script>
   <script src="js/supabase-client.js?v=34"></script>
-  <script src="js/app.js?v=95"></script>
-  <script src="js/lancamentos.js?v=95"></script>
-  <script src="js/auth-ui.js?v=95"></script>
+  <script src="js/app.js?v=3.6.10"></script>
+  <script src="js/lancamentos.js?v=3.6.10"></script>
+  <script src="js/auth-ui.js?v=3.6.10"></script>
   <script src="js/bootstrap-enhance.js?v=52"></script>
   <script src="js/push-notifications.js?v=34"></script>
   <script>
@@ -1115,7 +1132,7 @@
       window.addEventListener('load', async function () {
         try {
           const registro = await navigator.serviceWorker.register(
-            'service-worker.js?v=95',
+            'service-worker.js?v=97',
             { updateViaCache: 'none' }
           );
 

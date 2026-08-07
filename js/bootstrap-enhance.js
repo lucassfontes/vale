@@ -132,6 +132,16 @@
     document.documentElement.setAttribute('data-bs-theme',loading?'dark':(document.body.classList.contains('dark')?'dark':'light'));
   }
 
+  document.addEventListener('hide.bs.modal', (event) => {
+    // Bootstrap não pode esconder um modal com aria-hidden=true enquanto um
+    // botão/campo dentro dele ainda mantém foco. Remove o foco antes do
+    // fechamento para evitar o aviso 'Blocked aria-hidden...' no Chrome/Safari.
+    const modal = event.target;
+    if (modal && modal.contains(document.activeElement)) {
+      try { document.activeElement.blur(); } catch (_) {}
+    }
+  }, true);
+
   document.addEventListener('DOMContentLoaded',()=>{
     document.body.classList.add('bootstrap-only-ui');
     syncBootstrapTheme();
