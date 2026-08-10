@@ -1,6 +1,6 @@
 /** VALLE PWA — atualização automática no celular + suporte offline */
 importScripts('./js/version.js');
-const CACHE = `valle-auto-update-${globalThis.VALLE_VERSION || '3.6.22'}`;
+const CACHE = `valle-auto-update-${globalThis.VALLE_VERSION || '3.6.24'}`;
 const APP_SHELL = [
   './', './index.html', './manifest.json', './favicon.ico',
   './vendor/bootstrap/bootstrap.min.css', './vendor/bootstrap/bootstrap.bundle.min.js',

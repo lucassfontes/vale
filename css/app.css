@@ -30147,3 +30147,143 @@ body.dark #dashboard .premium-month-period-total strong { color:#cbd5e1; }
   #dashboard .premium-month-period-total { flex-direction:column; gap:3px; }
   #dashboard .premium-month-period-total strong { text-align:left; }
 }
+
+
+/* =========================================================
+   VALLE 3.6.24 — Crediário sem limite fixo de parcelas
+   ========================================================= */
+#emprestimo .loan-payment-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+#emprestimo .loan-payment-option {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 13px 15px;
+  border: 1px solid rgba(148, 163, 184, .28);
+  border-radius: 15px;
+  background: rgba(15, 23, 42, .035);
+  color: var(--text);
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+#emprestimo .loan-payment-option > i {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(124, 58, 237, .11);
+  color: #a855f7;
+  font-size: 18px;
+}
+
+#emprestimo .loan-payment-option span { min-width: 0; }
+#emprestimo .loan-payment-option strong,
+#emprestimo .loan-payment-option small { display: block; }
+#emprestimo .loan-payment-option strong { font-size: 13px; font-weight: 900; }
+#emprestimo .loan-payment-option small { margin-top: 3px; color: var(--muted); font-size: 9px; font-weight: 800; }
+
+#emprestimo .loan-payment-option:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(139, 92, 246, .58);
+}
+
+#emprestimo .loan-payment-option.active {
+  border-color: #8b5cf6;
+  background: rgba(124, 58, 237, .10);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, .10);
+}
+
+#emprestimo .loan-payment-option.active > i {
+  color: #fff;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+}
+
+#emprestimo .loan-payment-option:disabled,
+#emprestimo .loan-payment-option.locked { opacity: .48; cursor: not-allowed; transform: none; }
+
+#emprestimo .loan-installment-panel {
+  padding: 16px;
+  border: 1px solid rgba(139, 92, 246, .25);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(124, 58, 237, .07), rgba(59, 130, 246, .035));
+}
+
+#emprestimo .loan-installment-title,
+#emprestimo .loan-installment-title > div,
+#emprestimo .loan-installment-preview-head,
+#emprestimo .loan-installment-row {
+  display: flex;
+  align-items: center;
+}
+
+#emprestimo .loan-installment-title { justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+#emprestimo .loan-installment-title > div { gap: 10px; min-width: 0; }
+#emprestimo .loan-installment-title > div > i { color: #a855f7; font-size: 20px; }
+#emprestimo .loan-installment-title strong,
+#emprestimo .loan-installment-title small { display: block; }
+#emprestimo .loan-installment-title strong { font-size: 12px; font-weight: 900; }
+#emprestimo .loan-installment-title small { margin-top: 2px; color: var(--muted); font-size: 9px; font-weight: 700; }
+#emprestimo #loanCrediarioResumo { background: rgba(124, 58, 237, .12); color: #a78bfa; border: 1px solid rgba(139, 92, 246, .25); }
+
+#emprestimo .loan-installment-preview {
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, .20);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+#emprestimo .loan-installment-preview-head {
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 13px;
+  border-bottom: 1px solid rgba(148, 163, 184, .16);
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--muted);
+}
+
+#emprestimo .loan-installment-preview-head strong { color: #a855f7; font-size: 12px; }
+#emprestimo .loan-installment-list { max-height: 310px; overflow: auto; }
+
+#emprestimo .loan-installment-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, .12);
+}
+#emprestimo .loan-installment-row:last-child { border-bottom: 0; }
+#emprestimo .loan-installment-number {
+  width: 30px; height: 30px; display: grid; place-items: center;
+  border-radius: 9px; background: rgba(124, 58, 237, .12); color: #a855f7;
+  font-weight: 900; font-size: 11px;
+}
+#emprestimo .loan-installment-row div small,
+#emprestimo .loan-installment-row div strong { display: block; }
+#emprestimo .loan-installment-row div small { color: var(--muted); font-size: 9px; font-weight: 800; }
+#emprestimo .loan-installment-row div strong { margin-top: 2px; font-size: 11px; }
+#emprestimo .loan-installment-row > strong { font-size: 12px; color: var(--text); white-space: nowrap; }
+
+body.dark #emprestimo .loan-payment-option { background: #172136; border-color: #2a3851; }
+body.dark #emprestimo .loan-installment-preview { background: #111a2c; }
+
+@media (max-width: 575.98px) {
+  #emprestimo .loan-payment-mode { grid-template-columns: 1fr; gap: 9px; }
+  #emprestimo .loan-payment-option { min-height: 62px; }
+  #emprestimo .loan-installment-title { align-items: flex-start; }
+  #emprestimo .loan-installment-title small { line-height: 1.35; }
+  #emprestimo .loan-installment-preview-head { align-items: flex-start; flex-direction: column; }
+}
+
+#emprestimo .loan-installment-row.is-current {
+  background: rgba(124, 58, 237, .09);
+  box-shadow: inset 3px 0 0 #8b5cf6;
+}

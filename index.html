@@ -613,7 +613,7 @@
               <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
                 <h2 class="mb-0">NOVO VALLE</h2>
                 <span class="badge loan-days-badge"><i class="bi bi-calendar3 me-1"></i><span id="diasBadge">30</span>
-                  DIAS</span>
+                  <span id="loanBadgeSuffix">DIAS</span></span>
               </div>
               <p class="mb-0">Preencha os dados para cadastrar um novo vale.</p>
             </div>
@@ -648,6 +648,57 @@
                 </div>
               </div>
 
+              <div class="col-12">
+                <label class="form-label"><i class="bi bi-credit-card-2-front me-2"></i>FORMA DE PAGAMENTO</label>
+                <input type="hidden" id="loanFormaPagamento" value="avista">
+                <div class="loan-payment-mode" id="loanPaymentMode" role="group" aria-label="Forma de pagamento">
+                  <button type="button" class="loan-payment-option active" data-loan-payment="avista" aria-pressed="true">
+                    <i class="bi bi-cash-stack"></i>
+                    <span><strong>À VISTA</strong><small>UM ÚNICO VENCIMENTO</small></span>
+                  </button>
+                  <button type="button" class="loan-payment-option" data-loan-payment="crediario" aria-pressed="false">
+                    <i class="bi bi-calendar2-week"></i>
+                    <span><strong>CREDIÁRIO</strong><small>DIVIDIR EM PARCELAS</small></span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="col-12 d-none" id="loanCrediarioFields">
+                <div class="loan-installment-panel">
+                  <div class="loan-installment-title">
+                    <div>
+                      <i class="bi bi-receipt-cutoff"></i>
+                      <span><strong>PLANO DE PARCELAS</strong><small>O VALOR TOTAL SERÁ DIVIDIDO ENTRE OS VENCIMENTOS</small></span>
+                    </div>
+                    <span class="badge rounded-pill" id="loanCrediarioResumo">2X</span>
+                  </div>
+                  <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                      <label class="form-label" for="loanParcelas"><i class="bi bi-123 me-2"></i>QUANTIDADE DE PARCELAS</label>
+                      <div class="input-group loan-input-group">
+                        <span class="input-group-text"><i class="bi bi-list-ol"></i></span>
+                        <input class="form-control" id="loanParcelas" type="number" min="2" step="1" value="2" inputmode="numeric">
+                      </div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                      <label class="form-label" for="loanPeriodicidade"><i class="bi bi-arrow-repeat me-2"></i>PERIODICIDADE</label>
+                      <select class="form-select loan-form-control" id="loanPeriodicidade">
+                        <option value="mensal">MENSAL</option>
+                        <option value="quinzenal">QUINZENAL</option>
+                        <option value="semanal">SEMANAL</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="loan-installment-preview mt-3">
+                    <div class="loan-installment-preview-head">
+                      <span><i class="bi bi-eye me-2"></i>PRÉVIA DO CREDIÁRIO</span>
+                      <strong id="loanValorParcela">R$ 0,00</strong>
+                    </div>
+                    <div id="loanParcelasPreview" class="loan-installment-list"></div>
+                  </div>
+                </div>
+              </div>
+
               <div class="col-12 col-md-6">
                 <label class="form-label" for="loanTipoTaxaDiaria"><i class="bi bi-sliders me-2"></i>TIPO DA TAXA
                   DIÁRIA</label>
@@ -674,7 +725,7 @@
               </div>
 
               <div class="col-12 col-md-6">
-                <label class="form-label" for="loanFinal"><i class="bi bi-calendar-check me-2"></i>DATA FINAL</label>
+                <label class="form-label" for="loanFinal"><i class="bi bi-calendar-check me-2"></i><span id="loanFinalLabelText">DATA FINAL</span></label>
                 <input class="form-control loan-form-control" id="loanFinal" type="date">
               </div>
 
@@ -1117,12 +1168,12 @@
     });
   </script>
   <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
-  <script src="js/version.js?v=3.6.22"></script>
+  <script src="js/version.js?v=3.6.24"></script>
   <script src="js/supabase-config.js?v=34"></script>
   <script src="js/supabase-client.js?v=34"></script>
-  <script src="js/app.js?v=3.6.22"></script>
-  <script src="js/lancamentos.js?v=3.6.22"></script>
-  <script src="js/auth-ui.js?v=3.6.22"></script>
+  <script src="js/app.js?v=3.6.24"></script>
+  <script src="js/lancamentos.js?v=3.6.24"></script>
+  <script src="js/auth-ui.js?v=3.6.24"></script>
   <script src="js/bootstrap-enhance.js?v=52"></script>
   <script src="js/push-notifications.js?v=34"></script>
   <script>

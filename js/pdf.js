@@ -93,7 +93,10 @@ function criarPdfVale(v){
   rect(172,H-72,84,44,'#1d63c7','#1d63c7',1);
   txt(`${diasVale(v)} DIAS`,187,H-46,15,true,'#ffffff');
   txt(`VALLE No ${String(v.numero||v.id||'0000').replace(/\D/g,'').slice(-4).padStart(4,'0')}`,300,H-46,11,true,'#0b3a78');
-  txt('CONFIANCA E COMPROMISSO',284,H-66,7,true,'#0b3a78');
+  if(v.crediarioId && Number(v.parcelaTotal||0)>1){
+    txt(`PARCELA ${Number(v.parcelaNumero||1)}/${Number(v.parcelaTotal||1)}`,300,H-58,8,true,'#7e22ce');
+  }
+  txt('CONFIANCA E COMPROMISSO',284,H-70,7,true,'#0b3a78');
   txt('COMPROVANTE DE EMPRESTIMO',38,H-84,13,true,'#4b5563');
   line(38,H-102,W-38,H-102,'#0b3a78',1.2);
 

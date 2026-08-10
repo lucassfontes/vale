@@ -1,7 +1,7 @@
 /* VERSÃO DO SISTEMA — controlada em js/version.js */
 const versao = document.getElementById("versao_sytem");
 if (versao) {
-  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.22'}`;
+  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.24'}`;
 }
 /**
  * ARQUIVO PRINCIPAL DO VALLE
@@ -284,6 +284,13 @@ function normalizeDb(obj, usarChavesSeparadas = false) {
     total: Number(v.total || 0),
     valorOriginal: Number(v.valorOriginal ?? v.valor ?? 0),
     totalOriginal: Number(v.totalOriginal ?? v.total ?? 0),
+    formaPagamento: v.formaPagamento === 'crediario' || v.crediarioId ? 'crediario' : 'avista',
+    crediarioId: v.crediarioId || '',
+    parcelaNumero: Number(v.parcelaNumero || 0),
+    parcelaTotal: Number(v.parcelaTotal || 0),
+    periodicidade: ['mensal','quinzenal','semanal'].includes(v.periodicidade) ? v.periodicidade : 'mensal',
+    crediarioValorPrincipal: Number(v.crediarioValorPrincipal || 0),
+    crediarioValorTotal: Number(v.crediarioValorTotal || 0),
     dataInicial: v.dataInicial || '',
     dataFinal: v.dataFinal || '',
     observacao: upper(v.observacao || ''),
@@ -687,6 +694,9 @@ function getLoanFormState() {
     juros: $('loanJuros')?.value || '',
     tipoTaxaAtrasoDiario: $('loanTipoTaxaDiaria')?.value || 'percentual',
     taxaAtrasoDiario: $('loanTaxaDiaria')?.value || '',
+    formaPagamento: $('loanFormaPagamento')?.value || 'avista',
+    parcelas: $('loanParcelas')?.value || '2',
+    periodicidade: $('loanPeriodicidade')?.value || 'mensal',
     dataInicial: $('loanInicio')?.value || '',
     dataFinal: $('loanFinal')?.value || '',
     observacao: $('loanObs')?.value || ''
@@ -804,6 +814,10 @@ function clearLoan() {
   updateLoanDailyRateUI();
   $('loanTotal').value = '';
   $('loanObs').value = '';
+  if ($('loanParcelas')) { $('loanParcelas').value = '2'; $('loanParcelas').disabled = false; }
+  if ($('loanPeriodicidade')) { $('loanPeriodicidade').value = 'mensal'; $('loanPeriodicidade').disabled = false; }
+  document.querySelectorAll('[data-loan-payment]').forEach(btn => { btn.disabled = false; btn.classList.remove('locked'); });
+  setLoanPaymentMode('avista', true);
   const hoje = new Date();
   $('loanInicio').value = inputDate(hoje);
   const fim = new Date(hoje);
@@ -821,7 +835,7 @@ function valleElectronicSignature(){
 }
 function valleAuditDiff(before,after){
   const ignored=new Set(['ultimaAssinaturaEletronica','assinaturaEletronica','editadoEm','criadoEm']);
-  const labels={nome:'Nome',cliente:'Cliente',telefone:'Telefone',cpf:'CPF',obs:'Observação',observacao:'Observação',valor:'Valor emprestado',total:'Valor a receber',juros:'Taxa de juros',taxaAtrasoDiario:'Taxa de atraso diária',tipoTaxaAtrasoDiario:'Tipo da taxa de atraso',dataInicial:'Data inicial',dataFinal:'Data final',status:'Status',principalRecebido:'Principal recebido',jurosRecebidos:'Juros recebidos',parcialRecebido:'Pagamento parcial acumulado',listaNegra:'Lista negra'};
+  const labels={nome:'Nome',cliente:'Cliente',telefone:'Telefone',cpf:'CPF',obs:'Observação',observacao:'Observação',valor:'Valor emprestado',total:'Valor a receber',juros:'Taxa de juros',taxaAtrasoDiario:'Taxa de atraso diária',tipoTaxaAtrasoDiario:'Tipo da taxa de atraso',formaPagamento:'Forma de pagamento',parcelaNumero:'Número da parcela',parcelaTotal:'Total de parcelas',periodicidade:'Periodicidade',dataInicial:'Data inicial',dataFinal:'Data final',status:'Status',principalRecebido:'Principal recebido',jurosRecebidos:'Juros recebidos',parcialRecebido:'Pagamento parcial acumulado',listaNegra:'Lista negra'};
   const out={}; const keys=new Set([...Object.keys(before||{}),...Object.keys(after||{})]);
   keys.forEach(k=>{if(ignored.has(k))return;const a=before?.[k],b=after?.[k];if(JSON.stringify(a)!==JSON.stringify(b))out[k]={label:labels[k]||k,anterior:a??null,novo:b??null}});
   return out;
@@ -999,14 +1013,187 @@ window.valleUndoAuditRecord=async function(record,logs=[]){
 };
 
 /**
- * Calcula o total com juros e atualiza o badge de dias entre data inicial e final.
+ * Retorna a forma de pagamento selecionada no Novo Vale.
+ */
+function loanPaymentMode() {
+  return $('loanFormaPagamento')?.value === 'crediario' ? 'crediario' : 'avista';
+}
+
+/**
+ * Divide um valor monetário em parcelas usando centavos inteiros.
+ * Assim o somatório das parcelas sempre fecha exatamente o valor original.
+ */
+function splitMoneyInstallments(value, count) {
+  const qtd = Math.max(1, Math.trunc(Number(count || 1)));
+  const cents = Math.max(0, Math.round(Number(value || 0) * 100));
+  const base = Math.floor(cents / qtd);
+  let remainder = cents - (base * qtd);
+  return Array.from({ length: qtd }, (_, i) => {
+    const part = base + (i < remainder ? 1 : 0);
+    return part / 100;
+  });
+}
+
+function addMonthsClamped(iso, months) {
+  const [y, m, d] = String(iso || '').split('-').map(Number);
+  if (!y || !m || !d) return '';
+  const targetFirst = new Date(y, (m - 1) + Number(months || 0), 1);
+  const lastDay = new Date(targetFirst.getFullYear(), targetFirst.getMonth() + 1, 0).getDate();
+  const result = new Date(targetFirst.getFullYear(), targetFirst.getMonth(), Math.min(d, lastDay));
+  return inputDate(result);
+}
+
+function installmentDueDate(firstDue, index, periodicidade = 'mensal') {
+  if (!firstDue) return '';
+  const n = Math.max(0, Number(index || 0));
+  if (periodicidade === 'mensal') return addMonthsClamped(firstDue, n);
+  const [y, m, d] = String(firstDue).split('-').map(Number);
+  const dt = new Date(y, (m || 1) - 1, d || 1);
+  dt.setDate(dt.getDate() + n * (periodicidade === 'semanal' ? 7 : 15));
+  return inputDate(dt);
+}
+
+function normalizeInstallmentCount(value) {
+  const n = Math.trunc(Number(value));
+  return Number.isFinite(n) && n >= 2 ? n : 2;
+}
+
+function splitMoneyInstallmentAt(value, count, index) {
+  const qtd = normalizeInstallmentCount(count);
+  const cents = Math.max(0, Math.round(Number(value || 0) * 100));
+  const base = Math.floor(cents / qtd);
+  const remainder = cents - (base * qtd);
+  return (base + (index < remainder ? 1 : 0)) / 100;
+}
+
+/**
+ * Monta o plano do crediário sem limite fixo de parcelas.
+ * Para a tela, materializamos somente uma amostra da prévia para manter o app fluido.
+ * No salvamento, materializeAll=true gera todas as parcelas solicitadas.
+ */
+function getCrediarioPlan(materializeAll = false) {
+  const count = normalizeInstallmentCount($('loanParcelas')?.value || 2);
+  const periodicidade = ['mensal','quinzenal','semanal'].includes($('loanPeriodicidade')?.value)
+    ? $('loanPeriodicidade').value : 'mensal';
+  const principal = moneyNum($('loanValor')?.value || '0');
+  const juros = taxaNum($('loanJuros')?.value || '0');
+  const total = Math.max(0, principal + (principal * juros / 100));
+  const firstDue = $('loanFinal')?.value || '';
+  const previewLimit = 120;
+  const materializedCount = materializeAll ? count : Math.min(count, previewLimit);
+  const parcelas = Array.from({ length: materializedCount }, (_, i) => ({
+    numero: i + 1,
+    principal: splitMoneyInstallmentAt(principal, count, i),
+    total: splitMoneyInstallmentAt(total, count, i),
+    vencimento: installmentDueDate(firstDue, i, periodicidade)
+  }));
+  const totalCents = Math.max(0, Math.round(Number(total || 0) * 100));
+  return {
+    count, periodicidade, principal, juros, total, firstDue, parcelas,
+    previewLimit, previewTruncated: !materializeAll && count > previewLimit,
+    installmentsEqual: totalCents % count === 0
+  };
+}
+
+function renderCrediarioPreview() {
+  const fields = $('loanCrediarioFields');
+  const isCrediario = loanPaymentMode() === 'crediario';
+  if (fields) fields.classList.toggle('d-none', !isCrediario);
+  const finalLabel = $('loanFinalLabelText');
+  if (finalLabel) finalLabel.textContent = isCrediario ? 'PRIMEIRO VENCIMENTO' : 'DATA FINAL';
+  const suffix = $('loanBadgeSuffix');
+
+  if (!isCrediario) {
+    if (suffix) suffix.textContent = 'DIAS';
+    if ($('diasBadge')) $('diasBadge').textContent = days($('loanInicio')?.value, $('loanFinal')?.value) || 0;
+    if ($('loanParcelasPreview')) $('loanParcelasPreview').innerHTML = '';
+    return;
+  }
+
+  const editingInstallment = editLoanId ? db.vales.find(v => v.id === editLoanId) : null;
+  if (editingInstallment?.crediarioId) {
+    const siblings = db.vales
+      .filter(v => v.crediarioId === editingInstallment.crediarioId)
+      .sort((a, b) => Number(a.parcelaNumero || 0) - Number(b.parcelaNumero || 0));
+    const totalParcelas = Number(editingInstallment.parcelaTotal || siblings.length || 1);
+    if ($('diasBadge')) $('diasBadge').textContent = `${Number(editingInstallment.parcelaNumero || 1)}/${totalParcelas}`;
+    if (suffix) suffix.textContent = 'PARCELA';
+    if ($('loanCrediarioResumo')) $('loanCrediarioResumo').textContent = `PARCELA ${Number(editingInstallment.parcelaNumero || 1)}/${totalParcelas}`;
+    if ($('loanValorParcela')) $('loanValorParcela').textContent = money(moneyNum($('loanTotal')?.value || editingInstallment.total || 0));
+    if ($('loanParcelasPreview')) {
+      $('loanParcelasPreview').innerHTML = siblings.map(p => `
+        <div class="loan-installment-row ${p.id === editingInstallment.id ? 'is-current' : ''}">
+          <span class="loan-installment-number">${Number(p.parcelaNumero || 1)}</span>
+          <div><small>PARCELA ${Number(p.parcelaNumero || 1)}/${totalParcelas}${p.id === editingInstallment.id ? ' • EDITANDO' : ''}</small><strong>${p.dataFinal ? brDate(p.dataFinal) : 'SEM DATA'}</strong></div>
+          <strong>${money(p.id === editingInstallment.id ? moneyNum($('loanTotal')?.value || p.total || 0) : Number(p.total || 0))}</strong>
+        </div>`).join('');
+    }
+    return;
+  }
+
+  const plan = getCrediarioPlan();
+  if ($('loanParcelas') && document.activeElement !== $('loanParcelas')) $('loanParcelas').value = String(plan.count);
+  if ($('diasBadge')) $('diasBadge').textContent = plan.count;
+  if (suffix) suffix.textContent = plan.count === 1 ? 'PARCELA' : 'PARCELAS';
+  if ($('loanCrediarioResumo')) $('loanCrediarioResumo').textContent = `${plan.count}X • ${String(plan.periodicidade).toUpperCase()}`;
+  if ($('loanValorParcela')) {
+    const primeira = plan.parcelas[0]?.total || 0;
+    $('loanValorParcela').textContent = plan.installmentsEqual ? `${plan.count}X DE ${money(primeira)}` : `TOTAL ${money(plan.total)}`;
+  }
+  if ($('loanParcelasPreview')) {
+    $('loanParcelasPreview').innerHTML = plan.parcelas.map(p => `
+      <div class="loan-installment-row">
+        <span class="loan-installment-number">${p.numero}</span>
+        <div><small>PARCELA ${p.numero}/${plan.count}</small><strong>${p.vencimento ? brDate(p.vencimento) : 'SEM DATA'}</strong></div>
+        <strong>${money(p.total)}</strong>
+      </div>`).join('') + (plan.previewTruncated ? `
+      <div class="loan-installment-row loan-installment-preview-more">
+        <span class="loan-installment-number"><i class="bi bi-three-dots"></i></span>
+        <div><small>PRÉVIA OTIMIZADA</small><strong>EXIBINDO AS PRIMEIRAS ${plan.previewLimit} DE ${plan.count} PARCELAS</strong></div>
+        <strong>${plan.count - plan.previewLimit} RESTANTES</strong>
+      </div>` : '');
+  }
+}
+
+function setLoanPaymentMode(mode = 'avista', silent = false) {
+  const requested = mode === 'crediario' ? 'crediario' : 'avista';
+  const old = editLoanId ? db.vales.find(v => v.id === editLoanId) : null;
+  if (old?.crediarioId && requested !== 'crediario') {
+    if (!silent) toast('ESTA É UMA PARCELA DE CREDIÁRIO. EDITE SOMENTE ESTA PARCELA.');
+    mode = 'crediario';
+  } else {
+    mode = requested;
+  }
+  if ($('loanFormaPagamento')) $('loanFormaPagamento').value = mode;
+  document.querySelectorAll('[data-loan-payment]').forEach(btn => {
+    const active = btn.dataset.loanPayment === mode;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  renderCrediarioPreview();
+  if (!silent) calcLoan();
+}
+
+/**
+ * Calcula o total com juros e atualiza o badge de dias ou a prévia do crediário.
  */
 function calcLoan() {
   const valor = moneyNum($('loanValor').value);
   const juros = taxaNum($('loanJuros').value);
-  const total = Math.max(0, valor + (valor * juros / 100));
+  let total = Math.max(0, valor + (valor * juros / 100));
+
+  // Parcelas de crediário podem ter ajuste de centavos para o total geral fechar
+  // exatamente. Ao abrir uma parcela para edição sem mudar valor/juros, preserva
+  // o total original daquela parcela em vez de recalcular e criar 1 centavo a mais.
+  const editingInstallment = editLoanId ? db.vales.find(v => v.id === editLoanId) : null;
+  if (editingInstallment?.crediarioId
+      && Math.abs(valor - Number(editingInstallment.valor || 0)) < 0.001
+      && Math.abs(juros - Number(editingInstallment.juros || 0)) < 0.001) {
+    total = Number(editingInstallment.total || total);
+  }
+
   $('loanTotal').value = money(total);
-  $('diasBadge').textContent = days($('loanInicio').value, $('loanFinal').value) || 0;
+  renderCrediarioPreview();
 }
 
 /**
@@ -1030,6 +1217,13 @@ function currentLoan() {
     total: moneyNum($('loanTotal').value),
     valorOriginal: old?.valorOriginal ?? moneyNum($('loanValor').value),
     totalOriginal: old?.totalOriginal ?? moneyNum($('loanTotal').value),
+    formaPagamento: old?.crediarioId ? 'crediario' : loanPaymentMode(),
+    crediarioId: old?.crediarioId || '',
+    parcelaNumero: Number(old?.parcelaNumero || 0),
+    parcelaTotal: Number(old?.parcelaTotal || (loanPaymentMode() === 'crediario' ? Number($('loanParcelas')?.value || 2) : 0)),
+    periodicidade: old?.periodicidade || ($('loanPeriodicidade')?.value || 'mensal'),
+    crediarioValorPrincipal: Number(old?.crediarioValorPrincipal || 0),
+    crediarioValorTotal: Number(old?.crediarioValorTotal || 0),
     dataInicial: $('loanInicio').value,
     dataFinal: $('loanFinal').value,
     observacao: upper($('loanObs').value),
@@ -1051,6 +1245,10 @@ function validateLoan(v) {
   if (v.valor <= 0) return 'INFORME O VALOR';
   if (!v.dataInicial || !v.dataFinal) return 'INFORME AS DATAS';
   if (days(v.dataInicial, v.dataFinal) < 0) return 'DATA FINAL MENOR QUE A INICIAL';
+  if (!editLoanId && v.formaPagamento === 'crediario') {
+    const qtd = Math.trunc(Number($('loanParcelas')?.value || 0));
+    if (!Number.isFinite(qtd) || qtd < 2) return 'INFORME 2 OU MAIS PARCELAS';
+  }
   return '';
 }
 
@@ -1088,8 +1286,50 @@ function saveLoan() {
     db.vales[i] = { ...db.vales[i], ...v, valorOriginal: v.valor, totalOriginal: v.total, editadoEm: new Date().toISOString() };
     valleAudit('ATUALIZAR_VALE','vale',db.vales[i],{old_data:anterior,new_data:db.vales[i]});
     toast('VALE ALTERADO');
+  } else if (v.formaPagamento === 'crediario') {
+    const plan = getCrediarioPlan(true);
+    const crediarioId = `CR${Date.now()}${Math.random().toString(16).slice(2,8).toUpperCase()}`;
+    const criadoEm = new Date().toISOString();
+    const parcelas = plan.parcelas.map((p, index) => {
+      const parcela = {
+        ...v,
+        id: `V${Date.now()}${String(index + 1).padStart(2, '0')}${Math.random().toString(16).slice(2,6)}`,
+        numero: db.settings.seq++,
+        valor: p.principal,
+        total: p.total,
+        valorOriginal: p.principal,
+        totalOriginal: p.total,
+        dataFinal: p.vencimento,
+        formaPagamento: 'crediario',
+        crediarioId,
+        parcelaNumero: p.numero,
+        parcelaTotal: plan.count,
+        periodicidade: plan.periodicidade,
+        crediarioValorPrincipal: plan.principal,
+        crediarioValorTotal: plan.total,
+        criadoEm,
+        assinaturaEletronica: valleElectronicSignature(),
+        ultimaAssinaturaEletronica: valleElectronicSignature()
+      };
+      valleAudit('CRIAR_VALE','vale',parcela,{
+        new_data:parcela,
+        valor_lancamento:parcela.valor,
+        total_lancamento:parcela.total,
+        data_lancamento:criadoEm,
+        crediario_id:crediarioId,
+        parcela_numero:p.numero,
+        parcela_total:plan.count,
+        description:`Crediário ${p.numero}/${plan.count} criado — Vale #${parcela.numero}, vencimento ${brDate(parcela.dataFinal)}, total ${money(parcela.total)}.`
+      });
+      return parcela;
+    });
+    db.vales.unshift(...parcelas);
+    v.parcelasGeradas = parcelas;
+    v.crediarioId = crediarioId;
+    toast(`CREDIÁRIO SALVO • ${plan.count} PARCELAS`);
   } else {
     v.numero = db.settings.seq++;
+    v.formaPagamento = 'avista';
     db.vales.unshift(v);
     valleAudit('CRIAR_VALE','vale',v,{new_data:v,valor_lancamento:v.valor,total_lancamento:v.total,data_lancamento:new Date().toISOString()});
     toast('VALLE SALVO');
@@ -1451,6 +1691,18 @@ function startLoanEdit(id, originScreen = '') {
   $('loanInicio').value = v.dataInicial;
   $('loanFinal').value = v.dataFinal;
   $('loanObs').value = v.observacao || '';
+  if (v.crediarioId) {
+    if ($('loanParcelas')) { $('loanParcelas').value = String(v.parcelaTotal || 2); $('loanParcelas').disabled = true; }
+    if ($('loanPeriodicidade')) { $('loanPeriodicidade').value = v.periodicidade || 'mensal'; $('loanPeriodicidade').disabled = true; }
+    document.querySelectorAll('[data-loan-payment]').forEach(btn => { btn.disabled = btn.dataset.loanPayment !== 'crediario'; btn.classList.toggle('locked', btn.disabled); });
+    setLoanPaymentMode('crediario', true);
+    if ($('loanCrediarioResumo')) $('loanCrediarioResumo').textContent = `PARCELA ${Number(v.parcelaNumero || 1)}/${Number(v.parcelaTotal || 1)}`;
+  } else {
+    if ($('loanParcelas')) $('loanParcelas').disabled = false;
+    if ($('loanPeriodicidade')) $('loanPeriodicidade').disabled = false;
+    document.querySelectorAll('[data-loan-payment]').forEach(btn => { btn.disabled = false; btn.classList.remove('locked'); });
+    setLoanPaymentMode(v.formaPagamento === 'crediario' ? 'crediario' : 'avista', true);
+  }
   calcLoan();
   markLoanFormClean();
   switchScreen('emprestimo');
@@ -1758,6 +2010,7 @@ function openReceiveModal(id, editing = false) {
       <div class="receive-bs-number text-center flex-shrink-0 ms-2">
         <small class="d-block text-secondary fw-bold">Nº DO VALE</small>
         <strong class="fs-5">#${numero}</strong>
+        ${v.crediarioId ? `<span class="badge text-bg-primary mt-1">PARCELA ${Number(v.parcelaNumero || 1)}/${Number(v.parcelaTotal || 1)}</span>` : ''}
       </div>
     </div>
 
@@ -2333,6 +2586,7 @@ function renderHistory() {
     const textoBusca = [
       v.cliente, v.telefone, c.telefone, v.cpf, c.cpf, v.observacao,
       `VALE ${String(v.numero || '').padStart(4, '0')}`,
+      v.crediarioId ? `CREDIARIO PARCELA ${v.parcelaNumero}/${v.parcelaTotal}` : 'A VISTA',
       st.badge, st.desc
     ].join(' ').toUpperCase();
 
@@ -2385,6 +2639,7 @@ function renderHistory() {
               <div class="historico-bs-contact text-body-secondary mt-1 d-flex flex-wrap gap-2 gap-md-3">
                 <span><i class="bi bi-telephone me-1"></i>${h(telefone || 'SEM TELEFONE')}</span>
                 <span><i class="bi bi-receipt me-1"></i>VALE #${h(numeroVale)}</span>
+                ${v.crediarioId ? `<span class="badge rounded-pill text-bg-primary-subtle border border-primary-subtle text-primary-emphasis"><i class="bi bi-calendar2-week me-1"></i>PARCELA ${Number(v.parcelaNumero || 1)}/${Number(v.parcelaTotal || 1)}</span>` : ''}
               </div>
             </div>
           </div>
@@ -2966,10 +3221,12 @@ function makePdf(v) {
   // Cabeçalho
   txt('VALE', 62, 744, 56, 1, '#0b2f63');
   rect(260, 758, 112, 44, '#1d5fbf', '#1d5fbf', 1);
-  txt(`${prazo} DIAS`, 282, 773, 19, 1, '#ffffff');
+  const pdfPrazoLabel = v.crediarioId ? `PARC. ${Number(v.parcelaNumero || 1)}/${Number(v.parcelaTotal || 1)}` : `${prazo} DIAS`;
+  txt(pdfPrazoLabel, v.crediarioId ? 277 : 282, 773, v.crediarioId ? 15 : 19, 1, '#ffffff');
   txt('COMPROVANTE DE EMPRESTIMO', 64, 725, 16, 1, '#4b5563');
   txt('VALE No ' + numero, 438, 782, 12, 1, '#0b2f63');
-  txt('CONFIANCA E COMPROMISSO', 405, 760, 9, 1, '#0b2f63');
+  if (v.crediarioId) txt(`CREDIARIO ${Number(v.parcelaNumero || 1)}/${Number(v.parcelaTotal || 1)}`, 424, 768, 8, 1, '#7e22ce');
+  txt('CONFIANCA E COMPROMISSO', 405, v.crediarioId ? 754 : 760, 9, 1, '#0b2f63');
   line(58, 707, W - 58, 707, '#0b2f63', 2);
 
   // Dados do cliente
@@ -3251,8 +3508,8 @@ function buildPdfPreviewHtml(v) {
           <div class="pdf-html-title">VALE</div>
           <div class="pdf-html-subtitle">COMPROVANTE DE EMPRÉSTIMO</div>
         </div>
-        <div class="pdf-html-days">30 DIAS</div>
-        <div class="pdf-html-num">VALE Nº ${numero}<br><span>CONFIANÇA E COMPROMISSO</span></div>
+        <div class="pdf-html-days">${v.crediarioId ? `PARCELA ${Number(v.parcelaNumero || 1)}/${Number(v.parcelaTotal || 1)}` : `${days(v.dataInicial, v.dataFinal)} DIAS`}</div>
+        <div class="pdf-html-num">VALE Nº ${numero}<br><span>${v.crediarioId ? `CREDIÁRIO • ${String(v.periodicidade || 'mensal').toUpperCase()}` : 'CONFIANÇA E COMPROMISSO'}</span></div>
       </header>
 
       <div class="pdf-html-line"></div>
@@ -3378,7 +3635,7 @@ function openPdfPreview(v) {
   pdfPreviewName = pdfName(v);
   pdfPreviewUrl = URL.createObjectURL(pdfPreviewBlob);
 
-  if (sub) sub.textContent = `${String(v.numero).padStart(4, '0')} • ${v.cliente || 'CLIENTE'}`;
+  if (sub) sub.textContent = `${String(v.numero).padStart(4, '0')} • ${v.cliente || 'CLIENTE'}${v.crediarioId ? ` • PARCELA ${Number(v.parcelaNumero || 1)}/${Number(v.parcelaTotal || 1)}` : ''}`;
   if (page) {
     page.innerHTML = buildPdfPreviewHtml(v);
     requestAnimationFrame(() => fitPdfPreviewValueTexts(page));
@@ -3408,7 +3665,7 @@ function printLoanById(id) { const v = db.vales.find(x => x.id === id); if (v) p
 function printLoan(v) {
   const w = window.open('', '_blank', 'width=420,height=650');
   if (!w) { toast('PERMITA POP-UPS PARA IMPRIMIR'); return; }
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Vale</title><style>@page{size:A6;margin:8mm}*{box-sizing:border-box;font-family:Arial;text-transform:uppercase}body{margin:0}.vale{border:2px solid #111;border-radius:10px;padding:14px}.top{text-align:center;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px}h1{font-size:38px;margin:0}.line{margin:10px 0}.rot{font-size:11px;font-weight:bold;color:#555}.val{font-size:18px;font-weight:bold;border-bottom:1px solid #999;padding:5px 0}.duo{display:grid;grid-template-columns:1fr 1fr;gap:12px}.obs{min-height:55px;white-space:pre-line}.ass{margin-top:34px;text-align:center;border-top:1px solid #111;padding-top:8px;font-weight:bold}</style></head><body onload="print();setTimeout(()=>close(),600)"><div class="vale"><div class="top"><h1>VALE</h1><b>${days(v.dataInicial, v.dataFinal)} DIAS</b></div><div class="line"><div class="rot">Cliente</div><div class="val">${h(v.cliente)}</div></div><div class="line"><div class="rot">CPF / Telefone</div><div class="val">${h((v.cpf || '') + ' ' + (v.telefone || ''))}</div></div><div class="duo"><div class="line"><div class="rot">Valor</div><div class="val">${money(v.valor)}</div></div><div class="line"><div class="rot">Total</div><div class="val">${money(loanTotalBalance(v))}</div></div></div><div class="duo"><div class="line"><div class="rot">Juros</div><div class="val">${String(v.juros).replace('.', ',')}%</div></div><div class="line"><div class="rot">Vale Nº</div><div class="val">${String(v.numero).padStart(4, '0')}</div></div></div><div class="duo"><div class="line"><div class="rot">Data inicial</div><div class="val">${brDate(v.dataInicial)}</div></div><div class="line"><div class="rot">Data final</div><div class="val">${brDate(v.dataFinal)}</div></div></div><div class="line"><div class="rot">Observação</div><div class="val obs">${h(v.observacao || 'NENHUMA')}</div></div><div class="ass">ASSINATURA DO CLIENTE</div></div></body></html>`);
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Vale</title><style>@page{size:A6;margin:8mm}*{box-sizing:border-box;font-family:Arial;text-transform:uppercase}body{margin:0}.vale{border:2px solid #111;border-radius:10px;padding:14px}.top{text-align:center;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px}h1{font-size:38px;margin:0}.line{margin:10px 0}.rot{font-size:11px;font-weight:bold;color:#555}.val{font-size:18px;font-weight:bold;border-bottom:1px solid #999;padding:5px 0}.duo{display:grid;grid-template-columns:1fr 1fr;gap:12px}.obs{min-height:55px;white-space:pre-line}.ass{margin-top:34px;text-align:center;border-top:1px solid #111;padding-top:8px;font-weight:bold}</style></head><body onload="print();setTimeout(()=>close(),600)"><div class="vale"><div class="top"><h1>VALE</h1><b>${v.crediarioId ? `PARCELA ${Number(v.parcelaNumero || 1)}/${Number(v.parcelaTotal || 1)}` : `${days(v.dataInicial, v.dataFinal)} DIAS`}</b></div><div class="line"><div class="rot">Cliente</div><div class="val">${h(v.cliente)}</div></div><div class="line"><div class="rot">CPF / Telefone</div><div class="val">${h((v.cpf || '') + ' ' + (v.telefone || ''))}</div></div><div class="duo"><div class="line"><div class="rot">Valor</div><div class="val">${money(v.valor)}</div></div><div class="line"><div class="rot">Total</div><div class="val">${money(loanTotalBalance(v))}</div></div></div><div class="duo"><div class="line"><div class="rot">Juros</div><div class="val">${String(v.juros).replace('.', ',')}%</div></div><div class="line"><div class="rot">Vale Nº</div><div class="val">${String(v.numero).padStart(4, '0')}${v.crediarioId ? ` • PARCELA ${Number(v.parcelaNumero || 1)}/${Number(v.parcelaTotal || 1)}` : ''}</div></div></div><div class="duo"><div class="line"><div class="rot">Data inicial</div><div class="val">${brDate(v.dataInicial)}</div></div><div class="line"><div class="rot">Data final</div><div class="val">${brDate(v.dataFinal)}</div></div></div><div class="line"><div class="rot">Observação</div><div class="val obs">${h(v.observacao || 'NENHUMA')}</div></div><div class="ass">ASSINATURA DO CLIENTE</div></div></body></html>`);
   w.document.close();
 }
 
@@ -3446,7 +3703,7 @@ function backupJson() {
     const stamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
     const payload = {
       valleBackup: true,
-      version: globalThis.VALLE_VERSION || '3.6.22',
+      version: globalThis.VALLE_VERSION || '3.6.24',
       createdAt: now.toISOString(),
       data: normalizeDb(db)
     };
@@ -3630,6 +3887,10 @@ function init() {
   $('loanValor').onblur = e => { e.target.value = money(moneyNum(e.target.value)); calcLoan(); };
   $('loanJuros').oninput = calcLoan;
   $('loanJuros').onblur = e => { e.target.value = String(taxaNum(e.target.value)).replace('.', ',') + '%'; calcLoan(); };
+  document.querySelectorAll('[data-loan-payment]').forEach(btn => btn.onclick = () => setLoanPaymentMode(btn.dataset.loanPayment));
+  if ($('loanParcelas')) $('loanParcelas').oninput = () => calcLoan();
+  if ($('loanParcelas')) $('loanParcelas').onblur = () => { $('loanParcelas').value = String(normalizeInstallmentCount($('loanParcelas').value)); calcLoan(); };
+  if ($('loanPeriodicidade')) $('loanPeriodicidade').onchange = calcLoan;
   if ($('loanTipoTaxaDiaria')) $('loanTipoTaxaDiaria').onchange = () => {
     const tipo = $('loanTipoTaxaDiaria').value === 'reais' ? 'reais' : 'percentual';
     $('loanTaxaDiaria').value = tipo === 'reais' ? money(moneyNum($('loanTaxaDiaria').value)) : String(taxaNum($('loanTaxaDiaria').value)).replace('.', ',') + '%';
@@ -4918,7 +5179,7 @@ window.preloadValleAllData = async function preloadValleAllData() {
     try { applyVallePermissionVisibility(); } catch (_) {}
 
     window.dispatchEvent(new CustomEvent('valle-data-preloaded', { detail: {
-      version: globalThis.VALLE_VERSION || '3.6.22', online: navigator.onLine !== false,
+      version: globalThis.VALLE_VERSION || '3.6.24', online: navigator.onLine !== false,
       userRole: window.ValleCloud?.profile?.role || null
     }}));
     return true;
