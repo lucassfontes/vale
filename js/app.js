@@ -1,7 +1,7 @@
 /* VERSÃO DO SISTEMA — controlada em js/version.js */
 const versao = document.getElementById("versao_sytem");
 if (versao) {
-  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.10.'}`;
+  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.22'}`;
 }
 /**
  * ARQUIVO PRINCIPAL DO VALLE
@@ -3437,30 +3437,116 @@ async function sharePdf(v) {
 function sharePdfById(id) { const v = db.vales.find(x => x.id === id); if (v) sharePdf(v); }
 
 /**
- * Baixa todos os dados do sistema em arquivo JSON.
+ * Baixa todos os dados da sessão em um arquivo JSON.
+ * O arquivo é gerado a partir do banco já carregado no aparelho, sem alterar dados.
  */
-function backupJson() { downloadBlob(new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' }), 'backup-valle-pro.json'); }
+function backupJson() {
+  try {
+    const now = new Date();
+    const stamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    const payload = {
+      valleBackup: true,
+      version: globalThis.VALLE_VERSION || '3.6.22',
+      createdAt: now.toISOString(),
+      data: normalizeDb(db)
+    };
+    downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' }), `VALLE-backup-${stamp}.json`);
+    toast('BACKUP JSON GERADO');
+  } catch (error) {
+    console.error('Falha ao gerar backup JSON:', error);
+    toast('NÃO FOI POSSÍVEL GERAR O BACKUP');
+  }
+}
+
+function parseValleBackup(raw) {
+  const parsed = JSON.parse(raw);
+  // Compatibilidade com backups antigos que continham somente o banco puro.
+  const source = parsed?.valleBackup === true && parsed?.data ? parsed.data : parsed;
+  if (!source || typeof source !== 'object' || Array.isArray(source)) throw new Error('Formato de backup inválido.');
+  if (!Array.isArray(source.clientes) && !Array.isArray(source.vales) && !source.settings) throw new Error('O arquivo não contém dados do VALLE.');
+  return normalizeDb(source);
+}
+
+async function applyRestoredDatabase(restored, successMessage) {
+  const previous = normalizeDb(JSON.parse(JSON.stringify(db)));
+  const cloudProfile = window.ValleCloud?.profile;
+  const sharedSession = cloudProfile && ['session','service'].includes(cloudProfile.role);
+
+  try {
+    db = normalizeDb(restored);
+    window.db = db;
+    save();
+
+    // Restauração e limpeza precisam ser confirmadas no Supabase antes de
+    // informar sucesso. Isso evita o celular/PC mostrar um estado que depois
+    // seria substituído novamente pelos dados antigos da sessão.
+    if (sharedSession) {
+      if (!window.ValleCloud?.isOnline?.()) throw new Error('Conecte-se à internet para alterar os dados compartilhados da sessão.');
+      if (window.ValleCloud?.saveWorkspaceStrict) await window.ValleCloud.saveWorkspaceStrict(db);
+      else await window.ValleCloud?.flushWorkspace?.(db);
+    }
+
+    renderAll();
+    updateAutoBackupInfo();
+    toast(successMessage);
+    return true;
+  } catch (error) {
+    db = previous;
+    window.db = db;
+    save();
+    renderAll();
+    updateAutoBackupInfo();
+    console.error('Falha ao aplicar backup:', error);
+    toast(error?.message || 'NÃO FOI POSSÍVEL RESTAURAR O BACKUP');
+    return false;
+  }
+}
+
 /**
  * Restaura os dados do sistema a partir de um arquivo JSON de backup.
  */
 function restore(e) {
-  const f = e.target.files[0]; if (!f) return;
-  const r = new FileReader();
-  r.onload = () => { try { db = normalizeDb(JSON.parse(r.result)); save(); renderAll(); updateAutoBackupInfo(); toast('BACKUP RESTAURADO'); } catch (err) { toast('ARQUIVO INVÁLIDO'); } finally { e.target.value = ''; } };
-  r.readAsText(f);
+  const input = e.target;
+  const file = input.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onerror = () => { toast('NÃO FOI POSSÍVEL LER O ARQUIVO'); input.value = ''; };
+  reader.onload = async () => {
+    try {
+      const restored = parseValleBackup(reader.result);
+      const clientes = restored.clientes?.length || 0;
+      const vales = restored.vales?.length || 0;
+      const ok = await appConfirm(`Este backup contém ${clientes} cliente(s) e ${vales} vale(s).\n\nA restauração substituirá os dados atuais desta sessão.`, {
+        title: 'Restaurar backup JSON?', icon: '📥', confirmText: 'Restaurar', cancelText: 'Cancelar'
+      });
+      if (ok) await applyRestoredDatabase(restored, 'BACKUP JSON RESTAURADO');
+    } catch (error) {
+      console.error('Backup JSON inválido:', error);
+      toast('ARQUIVO DE BACKUP INVÁLIDO');
+    } finally {
+      input.value = '';
+    }
+  };
+  reader.readAsText(file);
 }
+
 /**
- * Apaga todos os dados salvos após confirmação.
+ * Apaga todos os dados da sessão após confirmação.
  */
 async function wipe() {
-  const ok = await appConfirm('Esta ação apaga clientes, vales e configurações salvas neste navegador.', {
-    title: 'Apagar todos os dados?',
-    icon: '⚠️',
-    confirmText: 'Apagar',
-    cancelText: 'Cancelar'
+  const cloudProfile = window.ValleCloud?.profile;
+  const sharedSession = cloudProfile && ['session','service'].includes(cloudProfile.role);
+  if (sharedSession && !window.ValleCloud?.isOnline?.()) {
+    toast('CONECTE-SE À INTERNET PARA APAGAR OS DADOS DA SESSÃO');
+    return;
+  }
+  const ok = await appConfirm('Esta ação apaga clientes, vales e configurações da sessão. O backup automático local não será apagado.', {
+    title: 'Apagar todos os dados?', icon: '⚠️', confirmText: 'Apagar tudo', cancelText: 'Cancelar'
   });
   if (!ok) return;
-  db = seed(); save(); clearLoan(); renderAll(); updateAutoBackupInfo();
+  const empty = normalizeDb(seed());
+  const applied = await applyRestoredDatabase(empty, 'DADOS DA SESSÃO APAGADOS');
+  if (applied) clearLoan();
 }
 
 /**
@@ -3936,10 +4022,14 @@ async function restoreAutoBackup() {
   let payload;
   try { payload = JSON.parse(raw); } catch(e) { toast('BACKUP AUTOMÁTICO INVÁLIDO'); return; }
   if (!payload || !payload.db) { toast('BACKUP AUTOMÁTICO INVÁLIDO'); return; }
+  let restored;
+  try { restored = normalizeDb(payload.db); } catch (_) { toast('BACKUP AUTOMÁTICO INVÁLIDO'); return; }
   const dataTxt = payload.criadoEm ? new Date(payload.criadoEm).toLocaleString('pt-BR') : 'sem data';
-  const ok = await appConfirm(`Restaurar o último backup automático deste navegador?\n\nData do backup: ${dataTxt}`, {title:'Restaurar backup automático', icon:'♻️'});
+  const ok = await appConfirm(`Restaurar o último backup automático deste aparelho?\n\nData do backup: ${dataTxt}\nClientes: ${restored.clientes?.length || 0}\nVales: ${restored.vales?.length || 0}`, {
+    title:'Restaurar backup automático?', icon:'♻️', confirmText:'Restaurar', cancelText:'Cancelar'
+  });
   if (!ok) return;
-  try { db = normalizeDb(payload.db); save(); renderAll(); updateAutoBackupInfo(); toast('BACKUP AUTOMÁTICO RESTAURADO'); } catch(e){ toast('BACKUP AUTOMÁTICO INVÁLIDO'); }
+  await applyRestoredDatabase(restored, 'BACKUP AUTOMÁTICO RESTAURADO');
 }
 
 /* =========================================================
@@ -4180,33 +4270,169 @@ function premiumStatusInfo(v){
   if (d === 0) return {cls:'warn', txt:'Vence hoje', dias:d};
   return {cls:'week', txt:`Vence em ${d} dia${d===1?'':'s'}`, dias:d};
 }
+function startOfWeekMonday(date){
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+function endOfWeekSunday(date){
+  const d = startOfWeekMonday(date);
+  d.setDate(d.getDate() + 6);
+  d.setHours(23,59,59,999);
+  return d;
+}
+function isoDateLocal(date){
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,'0');
+  const d = String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+function premiumDayLabel(date){
+  return ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'][((date.getDay()+6)%7)] || '';
+}
+function premiumWeekOfMonth(date){
+  const first = new Date(date.getFullYear(), date.getMonth(), 1);
+  const offset = (first.getDay()+6)%7;
+  return Math.floor((date.getDate() + offset - 1) / 7) + 1;
+}
 function premiumGetMonthSeries(){
   const now = new Date();
+  const period = $('dashPeriodo')?.value || 'ano';
   const rows = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    rows.push({key, label: premiumMonthLabel(key), emprestado:0, recebido:0});
+
+  if (period === 'semana') {
+    const start = startOfWeekMonday(now);
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      const key = isoDateLocal(d);
+      rows.push({
+        key,
+        label: premiumDayLabel(d),
+        longLabel: `${premiumDayLabel(d)} • ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`,
+        emprestado: 0,
+        recebido: 0,
+        qtdVales: 0,
+        qtdRecebimentos: 0,
+        clientes: new Set(),
+        kind: 'day'
+      });
+    }
+  } else if (period === 'mes') {
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0);
+    const totalWeeks = Math.max(1, premiumWeekOfMonth(lastDay));
+    for (let week = 1; week <= totalWeeks; week++) {
+      rows.push({
+        key: `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-S${week}`,
+        label: `S${week}`,
+        longLabel: `SEMANA ${week} • ${premiumMonthLongLabel(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`)}`,
+        emprestado: 0,
+        recebido: 0,
+        qtdVales: 0,
+        qtdRecebimentos: 0,
+        clientes: new Set(),
+        kind: 'week'
+      });
+    }
+  } else if (period === '6') {
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      rows.push({key, label:premiumMonthLabel(key), longLabel:premiumMonthLongLabel(key), emprestado:0, recebido:0, qtdVales:0, qtdRecebimentos:0, clientes:new Set(), kind:'month'});
+    }
+  } else {
+    for (let m = 0; m <= now.getMonth(); m++) {
+      const d = new Date(now.getFullYear(), m, 1);
+      const key = `${d.getFullYear()}-${String(m+1).padStart(2,'0')}`;
+      rows.push({key, label:premiumMonthLabel(key), longLabel:premiumMonthLongLabel(key), emprestado:0, recebido:0, qtdVales:0, qtdRecebimentos:0, clientes:new Set(), kind:'month'});
+    }
   }
+
   const map = Object.fromEntries(rows.map(r => [r.key, r]));
-  db.vales.forEach(v => {
-    const k = monthKeyFromDateSafe(v.criadoEm || v.dataInicial || v.dataFinal);
-    if (map[k]) map[k].emprestado += originalLoanValue(v);
+  const monthKeyCurrent = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const addToBucket = (dateStr, valueField, value, clientName) => {
+    const ds = String(dateStr || '').slice(0,10);
+    if (!ds) return;
+    let key = '';
+    if (period === 'semana') {
+      key = ds;
+    } else if (period === 'mes') {
+      if (!ds.startsWith(monthKeyCurrent)) return;
+      const dt = new Date(`${ds}T12:00:00`);
+      key = `${monthKeyCurrent}-S${premiumWeekOfMonth(dt)}`;
+    } else {
+      key = ds.slice(0,7);
+    }
+    const bucket = map[key];
+    if (!bucket) return;
+    bucket[valueField] += Number(value || 0);
+    if (clientName) bucket.clientes.add(String(clientName).trim().toUpperCase());
+    return bucket;
+  };
+
+  (db.vales || []).forEach(v => {
+    const bucket = addToBucket(v.criadoEm || v.dataInicial || v.dataFinal, 'emprestado', originalLoanValue(v), v.cliente);
+    if (!bucket) return;
+    bucket.qtdVales += 1;
   });
+
   getPaymentEvents().forEach(e => {
-    const k = monthKeyFromDateSafe(e.data);
-    if (map[k]) map[k].recebido += e.valor;
+    const bucket = addToBucket(e.data, 'recebido', Number(e.valor || 0), e.cliente);
+    if (!bucket) return;
+    bucket.qtdRecebimentos += 1;
   });
-  return rows;
+
+  return rows.map(r => ({
+    ...r,
+    qtdClientes:r.clientes.size,
+    ticketMedio:r.qtdVales ? r.emprestado / r.qtdVales : 0,
+    mediaRecebimento:r.qtdRecebimentos ? r.recebido / r.qtdRecebimentos : 0,
+    resultado:r.recebido - r.emprestado
+  }));
+}
+function premiumMonthLongLabel(key){
+  const [y,m] = String(key || '').split('-');
+  const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+  return `${meses[(Number(m)||1)-1] || m}/${y || ''}`;
+}
+function renderPremiumMonthDetail(row, rows){
+  const box = $('premiumMonthDetail');
+  if (!box || !row) return;
+  const periodoEmprestado = (rows || []).reduce((s,r)=>s+Number(r.emprestado||0),0);
+  const periodoRecebido = (rows || []).reduce((s,r)=>s+Number(r.recebido||0),0);
+  const resultado = Number(row.resultado || 0);
+  const resultLabel = resultado >= 0 ? 'Entrada líquida' : 'Saída líquida';
+  const resultValue = resultado >= 0 ? resultado : Math.abs(resultado);
+  const longLabel = row.longLabel || premiumMonthLongLabel(row.key);
+  box.innerHTML = `
+    <div class="premium-month-detail-head">
+      <strong>${longLabel}</strong>
+      <span>Toque ou passe sobre um ponto no gráfico para ver os detalhes.</span>
+    </div>
+    <div class="premium-month-detail-grid">
+      <div><span>VALLES criados</span><strong>${row.qtdVales}</strong><small>${money(row.emprestado)} emprestados</small></div>
+      <div><span>Recebimentos</span><strong>${row.qtdRecebimentos}</strong><small>${money(row.recebido)} recebidos</small></div>
+      <div><span>Clientes movimentados</span><strong>${row.qtdClientes}</strong><small>No período selecionado</small></div>
+      <div><span>Ticket médio do VALLE</span><strong>${money(row.ticketMedio)}</strong><small>Média por novo VALLE</small></div>
+      <div><span>Média por recebimento</span><strong>${money(row.mediaRecebimento)}</strong><small>Média dos pagamentos</small></div>
+      <div><span>${resultLabel}</span><strong>${money(resultValue)}</strong><small>Recebido − emprestado</small></div>
+    </div>
+    <div class="premium-month-period-total">
+      <span>Período exibido</span>
+      <strong>${money(periodoEmprestado)} em VALLES • ${money(periodoRecebido)} recebidos</strong>
+    </div>`;
 }
 function renderPremiumLineChart(rows){
   const box = $('premiumLineChart');
   if (!box) return;
   const w = 620, h = 230, padL = 46, padR = 16, padT = 18, padB = 34;
   const max = Math.max(100, ...rows.flatMap(r => [r.emprestado, r.recebido]));
-  const stepX = rows.length > 1 ? (w-padL-padR)/(rows.length-1) : 1;
+  const stepX = rows.length > 1 ? (w-padL-padR)/(rows.length-1) : (w-padL-padR);
   const y = val => padT + (h-padT-padB) * (1 - (val/max));
-  const x = i => padL + i*stepX;
+  const x = i => rows.length > 1 ? padL + i*stepX : (padL + (w-padR))/2;
   const ptsBlue = rows.map((r,i)=>`${x(i)},${y(r.emprestado)}`).join(' ');
   const ptsGreen = rows.map((r,i)=>`${x(i)},${y(r.recebido)}`).join(' ');
   const areaBlue = `${padL},${h-padB} ${ptsBlue} ${w-padR},${h-padB}`;
@@ -4218,7 +4444,21 @@ function renderPremiumLineChart(rows){
   }).join('');
   const labels = rows.map((r,i)=>`<text x="${x(i)-10}" y="${h-8}">${r.label}</text>`).join('');
   const points = rows.map((r,i)=>`<circle cx="${x(i)}" cy="${y(r.emprestado)}" r="4" fill="#2563eb"/><circle cx="${x(i)}" cy="${y(r.recebido)}" r="4" fill="#16a34a"/>`).join('');
-  box.innerHTML = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Evolução mensal">${grid}<polygon class="area-blue" points="${areaBlue}"/><polygon class="area-green" points="${areaGreen}"/><polyline class="line-blue" points="${ptsBlue}"/><polyline class="line-green" points="${ptsGreen}"/>${points}${labels}</svg>`;
+  const hitWidth = Math.max(30, Math.min(72, stepX || 48));
+  const hits = rows.map((r,i)=>`<rect class="premium-month-hit" data-month-index="${i}" x="${Math.max(padL-hitWidth/2,x(i)-hitWidth/2)}" y="${padT}" width="${hitWidth}" height="${h-padT-padB}" fill="transparent" role="button" tabindex="0" aria-label="Ver detalhes de ${r.longLabel || premiumMonthLongLabel(r.key)}"/>`).join('');
+  box.innerHTML = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Evolução financeira do período">${grid}<polygon class="area-blue" points="${areaBlue}"/><polygon class="area-green" points="${areaGreen}"/><polyline class="line-blue" points="${ptsBlue}"/><polyline class="line-green" points="${ptsGreen}"/>${points}${labels}${hits}</svg>`;
+
+  const showIndex = index => {
+    const row = rows[Number(index)];
+    if (row) renderPremiumMonthDetail(row, rows);
+  };
+  box.querySelectorAll('.premium-month-hit').forEach(hit=>{
+    hit.addEventListener('mouseenter',()=>showIndex(hit.dataset.monthIndex));
+    hit.addEventListener('click',()=>showIndex(hit.dataset.monthIndex));
+    hit.addEventListener('focus',()=>showIndex(hit.dataset.monthIndex));
+    hit.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();showIndex(hit.dataset.monthIndex)}});
+  });
+  if (rows.length) renderPremiumMonthDetail(rows[rows.length-1], rows);
 }
 function renderPremiumDonut(atrasados, hoje, proximos, emDia){
   const box = $('premiumDonut');
@@ -4287,8 +4527,26 @@ function renderPremiumDashboard(){
   const valorEmprestado = aberto.reduce((s,v)=>s+loanPrincipalBalance(v),0);
   const totalJuros = aberto.reduce((s,v)=>s+loanInterest(v),0);
   const totalReceber = valorEmprestado + totalJuros;
-  const jurosRecebidosAvulsos = db.vales.reduce((s, v) => s + Number(v.jurosRecebidos || 0), 0);
-  const totalRecebido = jurosRecebidosAvulsos + pagos.reduce((s, v) => Number(v.jurosRecebidos || 0) > 0 ? s : s + Math.max(0, originalLoanTotal(v) - originalLoanValue(v)), 0);
+  const capitalInvestido = Number(db.settings?.capitalInvestido || 0);
+  const capitalDisponivel = capitalInvestido - valorEmprestado;
+
+  // Resumo detalhado de recebimentos:
+  // - principalRecebido guarda os pagamentos parciais de principal.
+  // - em um vale quitado pelo botão QUITAR, o saldo principal final não é gravado
+  //   em principalRecebido; por isso somamos o saldo que existia no momento da quitação.
+  // - a mesma regra é usada para os juros finais de um vale quitado.
+  // Isso permite separar CAPITAL RECUPERADO de LUCRO/JUROS RECEBIDOS.
+  const principalRecuperado = db.vales.reduce((s,v)=>{
+    const parcialPrincipal = Math.max(0, Number(v.principalRecebido || 0));
+    const principalFinalQuitado = v.status === 'PAGO' ? loanPrincipalBalance(v) : 0;
+    return s + parcialPrincipal + principalFinalQuitado;
+  },0);
+  const jurosRecebidos = db.vales.reduce((s,v)=>{
+    const jurosRegistrados = Math.max(0, Number(v.jurosRecebidos || 0));
+    const jurosFinaisQuitados = v.status === 'PAGO' ? loanInterest(v) : 0;
+    return s + jurosRegistrados + jurosFinaisQuitados;
+  },0);
+  const totalRecebido = principalRecuperado + jurosRecebidos;
   const atrasados = aberto.filter(v => v.dataFinal < today);
   const hoje = aberto.filter(v => v.dataFinal === today);
   const proximos = aberto.filter(v => v.dataFinal > today && v.dataFinal <= weekS);
@@ -4305,11 +4563,18 @@ function renderPremiumDashboard(){
   if ($('dashProximosBadge')) $('dashProximosBadge').textContent = hoje.length + proximos.length;
   if ($('dashNotifMini')) $('dashNotifMini').textContent = atrasados.length + hoje.length + proximos.length;
   if ($('dashNotifMini2')) $('dashNotifMini2').textContent = atrasados.length + hoje.length + proximos.length;
+  if ($('dashResumoCapital')) $('dashResumoCapital').textContent = money(capitalInvestido);
+  if ($('dashResumoCapitalDisponivel')) $('dashResumoCapitalDisponivel').textContent = money(capitalDisponivel);
   if ($('dashResumoEmprestado')) $('dashResumoEmprestado').textContent = money(valorEmprestado);
-  if ($('dashResumoRecebido')) $('dashResumoRecebido').textContent = money(totalRecebido);
+  if ($('dashResumoJurosAberto')) $('dashResumoJurosAberto').textContent = money(totalJuros);
   if ($('dashResumoAberto')) $('dashResumoAberto').textContent = money(totalReceber);
-  if ($('dashResumoJuros')) $('dashResumoJuros').textContent = money(totalRecebido);
-  if ($('dashLucroLiquido')) $('dashLucroLiquido').textContent = money(totalRecebido);
+  if ($('dashResumoPrincipalRecebido')) $('dashResumoPrincipalRecebido').textContent = money(principalRecuperado);
+  if ($('dashResumoJuros')) $('dashResumoJuros').textContent = money(jurosRecebidos);
+  if ($('dashResumoRecebido')) $('dashResumoRecebido').textContent = money(totalRecebido);
+  if ($('dashResumoQtdAbertos')) $('dashResumoQtdAbertos').textContent = String(aberto.length);
+  if ($('dashResumoQtdPagos')) $('dashResumoQtdPagos').textContent = String(pagos.length);
+  if ($('dashResumoQtdAtrasados')) $('dashResumoQtdAtrasados').textContent = String(atrasados.length);
+  if ($('dashLucroLiquido')) $('dashLucroLiquido').textContent = money(jurosRecebidos);
 
   renderPremiumLineChart(premiumGetMonthSeries());
   renderPremiumDonut(atrasados.length, hoje.length, proximos.length, emDia.length);
@@ -4653,7 +4918,7 @@ window.preloadValleAllData = async function preloadValleAllData() {
     try { applyVallePermissionVisibility(); } catch (_) {}
 
     window.dispatchEvent(new CustomEvent('valle-data-preloaded', { detail: {
-      version: globalThis.VALLE_VERSION || '3.6.10', online: navigator.onLine !== false,
+      version: globalThis.VALLE_VERSION || '3.6.22', online: navigator.onLine !== false,
       userRole: window.ValleCloud?.profile?.role || null
     }}));
     return true;

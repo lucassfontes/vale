@@ -68,7 +68,7 @@ function inject(){
  </section>
  <section id="managementPanel" class="management-panel hidden">
    <header class="management-top"><div><img src="icons/icon-valle.png"><div><h1>VALLE</h1><p id="managementSubtitle"></p></div></div><div class="management-top-actions"><div class="management-user-menu"><button type="button" class="management-user-trigger" id="managementUserTrigger" aria-expanded="false"><span class="management-trigger-avatar">U</span><span class="management-trigger-copy"><strong id="managementUserName">Usuário</strong><small id="managementUserPanelLabel">Painel</small></span><span class="dashboard-user-chevron" aria-hidden="true">⌄</span></button><div class="management-user-dropdown hidden" id="managementUserDropdown"><div class="dashboard-user-info"><strong id="managementUserDropdownName">Usuário</strong><small id="managementUserDropdownEmail"></small></div>${themePickerMarkup('management','valle-theme-picker--embedded')}<button type="button" id="logoutBtn" class="user-logout-menu-btn">↪ Sair</button></div></div></div></header>
-   <main class="management-content"><section id="usersPanel" class="management-card"><div class="management-head"><div><h2 id="managementTitle">Usuários</h2><p id="managementHelp"></p></div><div class="management-head-actions"><button id="adminMessageBtn" class="btn admin-message-btn hidden" type="button"><i class="bi bi-megaphone-fill"></i> MSG ADM</button><button id="newManagedUserBtn" class="btn primary">NOVO USUÁRIO</button></div></div><div id="managedUsers"></div></section><section id="auditPanel" class="management-card hidden"><div class="management-head"><div><h2>Auditoria dos usuários de serviço</h2><p>Histórico permanente de criações, edições, exclusões, pagamentos e quitações.</p></div><button id="refreshAuditBtn" class="btn btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> ATUALIZAR</button></div><div class="audit-filters"><div class="audit-search"><i class="bi bi-search"></i><input id="auditSearch" type="search" placeholder="Buscar usuário, cliente, vale ou ação..."></div><select id="auditUserFilter"><option value="">Todos os usuários</option></select><select id="auditModuleFilter"><option value="">Todos os módulos</option><option>CLIENTES</option><option>VALES</option><option>PAGAMENTOS</option><option>USUARIOS</option><option>SISTEMA</option></select><select id="auditActionFilter"><option value="">Todas as ações</option></select><input id="auditDateFrom" type="date" title="Data inicial"><input id="auditDateTo" type="date" title="Data final"><button id="clearAuditFilters" class="btn btn-outline-secondary">LIMPAR</button></div><div id="auditSummary" class="audit-summary"></div><div id="auditLogs"></div><div class="text-center mt-3"><button id="loadMoreAudit" class="btn btn-outline-primary hidden">CARREGAR MAIS</button></div></section></main>
+   <main class="management-content"><section id="usersPanel" class="management-card"><div class="management-head"><div><h2 id="managementTitle">Usuários</h2><p id="managementHelp"></p></div><div class="management-head-actions"><button id="adminMessageBtn" class="btn admin-message-btn hidden" type="button"><i class="bi bi-megaphone-fill"></i> MSG ADM</button><button id="newManagedUserBtn" class="btn primary">NOVO USUÁRIO</button></div></div><div id="managedUsers"></div></section><section id="auditPanel" class="management-card hidden"><div class="management-head"><div><h2>Auditoria dos usuários de serviço</h2><p>Histórico permanente de criações, edições, exclusões, pagamentos e quitações.</p></div><button id="refreshAuditBtn" class="btn btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> ATUALIZAR</button></div><div class="audit-filters"><div class="audit-search"><i class="bi bi-search"></i><input id="auditSearch" type="search" placeholder="Buscar usuário, cliente, vale ou ação..."></div><select id="auditUserFilter"><option value="">Todos os usuários</option></select><select id="auditModuleFilter"><option value="">Todos os módulos</option><option>CLIENTES</option><option>VALES</option><option>PAGAMENTOS</option><option>USUARIOS</option><option>SISTEMA</option></select><select id="auditActionFilter"><option value="">Todas as ações</option></select><input id="auditDateFrom" type="date" title="Data inicial"><input id="auditDateTo" type="date" title="Data final"><button id="clearAuditFilters" class="btn audit-clear-btn" type="button"><i class="bi bi-eraser"></i><span>LIMPAR</span></button></div><div id="auditSummary" class="audit-summary"></div><div id="auditLogs"></div><div class="text-center mt-3"><button id="loadMoreAudit" class="btn btn-outline-primary hidden">CARREGAR MAIS</button></div></section></main>
  </section>
  <div id="userModal" class="user-modal hidden" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
    <div class="user-modal-card">
@@ -465,16 +465,25 @@ function setupSessionPanelTabs(){
   nav.setAttribute('role','tablist');
   nav.setAttribute('aria-label','Áreas do painel de sessão');
   nav.innerHTML=`
-   <button type="button" class="session-panel-tab" data-session-panel-tab="users" role="tab"><i class="bi bi-people-fill"></i><span>USUÁRIOS</span></button>
-   <button type="button" class="session-panel-tab" data-session-panel-tab="audit" role="tab"><i class="bi bi-clock-history"></i><span>AUDITORIA</span></button>
-   <button type="button" class="session-panel-tab" data-session-panel-tab="config" role="tab"><i class="bi bi-gear-fill"></i><span>CONFIGURAÇÃO</span></button>
-   <button type="button" class="session-panel-tab" data-session-panel-tab="backup" role="tab"><i class="bi bi-cloud-arrow-down-fill"></i><span>BACKUP</span></button>`;
+   <button type="button" class="session-panel-tab" data-session-panel-tab="users" role="tab" aria-label="Usuários" title="Usuários"><i class="bi bi-people-fill" aria-hidden="true"></i><span>USUÁRIOS</span></button>
+   <button type="button" class="session-panel-tab" data-session-panel-tab="audit" role="tab" aria-label="Auditoria" title="Auditoria"><i class="bi bi-clock-history" aria-hidden="true"></i><span>AUDITORIA</span></button>
+   <button type="button" class="session-panel-tab" data-session-panel-tab="config" role="tab" aria-label="Configuração" title="Configuração"><i class="bi bi-gear-fill" aria-hidden="true"></i><span>CONFIGURAÇÃO</span></button>
+   <button type="button" class="session-panel-tab" data-session-panel-tab="backup" role="tab" aria-label="Backup" title="Backup"><i class="bi bi-cloud-arrow-down-fill" aria-hidden="true"></i><span>BACKUP</span></button>`;
   content.insertBefore(nav,content.firstChild);
  }
 
- const activate=name=>{
+ const centerSessionTab=(button,smooth=true)=>{
+  if(!button || window.matchMedia('(min-width: 761px)').matches)return;
+  const targetLeft=button.offsetLeft-(nav.clientWidth-button.offsetWidth)/2;
+  const maxLeft=Math.max(0,nav.scrollWidth-nav.clientWidth);
+  const left=Math.max(0,Math.min(maxLeft,targetLeft));
+  try{nav.scrollTo({left,behavior:smooth?'smooth':'auto'});}catch(_){nav.scrollLeft=left;}
+ };
+
+ const activate=(name,{center=true,smooth=true}={})=>{
   const next=panels[name]?name:'users';
   window.__valleSessionPanelTab=next;
+  let activeButton=null;
   Object.entries(panels).forEach(([key,panel])=>{
    const active=key===next;
    panel.classList.toggle('session-panel-tab-card-active',active);
@@ -485,14 +494,15 @@ function setupSessionPanelTabs(){
    button.classList.toggle('active',active);
    button.setAttribute('aria-selected',active?'true':'false');
    button.tabIndex=active?0:-1;
-   if(active)button.scrollIntoView({block:'nearest',inline:'center'});
+   if(active)activeButton=button;
   });
+  if(center && activeButton) requestAnimationFrame(()=>centerSessionTab(activeButton,smooth));
   if(next==='audit' && !(window.__valleAuditLogs||[]).length) renderAuditLogs();
  };
 
  const buttons=[...nav.querySelectorAll('[data-session-panel-tab]')];
  buttons.forEach((button,index)=>{
-  button.onclick=()=>activate(button.dataset.sessionPanelTab);
+  button.onclick=()=>activate(button.dataset.sessionPanelTab,{center:true,smooth:true});
   button.onkeydown=event=>{
    if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
    event.preventDefault();
@@ -502,12 +512,19 @@ function setupSessionPanelTabs(){
    if(event.key==='Home')next=0;
    if(event.key==='End')next=buttons.length-1;
    const target=buttons[next];
-   activate(target.dataset.sessionPanelTab);
+   activate(target.dataset.sessionPanelTab,{center:true,smooth:true});
    target.focus({preventScroll:true});
   };
  });
 
- activate(window.__valleSessionPanelTab||'users');
+ const recenterActiveTab=()=>{
+  const active=nav.querySelector('[data-session-panel-tab].active,[data-session-panel-tab][aria-selected="true"]');
+  if(active) requestAnimationFrame(()=>centerSessionTab(active,false));
+ };
+ window.addEventListener('resize',recenterActiveTab,{passive:true});
+ window.addEventListener('orientationchange',()=>setTimeout(recenterActiveTab,120));
+
+ activate(window.__valleSessionPanelTab||'users',{center:true,smooth:false});
 }
 function mountSessionSettings(){
  const section=el('configuracoes');
@@ -518,7 +535,7 @@ function mountSessionSettings(){
  const title=section.querySelector('.config-card h2');
  if(title) title.textContent='⚙️ Configurações da sessão';
  const help=section.querySelector('.backup-help');
- if(help) help.textContent='As configurações e backups desta sessão são compartilhados com todos os usuários de serviço vinculados.';
+ if(help) help.textContent='As configurações e dados desta sessão são compartilhados com os usuários vinculados. O backup automático fica salvo somente neste aparelho/navegador.';
  setupSessionPanelTabs();
 }
 function hideServiceSettingsTab(){

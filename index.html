@@ -490,6 +490,8 @@
           <section class="premium-panel chart-panel">
             <div class="premium-panel-head">
               <h3>EVOLUÇÃO MENSAL</h3><select id="dashPeriodo" onchange="renderPremiumDashboard()">
+                <option value="semana">Esta semana</option>
+                <option value="mes">Este mês</option>
                 <option value="ano">Este ano</option>
                 <option value="6">Últimos 6 meses</option>
               </select>
@@ -497,6 +499,7 @@
             <div class="chart-legend"><span><i class="blue-dot"></i>VALLE</span><span><i
                   class="green-dot"></i>Recebido</span></div>
             <div id="premiumLineChart" class="premium-line-chart"></div>
+            <div id="premiumMonthDetail" class="premium-month-detail" aria-live="polite"></div>
           </section>
           <section class="premium-panel donut-panel">
             <h3>SITUAÇÃO DOS VALES</h3>
@@ -528,16 +531,23 @@
           <section class="premium-panel premium-summary-panel">
             <div class="premium-panel-head">
               <h3>RESUMO FINANCEIRO</h3><select id="dashResumoPeriodo" onchange="renderPremiumDashboard()">
-                <option>Este mês</option>
+                <option>Geral</option>
               </select>
             </div>
             <div class="premium-summary-list">
-              <div><span>💼 Total em VALLES</span><strong id="dashResumoEmprestado">R$ 0,00</strong></div>
-              <div><span>💵 Total recebido</span><strong id="dashResumoRecebido">R$ 0,00</strong></div>
-              <div><span>📂 Em aberto</span><strong id="dashResumoAberto">R$ 0,00</strong></div>
+              <div><span>🏦 Capital investido</span><strong id="dashResumoCapital">R$ 0,00</strong></div>
+              <div><span>💳 Capital disponível</span><strong id="dashResumoCapitalDisponivel">R$ 0,00</strong></div>
+              <div><span>💼 Principal em VALLES</span><strong id="dashResumoEmprestado">R$ 0,00</strong></div>
+              <div><span>📈 Juros a receber</span><strong id="dashResumoJurosAberto">R$ 0,00</strong></div>
+              <div><span>📂 Total a receber</span><strong id="dashResumoAberto">R$ 0,00</strong></div>
+              <div><span>↩️ Principal recuperado</span><strong id="dashResumoPrincipalRecebido">R$ 0,00</strong></div>
               <div><span>✨ Juros recebidos</span><strong id="dashResumoJuros">R$ 0,00</strong></div>
+              <div><span>💵 Total recebido</span><strong id="dashResumoRecebido">R$ 0,00</strong></div>
+              <div><span>📄 Vales em aberto</span><strong id="dashResumoQtdAbertos">0</strong></div>
+              <div><span>✅ Vales quitados</span><strong id="dashResumoQtdPagos">0</strong></div>
+              <div><span>⚠️ Vales atrasados</span><strong id="dashResumoQtdAtrasados">0</strong></div>
             </div>
-            <div class="premium-profit"><span>Lucro líquido</span><strong id="dashLucroLiquido">R$ 0,00</strong></div>
+            <div class="premium-profit"><span>Lucro líquido (juros)</span><strong id="dashLucroLiquido">R$ 0,00</strong></div>
           </section>
         </div>
 
@@ -859,11 +869,10 @@
             ou configurações.</p>
           <p class="backup-status" id="autoBackupInfo">Último backup automático: verificando...</p>
           <div class="actions backup-actions">
-            <button class="btn primary" id="backupJsonBtn">📂 Baixar backup JSON</button>
-            <label class="btn light filebtn">📥 Restaurar JSON<input id="restoreInput" type="file"
-                accept="application/json" hidden></label>
-            <button class="btn success" id="restoreAutoBtn">♻️ Restaurar último automático</button>
-            <button class="btn danger" id="wipeBtn">APAGAR TUDO</button>
+            <button class="btn primary backup-action-btn" id="backupJsonBtn" type="button"><i class="bi bi-folder2-open" aria-hidden="true"></i><span>Baixar backup JSON</span></button>
+            <label class="btn light filebtn backup-action-btn" for="restoreInput"><i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i><span>Restaurar JSON</span><input id="restoreInput" type="file" accept="application/json,.json" hidden></label>
+            <button class="btn success backup-action-btn" id="restoreAutoBtn" type="button"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i><span>Restaurar automático</span></button>
+            <button class="btn danger backup-action-btn" id="wipeBtn" type="button"><i class="bi bi-trash3" aria-hidden="true"></i><span>Apagar tudo</span></button>
           </div>
         </div>
       </section>
@@ -1108,12 +1117,12 @@
     });
   </script>
   <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
-  <script src="js/version.js?v=3.6.10"></script>
+  <script src="js/version.js?v=3.6.22"></script>
   <script src="js/supabase-config.js?v=34"></script>
   <script src="js/supabase-client.js?v=34"></script>
-  <script src="js/app.js?v=3.6.10"></script>
-  <script src="js/lancamentos.js?v=3.6.10"></script>
-  <script src="js/auth-ui.js?v=3.6.10"></script>
+  <script src="js/app.js?v=3.6.22"></script>
+  <script src="js/lancamentos.js?v=3.6.22"></script>
+  <script src="js/auth-ui.js?v=3.6.22"></script>
   <script src="js/bootstrap-enhance.js?v=52"></script>
   <script src="js/push-notifications.js?v=34"></script>
   <script>
