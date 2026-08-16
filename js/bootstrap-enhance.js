@@ -2,7 +2,7 @@
   'use strict';
 
   const ICONS = new Map([
-    ['🏠','bi-house-door-fill'],['🔔','bi-bell-fill'],['💰','bi-cash-stack'],['👤','bi-person-fill'],['👥','bi-people-fill'],
+    ['🏠','bi-house-door-fill'],['🔔','bi-bell-fill'],['💰','bi-cash-stack'],['💳','bi-credit-card-2-front-fill'],['👤','bi-person-fill'],['👥','bi-people-fill'],
     ['📜','bi-clock-history'],['📊','bi-bar-chart-line-fill'],['📅','bi-calendar-event-fill'],['🗓️','bi-calendar3'],['🔎','bi-search'],['🔍','bi-search'],
     ['💵','bi-cash-stack'],['🏦','bi-bank2'],['📈','bi-graph-up-arrow'],['💲','bi-currency-dollar'],['🧾','bi-receipt-cutoff'],
     ['✅','bi-check-circle-fill'],['💼','bi-briefcase-fill'],['📂','bi-folder-fill'],['✨','bi-stars'],['📝','bi-journal-text'],

@@ -97,3 +97,8 @@ Depois que um usuário entrar ao menos uma vez com internet neste aparelho, o VA
 - O primeiro login de cada usuário em um aparelho também exige internet.
 
 O modelo atual usa um documento JSON compartilhado por sessão. Quando dois aparelhos alteram o mesmo banco enquanto ambos estão offline, a última versão que conseguir sincronizar será a versão mantida no Supabase.
+
+
+## VALLE 3.6.43 — PIX na Área do Cliente
+
+Depois da configuração inicial, execute também `supabase/PAGAMENTOS_PIX_V3643.sql` no SQL Editor. Esse arquivo cria o histórico de pagamentos informados pelo cliente e atualiza a função do Portal do Cliente para retornar a configuração PIX da sessão.

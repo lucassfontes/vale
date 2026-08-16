@@ -2900,7 +2900,7 @@ body.partial-payment-open .receive-card {
 .global-message-modal {
   position: fixed;
   inset: 0;
-  z-index: 2147483000;
+  z-index: 2147483646 !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -18732,8 +18732,13 @@ body.bootstrap-only-ui {
 }
 
 .receive-bs-modal {
-  z-index: 1060 !important;
+  z-index: 2147483601 !important;
   text-transform: none !important
+}
+
+.receive-bs-modal .modal-dialog {
+  position: relative;
+  z-index: 2147483602 !important;
 }
 
 .receive-bs-modal.show {
@@ -22168,8 +22173,9 @@ body.v35-history-modal-open {
 
 /* Alertas globais Bootstrap: compactos, entram de cima para baixo e respeitam notch/câmera. */
 .app-alert-container {
-  position: fixed;
-  z-index: 2147483000 !important;
+  position: fixed !important;
+  z-index: 2147483647 !important;
+  isolation: isolate !important;
   top: calc(env(safe-area-inset-top, 0px) + 16px);
   right: 12px;
   width: min(340px, calc(100% - 24px));
@@ -30286,4 +30292,3219 @@ body.dark #emprestimo .loan-installment-preview { background: #111a2c; }
 #emprestimo .loan-installment-row.is-current {
   background: rgba(124, 58, 237, .09);
   box-shadow: inset 3px 0 0 #8b5cf6;
+}
+
+/* =========================================================
+   VALLE 3.6.25 — Crediário profissional
+   ========================================================= */
+#emprestimo .loan-contract-preview {
+  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px;
+}
+#emprestimo .loan-contract-preview > div {
+  padding:11px 12px; border:1px solid rgba(148,163,184,.18); border-radius:12px; background:var(--card);
+}
+#emprestimo .loan-contract-preview span,
+#emprestimo .loan-contract-preview strong { display:block; }
+#emprestimo .loan-contract-preview span { color:var(--muted); font-size:9px; font-weight:800; }
+#emprestimo .loan-contract-preview strong { margin-top:4px; font-size:13px; font-weight:900; }
+
+.crediarios-page-card { overflow:hidden; border-radius:20px; }
+.crediarios-page-header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px 20px; border-bottom:1px solid rgba(148,163,184,.16); }
+.crediarios-page-header h2 { font-size:1.15rem; font-weight:900; }
+.crediarios-page-header p { color:var(--muted); font-size:.78rem; }
+.crediarios-page-icon,.crediario-page-icon { width:46px; height:46px; display:grid; place-items:center; flex:0 0 46px; border-radius:14px; background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; font-size:20px; box-shadow:0 8px 20px rgba(124,58,237,.24); }
+.crediarios-summary-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+.crediario-summary-card { padding:15px; border:1px solid rgba(148,163,184,.18); border-radius:15px; background:var(--card); min-width:0; overflow:hidden; }
+.crediario-summary-card span,.crediario-summary-card strong,.crediario-summary-card small { display:block; min-width:0; }
+.crediario-summary-card span { color:var(--muted); font-size:9px; font-weight:900; }
+.crediario-summary-card span i { margin-right:5px; }
+.crediario-summary-card strong { margin-top:6px; display:block; width:100%; font-size:clamp(.82rem, 1.1vw + .45rem, 1.18rem); font-weight:900; line-height:1.05; white-space:nowrap; overflow:hidden; text-overflow:clip; font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
+.crediario-summary-card small { margin-top:3px; color:var(--muted); font-size:10px; overflow-wrap:anywhere; }
+.crediario-summary-card.danger strong { color:#ef4444; }
+.crediario-summary-card.success strong { color:#16a34a; }
+.crediarios-toolbar {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(250px,280px);
+  align-items:stretch;
+  gap:12px;
+}
+.crediarios-toolbar .input-group,
+.crediarios-toolbar .form-select {
+  width:100%;
+  min-width:0;
+}
+.crediarios-toolbar .input-group-text,
+.crediarios-toolbar .form-control,
+.crediarios-toolbar .form-select {
+  min-height:48px;
+}
+#filtroCrediariosStatus {
+  min-width:250px;
+  padding-right:3rem;
+  white-space:nowrap;
+  text-overflow:clip;
+}
+
+/* VALLE 3.6.28 — buscador de Crediários no mesmo padrão do sistema/Histórico */
+#crediarios .crediarios-search-group {
+  display:flex !important;
+  flex-wrap:nowrap !important;
+  align-items:stretch !important;
+  width:100% !important;
+  min-width:0 !important;
+  border-radius:13px !important;
+}
+
+#crediarios .crediarios-search-icon {
+  display:flex !important;
+  flex:0 0 48px !important;
+  width:48px !important;
+  min-width:48px !important;
+  height:48px !important;
+  margin:0 !important;
+  padding:0 !important;
+  align-items:center !important;
+  justify-content:center !important;
+  border:1px solid rgba(148,163,184,.22) !important;
+  border-right:0 !important;
+  border-radius:13px 0 0 13px !important;
+  background:#111a2b !important;
+  color:#a78bfa !important;
+}
+
+#crediarios #searchCrediarios.crediarios-search-input {
+  display:block !important;
+  flex:1 1 auto !important;
+  width:1% !important;
+  min-width:0 !important;
+  min-height:48px !important;
+  height:48px !important;
+  margin:0 !important;
+  padding:0 14px !important;
+  border:1px solid rgba(148,163,184,.22) !important;
+  border-left:0 !important;
+  border-radius:0 13px 13px 0 !important;
+  background:#111a2b !important;
+  color:#f8fafc !important;
+  box-shadow:none !important;
+  font-size:12px !important;
+  font-weight:800 !important;
+}
+
+#crediarios #searchCrediarios.crediarios-search-input::placeholder {
+  color:#8192b2 !important;
+  opacity:1 !important;
+}
+
+#crediarios .crediarios-search-group:focus-within .crediarios-search-icon,
+#crediarios .crediarios-search-group:focus-within #searchCrediarios {
+  border-color:#8b5cf6 !important;
+}
+
+#crediarios .crediarios-search-group:focus-within {
+  box-shadow:0 0 0 3px rgba(139,92,246,.15) !important;
+}
+
+body:not(.dark) #crediarios .crediarios-search-icon,
+body:not(.dark) #crediarios #searchCrediarios.crediarios-search-input {
+  background:#f8fafc !important;
+  color:#111827 !important;
+  border-color:#dbe3ef !important;
+}
+
+body:not(.dark) #crediarios #searchCrediarios.crediarios-search-input::placeholder {
+  color:#718096 !important;
+}
+.crediarios-list { display:grid; gap:14px; }
+.crediario-contract-card { padding:16px; border:1px solid rgba(148,163,184,.18); border-left:4px solid #6366f1; border-radius:16px; background:var(--card); box-shadow:0 8px 24px rgba(15,23,42,.05); }
+.crediario-contract-card.atrasado { border-left-color:#ef4444; }
+.crediario-contract-card.quitado { border-left-color:#16a34a; }
+.crediario-contract-head,.crediario-contract-ident,.crediario-contract-foot,.crediario-progress-head { display:flex; align-items:center; }
+.crediario-contract-head { justify-content:space-between; gap:12px; }
+.crediario-contract-ident { gap:11px; min-width:0; }
+.crediario-contract-icon { width:42px; height:42px; display:grid; place-items:center; flex:0 0 42px; border-radius:12px; background:rgba(124,58,237,.11); color:#8b5cf6; font-size:18px; }
+.crediario-contract-ident small { color:#8b5cf6; font-size:9px; font-weight:900; }
+.crediario-contract-ident h3 { margin:1px 0 0; font-size:1rem; font-weight:900; }
+.crediario-contract-ident p { margin:2px 0 0; color:var(--muted); font-size:9px; font-weight:700; }
+.crediario-progress-head { justify-content:space-between; margin-top:14px; font-size:10px; color:var(--muted); font-weight:800; }
+.crediario-progress { height:8px; margin-top:6px; }
+.crediario-contract-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; margin-top:13px; }
+.crediario-contract-stats > div { padding:10px 11px; border:1px solid rgba(148,163,184,.15); border-radius:11px; }
+.crediario-contract-stats span,.crediario-contract-stats strong { display:block; }
+.crediario-contract-stats span { color:var(--muted); font-size:8px; font-weight:900; }
+.crediario-contract-stats strong { margin-top:3px; font-size:12px; }
+.crediario-contract-stats .danger strong { color:#ef4444; }
+.crediario-contract-foot { justify-content:space-between; gap:12px; margin-top:13px; padding-top:13px; border-top:1px solid rgba(148,163,184,.14); }
+.crediario-contract-foot small,.crediario-contract-foot strong { display:block; }
+.crediario-contract-foot small { color:var(--muted); font-size:8px; font-weight:900; }
+.crediario-contract-foot strong { margin-top:3px; font-size:11px; }
+
+.crediario-detail-modal.modal { z-index: 12000 !important; }
+.crediario-detail-modal .modal-dialog { position: relative; z-index: 12010; }
+.crediario-detail-modal .modal-content { border:0; border-radius:20px; overflow:hidden; }
+.crediario-detail-header small { color:#8b5cf6; font-size:9px; font-weight:900; }
+.crediario-detail-summary { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:9px; }
+.crediario-detail-summary > div { padding:11px; border:1px solid rgba(148,163,184,.17); border-radius:12px; }
+.crediario-detail-summary span,.crediario-detail-summary strong { display:block; }
+.crediario-detail-summary span { color:var(--muted); font-size:8px; font-weight:900; }
+.crediario-detail-summary strong { margin-top:4px; font-size:12px; }
+.crediario-detail-summary .danger strong { color:#ef4444; }
+.crediario-detail-progress { padding:13px; border:1px solid rgba(148,163,184,.17); border-radius:13px; }
+.crediario-detail-progress > div:first-child { display:flex; justify-content:space-between; gap:12px; font-size:10px; font-weight:900; }
+.crediario-detail-progress .progress { height:9px; margin-top:8px; }
+.crediario-detail-rules { display:flex; flex-wrap:wrap; gap:8px; }
+.crediario-detail-rules > span { padding:8px 10px; border-radius:10px; background:rgba(124,58,237,.08); font-size:9px; font-weight:800; }
+.crediario-detail-toolbar { display:flex; align-items:end; justify-content:space-between; gap:12px; }
+.crediario-detail-toolbar p { color:var(--muted); font-size:10px; }
+.crediario-installment-detail-list { display:grid; gap:8px; }
+.crediario-installment-detail { display:grid; grid-template-columns:34px 50px minmax(150px,1.2fr) minmax(110px,.8fr) minmax(110px,.8fr) auto; align-items:center; gap:10px; padding:10px; border:1px solid rgba(148,163,184,.16); border-radius:12px; }
+.crediario-installment-detail.atrasado { border-left:3px solid #ef4444; }
+.crediario-installment-detail.pago { opacity:.78; }
+.crediario-installment-number strong,.crediario-installment-number small { display:block; text-align:center; }
+.crediario-installment-number strong { font-size:14px; }
+.crediario-installment-number small { color:var(--muted); font-size:8px; }
+.crediario-installment-info strong,.crediario-installment-info small { display:block; }
+.crediario-installment-info strong { margin-top:4px; font-size:11px; }
+.crediario-installment-info small { margin-top:2px; color:var(--muted); font-size:8px; }
+.crediario-installment-money small,.crediario-installment-money strong,.crediario-installment-money span { display:block; }
+.crediario-installment-money small { color:var(--muted); font-size:8px; font-weight:900; }
+.crediario-installment-money strong { margin-top:3px; font-size:11px; }
+.crediario-installment-money span { color:#ef4444; font-size:8px; }
+.crediario-installment-actions { display:flex; gap:5px; }
+
+body.dark .crediario-contract-card,
+body.dark .crediario-summary-card,
+body.dark #emprestimo .loan-contract-preview > div { background:#111a2c; border-color:#263449; }
+
+@media (max-width: 900px) {
+  .crediarios-summary-grid,.crediario-contract-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .crediario-detail-summary { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .crediario-installment-detail { grid-template-columns:30px 42px minmax(130px,1fr) minmax(100px,.8fr) auto; }
+  .crediario-installment-detail .crediario-installment-money:nth-of-type(5) { display:none; }
+  .crediario-installment-actions span { display:none; }
+}
+@media (max-width: 575.98px) {
+  #emprestimo .loan-contract-preview { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .crediarios-page-header { align-items:flex-start; flex-direction:column; }
+  .crediarios-page-header .btn { width:100%; }
+  .crediarios-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .crediario-summary-card strong { font-size:clamp(.74rem, 3.7vw, .98rem); }
+  .crediarios-toolbar { grid-template-columns:1fr; }
+  #filtroCrediariosStatus { min-width:0; }
+  .crediario-contract-head,.crediario-contract-foot,.crediario-detail-toolbar { align-items:flex-start; flex-direction:column; }
+  .crediario-contract-foot .btn { width:100%; }
+  .crediario-detail-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .crediario-detail-progress > div:first-child { flex-direction:column; gap:3px; }
+  .crediario-installment-detail { grid-template-columns:28px 38px minmax(0,1fr) auto; gap:7px; }
+  .crediario-installment-detail .crediario-installment-money { display:none; }
+  .crediario-installment-actions { flex-direction:column; }
+  .crediario-installment-actions .btn { padding:.25rem .4rem; }
+}
+
+
+/* =========================================================
+   VALLE 3.6.26 — Alinhamento dos campos de data do Novo Vale
+   Mantém DATA INICIAL e DATA FINAL/PRIMEIRO VENCIMENTO na
+   mesma linha visual, independentemente da altura dos campos
+   de taxa posicionados acima.
+   ========================================================= */
+#emprestimo .loan-date-row-wrap {
+  margin-top: 0;
+}
+
+#emprestimo .loan-date-row {
+  align-items: flex-start;
+}
+
+#emprestimo .loan-date-row > [class*="col-"] {
+  display: flex;
+  flex-direction: column;
+}
+
+#emprestimo .loan-date-row .form-label {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+}
+
+#emprestimo .loan-date-row .loan-form-control {
+  width: 100%;
+}
+
+
+/* =========================================================
+   VALLE 3.6.27 — Barra de busca e filtro dos Crediários
+   Corrige corte de "TODOS OS STATUS" e mantém busca/filtro
+   com a mesma altura no desktop e empilhados no celular.
+   ========================================================= */
+
+
+/* VALLE 3.6.30 — responsividade do modal de detalhes do crediário */
+.crediario-detail-modal .modal-dialog {
+  width: min(96vw, 1120px);
+  max-width: 1120px;
+  margin: 1rem auto;
+}
+.crediario-detail-modal .modal-content {
+  max-height: min(92vh, 980px);
+}
+.crediario-detail-modal .modal-header,
+.crediario-detail-modal .modal-footer {
+  gap: 12px;
+}
+.crediario-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.crediario-detail-header > div {
+  min-width: 0;
+}
+.crediario-detail-modal .modal-body {
+  overflow-x: hidden;
+}
+.crediario-detail-summary {
+  grid-template-columns: repeat(6, minmax(110px, 1fr));
+}
+.crediario-detail-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.crediario-detail-toolbar > div:first-child {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.crediario-detail-toolbar > div:last-child {
+  flex: 1 1 360px;
+  min-width: 0;
+  justify-content: flex-end;
+}
+.crediario-installment-detail {
+  grid-template-areas: "check number info parcela receber actions";
+}
+.crediario-installment-check { grid-area: check; }
+.crediario-installment-number { grid-area: number; }
+.crediario-installment-info { grid-area: info; min-width: 0; }
+.crediario-installment-money:nth-of-type(4) { grid-area: parcela; }
+.crediario-installment-money:nth-of-type(5) { grid-area: receber; }
+.crediario-installment-actions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.crediario-installment-actions .btn {
+  white-space: nowrap;
+}
+
+@media (max-width: 1199.98px) {
+  .crediario-detail-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .crediario-installment-detail {
+    grid-template-columns: 34px 46px minmax(160px, 1fr) minmax(112px, .9fr) minmax(112px, .9fr) auto;
+    gap: 9px;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .crediario-detail-modal .modal-dialog {
+    width: min(98vw, 920px);
+  }
+  .crediario-detail-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .crediario-detail-toolbar > div:last-child {
+    flex: 1 1 100%;
+    justify-content: stretch;
+  }
+  .crediario-detail-toolbar > div:last-child .btn {
+    flex: 1 1 220px;
+  }
+  .crediario-installment-detail {
+    grid-template-columns: 34px 42px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "check number info actions"
+      "check number parcela receber";
+    align-items: center;
+  }
+  .crediario-installment-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .crediario-detail-modal .modal-dialog {
+    width: calc(100vw - 12px);
+    margin: 6px auto;
+  }
+  .crediario-detail-modal .modal-content {
+    border-radius: 18px;
+  }
+  .crediario-detail-summary {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .crediario-detail-summary > div,
+  .crediario-detail-progress {
+    padding: 10px;
+  }
+  .crediario-detail-rules {
+    gap: 6px;
+  }
+  .crediario-detail-rules > span {
+    flex: 1 1 100%;
+  }
+  .crediario-detail-toolbar {
+    gap: 12px;
+  }
+  .crediario-detail-toolbar > div:last-child {
+    flex-direction: column;
+  }
+  .crediario-detail-toolbar > div:last-child .btn {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+  .crediario-installment-detail {
+    grid-template-columns: 28px minmax(0, 1fr);
+    grid-template-areas:
+      "check info"
+      "number info"
+      "parcela receber"
+      "actions actions";
+    gap: 8px;
+    padding: 10px;
+  }
+  .crediario-installment-number strong,
+  .crediario-installment-number small {
+    text-align: left;
+  }
+  .crediario-installment-money {
+    min-width: 0;
+  }
+  .crediario-installment-actions {
+    justify-content: stretch;
+  }
+  .crediario-installment-actions .btn {
+    width: 100%;
+  }
+  .crediario-detail-modal .modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .crediario-detail-modal .modal-footer .btn {
+    width: 100%;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.31 — Crediário responsivo pela largura do modal
+   Não depende do breakpoint da janela/zoom do navegador.
+   ========================================================= */
+.crediario-detail-modal .modal-content {
+  container-type: inline-size;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden !important;
+}
+.crediario-detail-modal .modal-body {
+  width: 100%;
+  min-width: 0;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+.crediario-detail-modal .modal-header,
+.crediario-detail-modal .modal-footer,
+.crediario-detail-summary,
+.crediario-detail-progress,
+.crediario-detail-rules,
+.crediario-detail-toolbar,
+.crediario-installment-detail-list,
+.crediario-installment-detail {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+/* Resumo: adapta-se ao espaço real disponível. */
+.crediario-detail-summary {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)) !important;
+  gap: 10px !important;
+}
+.crediario-detail-summary > div {
+  min-width: 0 !important;
+}
+.crediario-detail-summary strong {
+  overflow-wrap: anywhere;
+}
+
+/* Título de PARCELAS e ações nunca ficam espremidos lado a lado. */
+.crediario-detail-toolbar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: stretch !important;
+  gap: 12px !important;
+}
+.crediario-detail-toolbar > div:first-child,
+.crediario-detail-toolbar > div:last-child {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  flex: none !important;
+}
+.crediario-detail-toolbar > div:last-child {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+  gap: 8px !important;
+  justify-content: stretch !important;
+}
+.crediario-detail-toolbar > div:last-child .btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  white-space: normal !important;
+  line-height: 1.15;
+  min-height: 44px;
+}
+
+/* Cada parcela vira um card flexível, com ações em uma linha própria. */
+.crediario-installment-detail {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: 34px 46px minmax(120px, 1fr) minmax(100px, .75fr) minmax(100px, .75fr) !important;
+  grid-template-areas:
+    "check number info parcela receber"
+    "actions actions actions actions actions" !important;
+  align-items: center !important;
+  gap: 9px 10px !important;
+  padding: 12px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+.crediario-installment-check { grid-area: check !important; }
+.crediario-installment-number { grid-area: number !important; }
+.crediario-installment-info { grid-area: info !important; min-width: 0 !important; }
+.crediario-installment-parcela { grid-area: parcela !important; min-width: 0 !important; }
+.crediario-installment-receber { grid-area: receber !important; min-width: 0 !important; }
+.crediario-installment-actions {
+  grid-area: actions !important;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(105px, max-content)) !important;
+  justify-content: end !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+}
+.crediario-installment-actions .btn {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+}
+
+/* Regras do contrato também quebram de forma natural. */
+.crediario-detail-rules > span {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-wrap: anywhere;
+}
+
+/* O comportamento agora responde à largura do próprio MODAL. */
+@container (max-width: 760px) {
+  .crediario-detail-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+  .crediario-detail-toolbar > div:last-child {
+    grid-template-columns: 1fr !important;
+  }
+  .crediario-installment-detail {
+    grid-template-columns: 34px 46px minmax(0, 1fr) minmax(105px, .8fr) !important;
+    grid-template-areas:
+      "check number info parcela"
+      "check number info receber"
+      "actions actions actions actions" !important;
+  }
+  .crediario-installment-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    justify-content: stretch !important;
+  }
+  .crediario-installment-actions .btn {
+    width: 100% !important;
+  }
+}
+
+@container (max-width: 560px) {
+  .crediario-detail-header {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+  }
+  .crediario-detail-header > div:first-child {
+    min-width: 0 !important;
+  }
+  .crediario-detail-header h2 {
+    font-size: 1.15rem !important;
+  }
+  .crediario-detail-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .crediario-detail-progress > div:first-child {
+    display: grid !important;
+    gap: 4px !important;
+  }
+  .crediario-detail-rules {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+  .crediario-installment-detail {
+    grid-template-columns: 32px minmax(0, 1fr) minmax(92px, .75fr) !important;
+    grid-template-areas:
+      "check info parcela"
+      "number info receber"
+      "actions actions actions" !important;
+  }
+  .crediario-installment-number strong,
+  .crediario-installment-number small {
+    text-align: center !important;
+  }
+  .crediario-installment-actions {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@container (max-width: 390px) {
+  .crediario-detail-summary {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .crediario-installment-detail {
+    grid-template-columns: 30px minmax(0, 1fr) !important;
+    grid-template-areas:
+      "check info"
+      "number info"
+      "parcela receber"
+      "actions actions" !important;
+  }
+  .crediario-installment-parcela,
+  .crediario-installment-receber {
+    padding-top: 4px;
+  }
+}
+
+/* =========================================================
+   VALLE 3.6.32 — modal de crediário com rolagem interna real
+   Corrige o wrapper intermediário que impedia o Bootstrap de
+   limitar a altura e rolar corretamente o corpo do modal.
+   ========================================================= */
+.crediario-detail-modal .modal-dialog {
+  height: calc(100dvh - 24px) !important;
+  max-height: calc(100dvh - 24px) !important;
+  margin-top: 12px !important;
+  margin-bottom: 12px !important;
+}
+
+.crediario-detail-modal .modal-content {
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+/* Este wrapper é o filho direto do .modal-content no VALLE. */
+#crediarioDetailContent {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex: 1 1 auto !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.crediario-detail-modal .modal-header,
+.crediario-detail-modal .modal-footer {
+  flex: 0 0 auto !important;
+  position: relative;
+  z-index: 2;
+}
+
+.crediario-detail-modal .modal-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Evita que grids/botões criem largura extra e barra horizontal. */
+.crediario-detail-modal .modal-body > *,
+.crediario-detail-modal .crediario-detail-summary,
+.crediario-detail-modal .crediario-detail-toolbar,
+.crediario-detail-modal .crediario-installment-detail-list,
+.crediario-detail-modal .crediario-installment-detail {
+  width: 100%;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* Em telas baixas reduz um pouco os espaços para sobrar área às parcelas. */
+@media (max-height: 760px) {
+  .crediario-detail-modal .modal-header {
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+  }
+  .crediario-detail-modal .modal-body {
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+  }
+  .crediario-detail-modal .crediario-detail-summary,
+  .crediario-detail-modal .crediario-detail-progress,
+  .crediario-detail-modal .crediario-detail-rules,
+  .crediario-detail-modal .crediario-detail-toolbar {
+    margin-top: 10px !important;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .crediario-detail-modal .modal-dialog {
+    width: calc(100vw - 8px) !important;
+    height: calc(100dvh - 8px) !important;
+    max-height: calc(100dvh - 8px) !important;
+    margin: 4px auto !important;
+  }
+  .crediario-detail-modal .modal-content {
+    border-radius: 16px !important;
+  }
+  .crediario-detail-modal .modal-header,
+  .crediario-detail-modal .modal-body,
+  .crediario-detail-modal .modal-footer {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.33 — checkbox profissional do crediário
+   ========================================================= */
+.crediario-installment-check {
+  display: grid !important;
+  place-items: center !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+}
+
+.crediario-check-control {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.crediario-check-control .crediario-parcela-check {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 32px !important;
+  height: 32px !important;
+  margin: 0 !important;
+  opacity: 0 !important;
+  cursor: pointer !important;
+  z-index: 2 !important;
+}
+
+.crediario-check-ui {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #526079;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, .34);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+  transition: border-color .16s ease, background .16s ease, box-shadow .16s ease, transform .12s ease;
+  pointer-events: none;
+}
+
+.crediario-check-ui i {
+  font-size: 17px;
+  line-height: 1;
+  font-weight: 900;
+  opacity: 0;
+  transform: scale(.55);
+  transition: opacity .12s ease, transform .12s ease;
+}
+
+.crediario-check-control:hover .crediario-check-ui {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 4px rgba(139,92,246,.12);
+}
+
+.crediario-check-control .crediario-parcela-check:focus-visible + .crediario-check-ui {
+  border-color: #a855f7;
+  box-shadow: 0 0 0 4px rgba(139,92,246,.22);
+}
+
+.crediario-check-control .crediario-parcela-check:checked + .crediario-check-ui {
+  border-color: #8b5cf6;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  box-shadow: 0 6px 16px rgba(124,58,237,.28);
+  transform: scale(1.03);
+}
+
+.crediario-check-control .crediario-parcela-check:checked + .crediario-check-ui i {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.crediario-installment-detail:has(.crediario-parcela-check:checked) {
+  border-color: rgba(139,92,246,.72) !important;
+  background: linear-gradient(90deg, rgba(124,58,237,.10), rgba(124,58,237,.025)) !important;
+  box-shadow: inset 0 0 0 1px rgba(139,92,246,.10);
+}
+
+#crediarioSelectVisibleBtn.active,
+#crediarioSelectVisibleBtn[aria-pressed="true"] {
+  color: #fff !important;
+  border-color: #8b5cf6 !important;
+  background: linear-gradient(135deg, #7c3aed, #9333ea) !important;
+  box-shadow: 0 8px 22px rgba(124,58,237,.20);
+}
+
+body:not(.dark) .crediario-check-ui {
+  border-color: #a9b5c8;
+  background: #fff;
+}
+body:not(.dark) .crediario-check-control .crediario-parcela-check:checked + .crediario-check-ui {
+  border-color: #7c3aed;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+}
+
+@media (max-width: 575.98px) {
+  .crediario-check-control,
+  .crediario-check-control .crediario-parcela-check {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  .crediario-check-ui {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.35 — Crediário e modais responsivos no celular
+   ========================================================= */
+@media (max-width: 767.98px) {
+  .receive-bs-modal .modal-dialog,
+  .crediario-detail-modal .modal-dialog,
+  .valle-client-modal .modal-dialog,
+  #abrirValeSenhaModal .modal-dialog,
+  .avisos-celular-modal .modal-dialog {
+    width: calc(100vw - 10px) !important;
+    max-width: none !important;
+    margin: 5px auto !important;
+  }
+
+  .receive-bs-modal .modal-content,
+  .crediario-detail-modal .modal-content,
+  .valle-client-modal .modal-content,
+  #abrirValeSenhaModal .modal-content,
+  .avisos-celular-modal .modal-content {
+    max-height: calc(100dvh - 10px) !important;
+    border-radius: 18px !important;
+  }
+
+  .valle-client-modal .modal-header,
+  .valle-client-modal .modal-body,
+  .valle-client-modal .modal-footer,
+  .receive-bs-modal .modal-header,
+  .receive-bs-modal .modal-body,
+  .receive-bs-modal .modal-footer,
+  .crediario-detail-modal .modal-header,
+  .crediario-detail-modal .modal-body,
+  .crediario-detail-modal .modal-footer,
+  #abrirValeSenhaModal .modal-header,
+  #abrirValeSenhaModal .modal-body,
+  #abrirValeSenhaModal .modal-footer {
+    padding-left: .9rem !important;
+    padding-right: .9rem !important;
+  }
+
+  .valle-client-modal .modal-header,
+  .receive-bs-modal .modal-header,
+  .crediario-detail-modal .modal-header,
+  #abrirValeSenhaModal .modal-header {
+    padding-top: .9rem !important;
+    padding-bottom: .9rem !important;
+    align-items: flex-start !important;
+  }
+
+  .valle-client-modal .modal-body,
+  .receive-bs-modal .modal-body,
+  .crediario-detail-modal .modal-body,
+  #abrirValeSenhaModal .modal-body {
+    padding-top: .85rem !important;
+    padding-bottom: .85rem !important;
+  }
+
+  .valle-client-modal .modal-footer,
+  .receive-bs-modal .modal-footer,
+  .crediario-detail-modal .modal-footer,
+  #abrirValeSenhaModal .modal-footer {
+    padding-top: .8rem !important;
+    padding-bottom: max(.9rem, env(safe-area-inset-bottom)) !important;
+    gap: .6rem !important;
+  }
+
+  .valle-client-modal .modal-footer .btn,
+  .receive-bs-modal .modal-footer .btn,
+  .crediario-detail-modal .modal-footer .btn,
+  #abrirValeSenhaModal .modal-footer .btn,
+  .partial-payment-actions .btn {
+    width: 100% !important;
+  }
+
+  .valle-client-modal .client-modal-title-icon {
+    width: 40px !important;
+    height: 40px !important;
+    flex: 0 0 40px !important;
+    border-radius: 12px !important;
+    font-size: 18px !important;
+  }
+
+  .valle-client-modal .modal-title {
+    font-size: 1.05rem !important;
+  }
+
+  .valle-client-modal .client-modal-subtitle {
+    font-size: 11px !important;
+  }
+
+  .valle-client-modal .row > [class*="col-"] {
+    margin-bottom: .35rem;
+  }
+
+  .receive-bs-modal .modal-dialog {
+    height: calc(100dvh - 10px) !important;
+  }
+
+  .receive-bs-modal .modal-content,
+  .receive-bs-modal #receiveModalBody {
+    height: 100% !important;
+    max-height: 100% !important;
+  }
+
+  .receive-bs-modal .receive-bs-number {
+    min-width: 0 !important;
+    width: auto !important;
+  }
+
+  .receive-bs-modal .receive-bs-value {
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  .receive-bs-modal .modal-body > .row,
+  .receive-bs-modal .modal-footer > .row {
+    --bs-gutter-x: .55rem !important;
+    --bs-gutter-y: .55rem !important;
+  }
+
+  .receive-bs-modal #receiveActionsGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .receive-bs-modal .btn {
+    white-space: normal !important;
+  }
+
+  .partial-payment-modal {
+    padding: 10px !important;
+    align-items: flex-end !important;
+  }
+
+  .partial-payment-card {
+    width: 100% !important;
+    max-height: calc(100dvh - 20px) !important;
+    overflow-y: auto !important;
+    border-radius: 18px !important;
+    padding: 18px !important;
+  }
+
+  .partial-payment-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  .crediarios-page-header {
+    padding: 16px !important;
+  }
+
+  .crediarios-summary-grid,
+  .crediario-contract-stats,
+  .crediario-detail-summary {
+    gap: 8px !important;
+  }
+
+  .crediario-summary-card,
+  .crediario-contract-card {
+    padding: 12px !important;
+  }
+
+  .crediario-contract-head,
+  .crediario-contract-foot,
+  .crediario-detail-toolbar,
+  .crediario-progress-head {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .crediario-contract-foot .btn,
+  .crediario-detail-toolbar .btn {
+    width: 100% !important;
+  }
+
+  .crediario-detail-modal .modal-content {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .crediario-detail-modal .modal-body {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .crediario-detail-rules > span {
+    flex: 1 1 100% !important;
+  }
+
+  .crediario-detail-toolbar > div:last-child {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+  }
+
+  .crediario-installment-detail {
+    grid-template-columns: 28px minmax(0,1fr) !important;
+    grid-template-areas:
+      "check info"
+      "number info"
+      "parcela receber"
+      "actions actions" !important;
+    align-items: start !important;
+    gap: 8px !important;
+    padding: 10px !important;
+  }
+
+  .crediario-installment-number strong,
+  .crediario-installment-number small {
+    text-align: left !important;
+  }
+
+  .crediario-installment-money {
+    display: block !important;
+    min-width: 0 !important;
+  }
+
+  .crediario-installment-actions {
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+
+  .crediario-installment-actions .btn {
+    width: 100% !important;
+  }
+
+  #abrirValeSenhaModal .modal-footer {
+    flex-direction: column !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .crediarios-summary-grid,
+  .crediario-contract-stats,
+  .crediario-detail-summary,
+  #emprestimo .loan-contract-preview {
+    grid-template-columns: 1fr !important;
+  }
+
+  .receive-bs-modal h2,
+  .crediario-detail-header h2,
+  .valle-client-modal .modal-title,
+  #abrirValeSenhaModal .abrir-vale-senha-titulos h2 {
+    font-size: 1rem !important;
+  }
+
+  .receive-bs-modal .receive-bs-value,
+  .crediario-detail-summary strong,
+  .crediario-contract-stats strong {
+    font-size: .98rem !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.36 — Área do Cliente
+   ========================================================= */
+.client-access-modal.modal{z-index:2147483602!important}
+.client-access-modal .modal-dialog{width:min(94vw,560px);max-width:560px}
+.client-access-modal .modal-content{border:1px solid rgba(139,92,246,.28);border-radius:20px;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.52)}
+.client-access-modal .modal-header{padding:18px 20px;border-bottom:1px solid rgba(148,163,184,.16)}
+.client-access-modal .modal-body{padding:20px}
+.client-access-modal .modal-footer{padding:14px 20px;border-top:1px solid rgba(148,163,184,.16)}
+.client-access-icon{width:44px;height:44px;display:grid;place-items:center;flex:0 0 44px;border-radius:13px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:19px}
+.client-access-modal .modal-header small{color:#8b5cf6;font-size:9px;font-weight:900;letter-spacing:.06em}
+.client-access-active{display:flex;align-items:flex-start;gap:12px;padding:13px;border:1px solid rgba(148,163,184,.18);border-radius:13px;cursor:pointer}
+.client-access-active input{margin-top:3px}
+.client-access-active span,.client-access-active strong,.client-access-active small{display:block}
+.client-access-active small{margin-top:2px;color:var(--muted);font-size:11px}
+
+.client-portal{min-height:100dvh;background:var(--bg,#f5f7fb);color:var(--text,#0f172a);text-transform:none!important}
+.client-portal-top{position:sticky;top:0;z-index:80;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px clamp(16px,4vw,44px);border-bottom:1px solid rgba(148,163,184,.16);background:color-mix(in srgb,var(--card,#fff) 94%,transparent);backdrop-filter:blur(18px)}
+.client-portal-brand,.client-portal-user{display:flex;align-items:center;gap:11px;min-width:0}
+.client-portal-brand img{width:42px;height:42px;border-radius:13px}
+.client-portal-brand strong,.client-portal-brand small,.client-portal-user strong,.client-portal-user small{display:block}
+.client-portal-brand strong{font-size:17px;font-weight:950}
+.client-portal-brand small,.client-portal-user small{color:var(--muted);font-size:9px;font-weight:800}
+.client-portal-user{text-align:right}
+.client-portal-main{width:min(1180px,calc(100% - 32px));margin:0 auto;padding:28px 0 48px}
+.client-portal-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:24px;border:1px solid rgba(139,92,246,.2);border-radius:22px;background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(59,130,246,.06));box-shadow:0 15px 40px rgba(15,23,42,.06)}
+.client-portal-hero small,.client-portal-section-head small{color:#8b5cf6;font-size:9px;font-weight:950;letter-spacing:.08em}
+.client-portal-hero h1{margin:4px 0 3px;font-size:clamp(1.35rem,4vw,2rem);font-weight:950}
+.client-portal-hero p{margin:0;color:var(--muted);font-size:.9rem}
+.client-portal-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}
+.client-portal-summary article{padding:16px;border:1px solid rgba(148,163,184,.18);border-radius:16px;background:var(--card,#fff);box-shadow:0 8px 24px rgba(15,23,42,.04)}
+.client-portal-summary span,.client-portal-summary strong,.client-portal-summary small{display:block}
+.client-portal-summary span{color:var(--muted);font-size:9px;font-weight:900}.client-portal-summary span i{margin-right:6px}
+.client-portal-summary strong{margin-top:7px;font-size:1.15rem;font-weight:950}.client-portal-summary small{margin-top:3px;color:var(--muted);font-size:10px}
+.client-portal-summary .danger strong{color:#ef4444}.client-portal-summary .success strong{color:#16a34a}
+.client-portal-section{margin-top:26px}
+.client-portal-section-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:11px}
+.client-portal-section-head h2{margin:3px 0 0;font-size:1.15rem;font-weight:950}
+.client-portal-contracts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.client-portal-contract{padding:16px;border:1px solid rgba(148,163,184,.18);border-left:4px solid #7c3aed;border-radius:17px;background:var(--card,#fff)}
+.client-portal-contract.is-late{border-left-color:#ef4444}
+.client-portal-contract-head,.client-portal-progress-copy{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.client-portal-contract-head small{color:#8b5cf6;font-size:9px;font-weight:900}.client-portal-contract-head h3{margin:2px 0 0;font-size:1rem;font-weight:900}
+.client-portal-progress-copy{margin-top:13px;color:var(--muted);font-size:10px;font-weight:800}.client-portal-contract .progress{height:8px;margin-top:6px}
+.client-portal-contract-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:13px}
+.client-portal-contract-stats>div{padding:10px;border:1px solid rgba(148,163,184,.15);border-radius:11px}.client-portal-contract-stats span,.client-portal-contract-stats strong{display:block}.client-portal-contract-stats span{color:var(--muted);font-size:8px;font-weight:900}.client-portal-contract-stats strong{margin-top:3px;font-size:11px}
+.client-portal-vales{display:grid;gap:9px}.client-portal-vale{padding:13px 14px;border:1px solid rgba(148,163,184,.17);border-left:3px solid #6366f1;border-radius:14px;background:var(--card,#fff)}.client-portal-vale.atrasado{border-left-color:#ef4444}.client-portal-vale.pago{border-left-color:#16a34a;opacity:.84}
+.client-portal-vale-main,.client-portal-vale-values{display:flex;align-items:center;justify-content:space-between;gap:12px}.client-portal-vale-main small,.client-portal-vale-main strong{display:block}.client-portal-vale-main small{color:var(--muted);font-size:9px;font-weight:850}.client-portal-vale-main strong{margin-top:3px;font-size:12px}
+.client-portal-vale-values{justify-content:flex-start;gap:36px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(148,163,184,.13)}.client-portal-vale-values span,.client-portal-vale-values strong,.client-portal-vale-values small{display:block}.client-portal-vale-values span{color:var(--muted);font-size:8px;font-weight:900}.client-portal-vale-values strong{margin-top:2px;font-size:12px}.client-portal-vale-values small{color:#ef4444;font-size:8px}
+.client-portal-empty{display:grid;place-items:center;text-align:center;gap:5px;padding:28px;border:1px dashed rgba(148,163,184,.25);border-radius:16px;color:var(--muted)}.client-portal-empty i{font-size:24px}.client-portal-empty strong{color:var(--text);font-size:12px}.client-portal-empty span{font-size:11px}
+body.dark .client-portal{background:#07101f}body.dark .client-portal-summary article,body.dark .client-portal-contract,body.dark .client-portal-vale{background:#0f192b;border-color:#25344b}
+
+@media(max-width:900px){.client-portal-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.client-portal-contracts{grid-template-columns:1fr}}
+@media(max-width:575.98px){
+ .client-access-modal .modal-dialog{width:calc(100vw - 10px);margin:5px auto}.client-access-modal .modal-content{max-height:calc(100dvh - 10px);border-radius:17px}.client-access-modal .modal-body{overflow-y:auto;padding:15px}.client-access-modal .modal-header,.client-access-modal .modal-footer{padding:13px 15px}.client-access-modal .modal-footer{display:grid;grid-template-columns:1fr}.client-access-modal .modal-footer .btn{width:100%;margin:0!important}.client-access-modal #clientAccessDelete{order:3}
+ .client-portal-top{padding:10px 12px}.client-portal-brand img{width:36px;height:36px}.client-portal-brand small{display:none}.client-portal-user>div{display:none}.client-portal-user .btn span{display:none}.client-portal-main{width:calc(100% - 20px);padding:14px 0 30px}.client-portal-hero{align-items:flex-start;flex-direction:column;padding:16px;border-radius:17px}.client-portal-hero .btn{width:100%}.client-portal-summary{grid-template-columns:1fr 1fr;gap:8px}.client-portal-summary article{padding:12px}.client-portal-summary strong{font-size:1rem}.client-portal-section{margin-top:20px}.client-portal-contract{padding:13px}.client-portal-contract-stats{grid-template-columns:1fr 1fr 1fr}.client-portal-vale-main{align-items:flex-start}.client-portal-vale-values{gap:14px}.client-portal-vale-values>div{flex:1 1 0;min-width:0}.client-portal-vale-values strong{overflow-wrap:anywhere}
+}
+@media(max-width:380px){.client-portal-summary{grid-template-columns:1fr}.client-portal-contract-stats{grid-template-columns:1fr 1fr}.client-portal-vale-main{flex-direction:column}.client-portal-vale-values{flex-direction:column;gap:8px}}
+
+
+/* =========================================================
+   VALLE 3.6.37 — Acesso do cliente responsivo + texto fiel
+   ========================================================= */
+.client-access-modal .modal-dialog {
+  width: min(94vw, 600px) !important;
+  max-width: 600px !important;
+  margin: 1rem auto !important;
+}
+
+.client-access-modal .modal-content,
+.client-access-modal #clientAccessForm {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.client-access-modal #clientAccessForm {
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: calc(100dvh - 2rem) !important;
+}
+
+.client-access-modal .modal-header,
+.client-access-modal .modal-footer {
+  flex: 0 0 auto !important;
+}
+
+.client-access-modal .modal-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.client-access-modal .modal-header > div:first-child {
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+.client-access-modal #clientAccessTitle {
+  overflow-wrap: anywhere !important;
+}
+
+.client-access-modal .form-label {
+  display: block !important;
+  margin-bottom: 8px !important;
+  line-height: 1.25 !important;
+}
+
+.client-access-modal .client-access-field {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  border: 1px solid rgba(148,163,184,.22) !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  background: color-mix(in srgb,var(--card,#111827) 94%,var(--bg,#0b1220) 6%) !important;
+  transition: border-color .18s ease, box-shadow .18s ease !important;
+}
+
+.client-access-modal .client-access-field:focus-within {
+  border-color: #8b5cf6 !important;
+  box-shadow: 0 0 0 3px rgba(139,92,246,.16) !important;
+}
+
+.client-access-modal .client-access-field .input-group-text {
+  width: 50px !important;
+  min-width: 50px !important;
+  min-height: 50px !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-right: 1px solid rgba(148,163,184,.16) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #a78bfa !important;
+  font-size: 1rem !important;
+}
+
+.client-access-modal .client-access-field .form-control {
+  flex: 1 1 auto !important;
+  width: 1% !important;
+  min-width: 0 !important;
+  min-height: 50px !important;
+  padding: .75rem .9rem !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  color: var(--text,#f8fafc) !important;
+  box-shadow: none !important;
+  font-size: 1rem !important;
+  line-height: 1.25 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+
+.client-access-modal #clientAccessEmail,
+.client-access-modal #clientAccessPassword,
+.client-access-modal #clientAccessEmail::placeholder,
+.client-access-modal #clientAccessPassword::placeholder {
+  text-transform: none !important;
+}
+
+.client-access-modal #clientAccessEmail::placeholder,
+.client-access-modal #clientAccessPassword::placeholder {
+  color: var(--muted,#94a3b8) !important;
+  opacity: .9 !important;
+}
+
+.client-access-modal .client-access-active {
+  width: 100% !important;
+  min-width: 0 !important;
+  align-items: center !important;
+}
+
+.client-access-modal .client-access-active .form-check-input {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  margin: 0 !important;
+  flex: 0 0 22px !important;
+}
+
+.client-access-modal .client-access-active span {
+  min-width: 0 !important;
+}
+
+.client-access-modal .modal-footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+}
+
+.client-access-modal .modal-footer .btn {
+  margin: 0 !important;
+  min-height: 44px !important;
+  white-space: normal !important;
+}
+
+.client-access-modal #clientAccessDelete {
+  margin-right: auto !important;
+}
+
+@media (max-width: 575.98px) {
+  .client-access-modal .modal-dialog {
+    width: calc(100vw - 12px) !important;
+    margin: 6px auto !important;
+  }
+
+  .client-access-modal .modal-content {
+    max-height: calc(100dvh - 12px) !important;
+    border-radius: 17px !important;
+  }
+
+  .client-access-modal #clientAccessForm {
+    max-height: calc(100dvh - 12px) !important;
+  }
+
+  .client-access-modal .modal-header {
+    padding: 14px !important;
+    gap: 10px !important;
+  }
+
+  .client-access-modal .client-access-icon {
+    width: 40px !important;
+    height: 40px !important;
+    flex: 0 0 40px !important;
+    border-radius: 12px !important;
+  }
+
+  .client-access-modal #clientAccessTitle {
+    font-size: 1.05rem !important;
+  }
+
+  .client-access-modal .modal-body {
+    padding: 14px !important;
+  }
+
+  .client-access-modal .client-access-field .input-group-text {
+    width: 46px !important;
+    min-width: 46px !important;
+    min-height: 48px !important;
+  }
+
+  .client-access-modal .client-access-field .form-control {
+    min-height: 48px !important;
+    font-size: 16px !important; /* evita zoom automático no iPhone */
+    padding: .7rem .8rem !important;
+  }
+
+  .client-access-modal .client-access-active {
+    padding: 12px !important;
+  }
+
+  .client-access-modal .modal-footer {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    padding: 12px 14px max(12px,env(safe-area-inset-bottom)) !important;
+  }
+
+  .client-access-modal .modal-footer .btn {
+    width: 100% !important;
+  }
+
+  .client-access-modal #clientAccessDelete {
+    grid-column: 1 / -1 !important;
+    order: 3 !important;
+    margin-right: 0 !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .client-access-modal .modal-footer {
+    grid-template-columns: 1fr !important;
+  }
+
+  .client-access-modal #clientAccessDelete {
+    grid-column: auto !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.38 — Checkbox e inicial do cliente
+   ========================================================= */
+.client-access-modal .client-access-icon {
+  font-family: inherit !important;
+  font-size: 1.35rem !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+  user-select: none !important;
+}
+
+.client-access-modal .client-access-active {
+  position: relative !important;
+  align-items: center !important;
+  transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease !important;
+}
+
+.client-access-modal .client-access-active .form-check-input {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  position: relative !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  flex: 0 0 28px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 2px solid #475569 !important;
+  border-radius: 8px !important;
+  background: rgba(15,23,42,.45) !important;
+  background-image: none !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.02) !important;
+  cursor: pointer !important;
+  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .12s ease !important;
+}
+
+.client-access-modal .client-access-active .form-check-input::after {
+  content: "✓" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  color: #fff !important;
+  font-size: 17px !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  opacity: 0 !important;
+  transform: scale(.65) !important;
+  transition: opacity .14s ease, transform .14s ease !important;
+}
+
+.client-access-modal .client-access-active .form-check-input:checked {
+  border-color: #8b5cf6 !important;
+  background: linear-gradient(135deg,#7c3aed,#a855f7) !important;
+  background-image: none !important;
+  box-shadow: 0 0 0 4px rgba(139,92,246,.14) !important;
+}
+
+.client-access-modal .client-access-active .form-check-input:checked::after {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+}
+
+.client-access-modal .client-access-active .form-check-input:focus-visible {
+  outline: 3px solid rgba(167,139,250,.4) !important;
+  outline-offset: 2px !important;
+}
+
+.client-access-modal .client-access-active.is-checked {
+  border-color: rgba(139,92,246,.52) !important;
+  background: rgba(124,58,237,.08) !important;
+  box-shadow: inset 0 0 0 1px rgba(139,92,246,.08) !important;
+}
+
+.client-access-modal .client-access-active.is-checked strong {
+  color: #a78bfa !important;
+}
+
+@media (max-width:575.98px) {
+  .client-access-modal .client-access-active .form-check-input {
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    flex-basis: 26px !important;
+  }
+  .client-access-modal .client-access-active .form-check-input::after {
+    font-size: 16px !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.39 — Botões do acesso do cliente alinhados
+   ========================================================= */
+.client-access-modal .modal-footer {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+  gap: 12px !important;
+}
+
+.client-access-modal .modal-footer .btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 48px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  padding: .72rem .8rem !important;
+  font-weight: 800 !important;
+}
+
+.client-access-modal #clientAccessDelete {
+  margin-right: 0 !important;
+}
+
+@media (max-width: 575.98px) {
+  .client-access-modal .modal-footer {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    padding: 12px 14px max(12px,env(safe-area-inset-bottom)) !important;
+    gap: 10px !important;
+  }
+
+  .client-access-modal .modal-footer .btn {
+    font-size: .88rem !important;
+    padding: .7rem .45rem !important;
+  }
+
+  .client-access-modal #clientAccessDelete {
+    grid-column: auto !important;
+    order: initial !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .client-access-modal .modal-footer {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.40 — 3 botões iguais na mesma linha no celular
+   ========================================================= */
+.client-access-btn-short { display: none; }
+
+@media (max-width: 575.98px) {
+  .client-access-modal .modal-dialog {
+    width: calc(100vw - 8px) !important;
+    margin: 4px auto !important;
+  }
+
+  .client-access-modal .modal-footer {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .client-access-modal .modal-footer .btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 50px !important;
+    min-height: 50px !important;
+    padding: .45rem .25rem !important;
+    font-size: .78rem !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    flex-wrap: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+    gap: 4px !important;
+  }
+
+  .client-access-modal .modal-footer .btn i {
+    flex: 0 0 auto !important;
+    margin: 0 !important;
+    font-size: .9rem !important;
+  }
+
+  .client-access-btn-full { display: none !important; }
+  .client-access-btn-short { display: inline !important; }
+
+  .client-access-modal #clientAccessDelete {
+    grid-column: auto !important;
+    order: initial !important;
+    margin: 0 !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .client-access-modal .modal-footer {
+    gap: 5px !important;
+    padding-left: 7px !important;
+    padding-right: 7px !important;
+  }
+  .client-access-modal .modal-footer .btn {
+    font-size: .70rem !important;
+    padding-left: .15rem !important;
+    padding-right: .15rem !important;
+  }
+}
+
+
+.client-portal-vale-actions{display:flex;justify-content:flex-end;margin-top:12px;padding-top:10px;border-top:1px solid rgba(148,163,184,.13)}
+.client-portal-pay-btn{display:inline-flex;align-items:center;gap:8px;font-weight:900;border-radius:12px;padding:10px 16px}
+.client-pix-modal .modal-content{border-radius:22px;background:var(--card,#fff);color:var(--text,#0f172a)}
+.client-pix-modal small{color:#8b5cf6;font-size:9px;font-weight:900;letter-spacing:.08em}
+.client-pix-amount{display:grid;gap:4px;place-items:center;text-align:center;padding:14px;border:1px solid rgba(148,163,184,.18);border-radius:16px;background:rgba(124,58,237,.06)}
+.client-pix-amount span,.client-pix-key-box span{color:var(--muted);font-size:11px;font-weight:900}
+.client-pix-amount strong{font-size:1.7rem;font-weight:950}
+.client-pix-qr-wrap{display:grid;place-items:center;margin:18px 0}
+.client-pix-qr{width:220px;height:220px;display:grid;place-items:center;border-radius:18px;border:1px solid rgba(148,163,184,.18);background:#fff;padding:10px;margin:0 auto}
+.client-pix-qr img{max-width:100%;height:auto;display:block}
+.client-pix-qr-fallback{display:grid;gap:8px;place-items:center;color:#64748b;text-align:center}.client-pix-qr-fallback i{font-size:48px}
+.client-pix-key-box{padding:14px;border:1px dashed rgba(148,163,184,.25);border-radius:14px;text-align:center}
+.client-pix-key-box strong{display:block;margin-top:4px;font-size:1rem;overflow-wrap:anywhere}
+.client-pix-help{margin:12px 0 0;color:var(--muted);font-size:.92rem;text-align:center}
+body.dark .client-pix-modal .modal-content{background:#0f192b;color:#f8fafc}
+@media(max-width:520px){.client-portal-vale-actions .btn{width:100%}.client-pix-qr{width:190px;height:190px}.client-pix-modal .modal-footer .btn{flex:1 1 0}}
+
+/* =========================================================
+   VALLE 3.6.43 — PIX e histórico de pagamentos do cliente
+   ========================================================= */
+.client-pix-beneficiary{margin-top:12px;padding:12px 14px;border:1px solid rgba(148,163,184,.18);border-radius:14px;text-align:center}
+.client-pix-beneficiary span{display:block;color:var(--muted);font-size:10px;font-weight:900;letter-spacing:.04em}
+.client-pix-beneficiary strong{display:block;margin-top:4px;font-size:1rem;font-weight:900;overflow-wrap:anywhere}
+.client-pix-message textarea{width:100%;margin-top:6px;resize:vertical;border:1px solid rgba(148,163,184,.22);border-radius:12px;background:var(--bg,#f8fafc);color:var(--text,#0f172a);padding:10px 12px;font:600 .78rem/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:none!important}
+.client-pix-message{margin-top:12px}.client-pix-message label{font-size:10px;font-weight:900;color:var(--muted)}
+.client-pix-footer{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px!important}.client-pix-footer .btn{width:100%;min-width:0}
+.client-portal-payment-history{display:grid;gap:9px}
+.client-portal-payment-item{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:13px 14px;border:1px solid rgba(148,163,184,.17);border-radius:14px;background:var(--card,#fff)}
+.client-portal-payment-item>div{min-width:0}.client-portal-payment-item small,.client-portal-payment-item strong,.client-portal-payment-item span,.client-portal-payment-item em{display:block}
+.client-portal-payment-item small{color:var(--muted);font-size:9px;font-weight:900}.client-portal-payment-item strong{margin-top:3px;font-size:13px}.client-portal-payment-item span{margin-top:2px;color:var(--muted);font-size:9px}.client-portal-payment-item em{margin-top:5px;color:var(--muted);font-size:10px;font-style:normal;overflow-wrap:anywhere}
+.client-payment-requests-card{margin-bottom:18px;padding:16px;border:1px solid rgba(139,92,246,.22);border-radius:18px;background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(59,130,246,.04))}
+.client-payment-requests-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:12px}.client-payment-requests-head small{color:#8b5cf6;font-size:9px;font-weight:950;letter-spacing:.08em}.client-payment-requests-head h3{margin:3px 0 2px;font-size:1rem;font-weight:950}.client-payment-requests-head p{margin:0;color:var(--muted);font-size:.78rem}.client-payment-requests-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.client-payment-requests-list{display:grid;gap:9px}.client-payment-request-item{padding:13px;border:1px solid rgba(148,163,184,.17);border-left:4px solid #f59e0b;border-radius:14px;background:var(--card,#fff)}.client-payment-request-item.confirmed{border-left-color:#16a34a}.client-payment-request-item.rejected{border-left-color:#ef4444}
+.client-payment-request-main{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.client-payment-request-ident{display:flex;align-items:center;gap:10px;min-width:0}.client-payment-request-icon{width:38px;height:38px;display:grid;place-items:center;flex:0 0 38px;border-radius:11px;background:rgba(124,58,237,.12);color:#8b5cf6}.client-payment-request-ident small,.client-payment-request-ident h4,.client-payment-request-ident p{display:block;margin:0}.client-payment-request-ident small{color:var(--muted);font-size:8px;font-weight:900}.client-payment-request-ident h4{margin-top:2px;font-size:.9rem;font-weight:900}.client-payment-request-ident p{margin-top:2px;color:var(--muted);font-size:9px}
+.client-payment-request-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}.client-payment-request-details>div{padding:8px 10px;border:1px solid rgba(148,163,184,.13);border-radius:10px}.client-payment-request-details>.wide{grid-column:1/-1}.client-payment-request-details span,.client-payment-request-details strong{display:block}.client-payment-request-details span{color:var(--muted);font-size:8px;font-weight:900}.client-payment-request-details strong{margin-top:2px;font-size:10px;overflow-wrap:anywhere}
+.client-payment-request-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));justify-content:flex-end;gap:7px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid rgba(148,163,184,.12)}
+.client-payment-request-empty{display:grid;place-items:center;text-align:center;gap:5px;padding:18px;color:var(--muted);font-size:11px}.client-payment-request-empty i{font-size:22px}.client-payment-request-empty strong{color:var(--text)}.client-payment-request-empty.danger{color:#ef4444}
+body.dark .client-payment-request-item,body.dark .client-portal-payment-item{background:#0f192b;border-color:#25344b}
+@media(max-width:700px){.client-pix-footer{grid-template-columns:repeat(2,minmax(0,1fr))}.client-payment-requests-head{align-items:flex-start;flex-direction:column}.client-payment-requests-actions{width:100%;justify-content:space-between}.client-payment-request-main{flex-direction:column}.client-payment-request-details{grid-template-columns:1fr 1fr}.client-payment-request-actions{display:grid;grid-template-columns:1fr 1fr}.client-payment-request-actions .btn{width:100%;padding:.55rem .35rem;font-size:.72rem}.client-portal-payment-item{flex-direction:column}.client-portal-payment-item>.badge{align-self:flex-start}}
+@media(max-width:420px){.client-payment-request-details{grid-template-columns:1fr}.client-payment-request-details>.wide{grid-column:auto}.client-payment-request-actions{grid-template-columns:1fr}.client-pix-qr{width:180px;height:180px}}
+
+#configPixKey{ text-transform:none!important; }
+
+
+/* =========================================================
+   VALLE 3.6.44 — Modal PIX na frente da Área do Cliente
+   ========================================================= */
+#clientPixModal.modal{z-index:2147483609!important}
+.modal-backdrop.client-pix-backdrop{z-index:2147483608!important}
+.client-portal-pay-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  font-weight:900;
+  border-radius:11px;
+  padding:8px 13px;
+  font-size:.9rem;
+  min-height:40px;
+}
+.client-portal-pay-btn.btn-success{
+  background:linear-gradient(135deg,#16a34a,#22c55e)!important;
+  border-color:#16a34a!important;
+  color:#fff!important;
+  box-shadow:0 12px 30px rgba(34,197,94,.22);
+}
+.client-portal-pay-btn.btn-success:hover,
+.client-portal-pay-btn.btn-success:focus{
+  background:linear-gradient(135deg,#15803d,#16a34a)!important;
+  border-color:#15803d!important;
+  color:#fff!important;
+}
+@media(max-width:520px){
+  .client-portal-pay-btn{padding:7px 11px;font-size:.84rem;min-height:38px}
+}
+
+
+/* VALLE 3.6.49 — Saldo da carteira completo e autoajustável */
+.client-payment-request-actions [data-pix-confirm]{
+  min-width:0;
+  white-space:nowrap;
+}
+@media(max-width:640px){
+  .client-payment-request-actions [data-pix-confirm]{min-width:0;white-space:normal}
+}
+
+
+/* =========================================================
+   VALLE 3.6.50 — Card do modal Ver Contrato ajustado
+   Mantém os botões na mesma linha e reorganiza o card da
+   parcela para celular sem quebrar o layout.
+   ========================================================= */
+.crediario-detail-modal .crediario-installment-detail-list {
+  gap: 10px !important;
+}
+
+.crediario-detail-modal .crediario-installment-detail {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: 34px 48px minmax(110px, 1fr) minmax(92px, .85fr) minmax(92px, .85fr) !important;
+  grid-template-areas:
+    "check number info parcela receber"
+    "actions actions actions actions actions" !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 12px !important;
+  border-radius: 14px !important;
+  box-sizing: border-box !important;
+}
+
+.crediario-detail-modal .crediario-installment-check { grid-area: check !important; }
+.crediario-detail-modal .crediario-installment-number { grid-area: number !important; }
+.crediario-detail-modal .crediario-installment-info { grid-area: info !important; min-width: 0 !important; }
+.crediario-detail-modal .crediario-installment-parcela { grid-area: parcela !important; min-width: 0 !important; }
+.crediario-detail-modal .crediario-installment-receber { grid-area: receber !important; min-width: 0 !important; }
+
+.crediario-detail-modal .crediario-installment-number strong,
+.crediario-detail-modal .crediario-installment-number small {
+  text-align: center !important;
+}
+
+.crediario-detail-modal .crediario-installment-info .badge {
+  margin-bottom: 6px !important;
+}
+
+.crediario-detail-modal .crediario-installment-info strong {
+  font-size: 0.98rem !important;
+  line-height: 1.1 !important;
+}
+
+.crediario-detail-modal .crediario-installment-info small {
+  font-size: .72rem !important;
+  line-height: 1.15 !important;
+}
+
+.crediario-detail-modal .crediario-installment-money small,
+.crediario-detail-modal .crediario-installment-money span {
+  line-height: 1.1 !important;
+}
+
+.crediario-detail-modal .crediario-installment-money strong {
+  font-size: clamp(.84rem, 1.6vw, .98rem) !important;
+  line-height: 1.05 !important;
+  white-space: nowrap !important;
+}
+
+.crediario-detail-modal .crediario-installment-actions {
+  grid-area: actions !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  justify-content: stretch !important;
+  align-items: stretch !important;
+}
+
+.crediario-detail-modal .crediario-installment-actions .btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 42px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  padding: .45rem .55rem !important;
+  white-space: nowrap !important;
+  border-width: 1.5px !important;
+}
+
+@container (max-width: 560px) {
+  .crediario-detail-modal .crediario-installment-detail {
+    grid-template-columns: 30px minmax(0, 1fr) minmax(98px, .9fr) !important;
+    grid-template-areas:
+      "check info info"
+      "number parcela receber"
+      "actions actions actions" !important;
+    gap: 9px !important;
+  }
+
+  .crediario-detail-modal .crediario-installment-number {
+    align-self: start !important;
+  }
+
+  .crediario-detail-modal .crediario-installment-money strong {
+    font-size: .92rem !important;
+  }
+
+  .crediario-detail-modal .crediario-installment-actions .btn span {
+    display: none !important;
+  }
+
+  .crediario-detail-modal .crediario-installment-actions .btn i {
+    margin: 0 !important;
+    font-size: 1rem !important;
+  }
+}
+
+@container (max-width: 390px) {
+  .crediario-detail-modal .crediario-installment-detail {
+    padding: 10px !important;
+    gap: 8px !important;
+  }
+
+  .crediario-detail-modal .crediario-installment-number strong {
+    font-size: .9rem !important;
+  }
+
+  .crediario-detail-modal .crediario-installment-money strong {
+    font-size: .86rem !important;
+  }
+
+  .crediario-detail-modal .crediario-installment-money small,
+  .crediario-detail-modal .crediario-installment-money span,
+  .crediario-detail-modal .crediario-installment-info small {
+    font-size: .66rem !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.51 — Padronização visual de todos os cards do
+   modal Ver Contrato
+   ========================================================= */
+.crediario-detail-modal .modal-content {
+  background:
+    linear-gradient(180deg, rgba(12, 22, 45, .98), rgba(9, 18, 38, .98)) !important;
+}
+
+.crediario-detail-modal .modal-header,
+.crediario-detail-modal .modal-footer {
+  background: transparent !important;
+}
+
+.crediario-detail-modal .modal-body {
+  display: grid !important;
+  gap: 12px !important;
+}
+
+.crediario-detail-modal .crediario-detail-summary > div,
+.crediario-detail-modal .crediario-detail-progress,
+.crediario-detail-modal .crediario-detail-rules > span,
+.crediario-detail-modal .crediario-installment-detail,
+.crediario-detail-modal .crediario-detail-footer-summary {
+  background: linear-gradient(180deg, rgba(15, 27, 52, .96), rgba(12, 23, 46, .96)) !important;
+  border: 1px solid rgba(96, 165, 250, .14) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255,255,255,.02) !important;
+}
+
+.crediario-detail-modal .crediario-detail-summary > div,
+.crediario-detail-modal .crediario-detail-progress,
+.crediario-detail-modal .crediario-detail-footer-summary {
+  padding: 12px !important;
+}
+
+.crediario-detail-modal .crediario-detail-rules {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+}
+
+.crediario-detail-modal .crediario-detail-rules > span {
+  min-height: 42px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 10px 12px !important;
+  color: #e5eefc !important;
+}
+
+.crediario-detail-modal .crediario-detail-summary span,
+.crediario-detail-modal .crediario-detail-progress span,
+.crediario-detail-modal .crediario-detail-footer-summary small,
+.crediario-detail-modal .crediario-detail-rules > span {
+  color: #94a3b8 !important;
+}
+
+.crediario-detail-modal .crediario-detail-summary strong,
+.crediario-detail-modal .crediario-detail-progress strong,
+.crediario-detail-modal .crediario-detail-footer-summary strong {
+  color: #f8fafc !important;
+}
+
+.crediario-detail-modal .crediario-detail-progress .progress {
+  overflow: hidden !important;
+  border-radius: 999px !important;
+  background: rgba(148, 163, 184, .16) !important;
+}
+
+.crediario-detail-modal .crediario-detail-progress .progress-bar {
+  background: linear-gradient(135deg, #7c3aed, #22c55e) !important;
+}
+
+.crediario-detail-modal .crediario-installment-detail.pago {
+  opacity: 1 !important;
+}
+
+.crediario-detail-modal .crediario-installment-detail.pago .crediario-installment-info,
+.crediario-detail-modal .crediario-installment-detail.pago .crediario-installment-money,
+.crediario-detail-modal .crediario-installment-detail.pago .crediario-installment-number {
+  opacity: .74;
+}
+
+.crediario-detail-modal .crediario-installment-detail.atrasado {
+  border-left: 3px solid #ef4444 !important;
+}
+
+.crediario-detail-modal .crediario-installment-detail.em_dia,
+.crediario-detail-modal .crediario-installment-detail.em-dia {
+  border-left: 3px solid #22c55e !important;
+}
+
+.crediario-detail-modal .crediario-detail-footer-summary {
+  min-width: 250px !important;
+}
+
+.crediario-detail-modal .modal-footer {
+  gap: 12px !important;
+}
+
+@container (max-width: 560px) {
+  .crediario-detail-modal .crediario-detail-rules {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .crediario-detail-modal .crediario-detail-footer-summary {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.52 — Nome do cliente em uma linha no modal
+   Ver Contrato, com fonte adaptável e abreviação auxiliar.
+   ========================================================= */
+.crediario-detail-header > div:first-child {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+.crediario-detail-title-wrap {
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+.crediario-detail-client-name {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+  font-size: clamp(1rem, 1vw + .8rem, 1.55rem) !important;
+  line-height: 1.02 !important;
+  letter-spacing: -.02em !important;
+}
+
+@container (max-width: 560px) {
+  .crediario-detail-client-name {
+    font-size: clamp(.95rem, 2.4vw + .55rem, 1.18rem) !important;
+  }
+}
+
+@container (max-width: 390px) {
+  .crediario-detail-client-name {
+    font-size: .98rem !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.53 — Nome do cliente mais embaixo no modal
+   Ver Contrato para ganhar espaço horizontal real.
+   ========================================================= */
+.crediario-detail-head-grid {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+  grid-template-areas:
+    "icon meta actions"
+    "icon name name" !important;
+  align-items: center !important;
+  column-gap: 12px !important;
+  row-gap: 4px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.crediario-detail-head-grid .crediario-page-icon {
+  grid-area: icon !important;
+}
+
+.crediario-detail-title-wrap {
+  grid-area: meta !important;
+  min-width: 0 !important;
+}
+
+.crediario-detail-head-actions {
+  grid-area: actions !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+  min-width: max-content !important;
+}
+
+.crediario-detail-client-name {
+  grid-area: name !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 1px 0 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+  font-size: clamp(1rem, .8vw + .95rem, 1.45rem) !important;
+  line-height: 1.04 !important;
+  letter-spacing: -.02em !important;
+}
+
+@container (max-width: 560px) {
+  .crediario-detail-head-grid {
+    column-gap: 10px !important;
+    row-gap: 5px !important;
+  }
+
+  .crediario-detail-client-name {
+    font-size: clamp(.98rem, 1.2vw + .88rem, 1.15rem) !important;
+  }
+}
+
+@container (max-width: 390px) {
+  .crediario-detail-head-actions {
+    gap: 8px !important;
+  }
+
+  .crediario-detail-client-name {
+    font-size: .98rem !important;
+  }
+}
+
+
+/* VALLE 3.6.55 — Confirmação de PIX copiado sobrepondo o modal suavemente */
+.client-pix-modal .modal-content{position:relative;overflow:visible!important}
+.client-pix-copy-feedback{
+  position:absolute;
+  top:14px;
+  left:50%;
+  z-index:40;
+  width:min(calc(100% - 28px), 420px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  margin:0!important;
+  padding:11px 14px!important;
+  border-radius:14px!important;
+  font-size:.86rem;
+  font-weight:900;
+  text-align:center;
+  box-shadow:0 16px 34px rgba(0,0,0,.24);
+  pointer-events:none;
+  opacity:0;
+  transform:translateX(-50%) translateY(-10px) scale(.98);
+  transition:opacity .22s ease, transform .22s ease;
+}
+.client-pix-copy-feedback.is-visible{
+  opacity:1;
+  transform:translateX(-50%) translateY(0) scale(1);
+}
+.client-pix-copy-feedback.d-none{display:none!important}
+.client-pix-copy-feedback .bi{font-size:1rem;flex:0 0 auto}
+@media(max-width:520px){
+  .client-pix-copy-feedback{top:12px;width:min(calc(100% - 20px), 360px);font-size:.8rem;padding:10px 12px!important}
+}
+
+
+/* =========================================================
+   VALLE 3.6.71 — Nome próprio do crediário
+   ========================================================= */
+.crediario-contract-ident > div{min-width:0!important}
+.crediario-contract-ident h3{
+  max-width:100%!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.crediario-contract-ident p{
+  display:flex!important;
+  align-items:center!important;
+  flex-wrap:wrap!important;
+  gap:2px!important;
+}
+.crediario-detail-title-wrap small{
+  display:block!important;
+  max-width:100%!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.client-portal-contract-head > div{min-width:0!important}
+.client-portal-contract-head h3{
+  max-width:100%!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+
+/* =========================================================
+   VALLE 3.6.57 — Lançamentos por crediário na Área do Cliente
+   Card do crediário abre modal com PAGOS / A PAGAR / INFORMADOS.
+   ========================================================= */
+.client-portal-contract-clickable{
+  cursor:pointer;
+  position:relative;
+  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.client-portal-contract-clickable:hover{
+  transform:translateY(-2px);
+  border-color:rgba(139,92,246,.38)!important;
+  box-shadow:0 14px 30px rgba(15,23,42,.10);
+}
+.client-portal-contract-clickable:focus-visible{
+  outline:3px solid rgba(139,92,246,.28);
+  outline-offset:3px;
+}
+.client-portal-contract-open{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:6px;
+  margin-top:11px;
+  padding-top:9px;
+  border-top:1px solid rgba(148,163,184,.12);
+  color:#8b5cf6;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.03em;
+}
+.client-crediario-launch-modal .modal-dialog{
+  width:min(94vw,720px);
+  max-width:720px;
+  margin:1rem auto;
+}
+.client-crediario-launch-modal .modal-content{
+  max-height:min(90dvh,900px);
+  border:1px solid rgba(139,92,246,.20);
+  border-radius:22px;
+  overflow:hidden;
+  background:var(--card,#fff);
+  color:var(--text,#0f172a);
+  box-shadow:0 24px 70px rgba(2,6,23,.28);
+}
+.client-crediario-launch-modal .modal-header,
+.client-crediario-launch-modal .modal-footer{
+  padding:14px 16px;
+  border-color:rgba(148,163,184,.14);
+}
+.client-crediario-launch-modal .modal-body{
+  padding:16px;
+  overflow-y:auto;
+  background:var(--bg,#f8fafc);
+}
+.client-contract-modal-title{min-width:0}
+.client-contract-modal-title small{
+  display:block;
+  color:#8b5cf6;
+  font-size:9px;
+  font-weight:950;
+  letter-spacing:.08em;
+}
+.client-contract-modal-title h2{
+  max-width:100%;
+  margin-top:3px!important;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-weight:950;
+}
+.client-contract-filter-bar{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  padding:5px;
+  border:1px solid rgba(148,163,184,.16);
+  border-radius:15px;
+  background:var(--card,#fff);
+}
+.client-contract-filter{
+  min-width:0;
+  min-height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:8px 7px;
+  border:0;
+  border-radius:11px;
+  background:transparent;
+  color:var(--muted,#64748b);
+  font-size:.72rem;
+  font-weight:900;
+  line-height:1;
+  white-space:nowrap;
+  transition:background .18s ease,color .18s ease,transform .18s ease;
+}
+.client-contract-filter:hover{background:rgba(124,58,237,.07)}
+.client-contract-filter.active{
+  color:#fff;
+  background:linear-gradient(135deg,#7c3aed,#a855f7);
+  box-shadow:0 8px 18px rgba(124,58,237,.22);
+}
+.client-contract-filter em{
+  min-width:21px;
+  height:21px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 6px;
+  border-radius:999px;
+  background:rgba(148,163,184,.16);
+  color:inherit;
+  font-size:9px;
+  font-style:normal;
+  font-weight:950;
+}
+.client-contract-filter.active em{background:rgba(255,255,255,.18)}
+.client-contract-launch-summary{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+  margin-top:12px;
+}
+.client-contract-launch-summary>div{
+  min-width:0;
+  padding:11px 12px;
+  border:1px solid rgba(148,163,184,.15);
+  border-radius:13px;
+  background:var(--card,#fff);
+}
+.client-contract-launch-summary span,
+.client-contract-launch-summary strong{display:block}
+.client-contract-launch-summary span{
+  color:var(--muted,#64748b);
+  font-size:8px;
+  font-weight:900;
+}
+.client-contract-launch-summary strong{
+  margin-top:4px;
+  font-size:.98rem;
+  font-weight:950;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.client-contract-launch-list{
+  display:grid;
+  gap:10px;
+  margin-top:12px;
+}
+.client-contract-launch-item{
+  padding:13px;
+  border:1px solid rgba(148,163,184,.16);
+  border-left:4px solid #8b5cf6;
+  border-radius:15px;
+  background:var(--card,#fff);
+}
+.client-contract-launch-item.paid{border-left-color:#16a34a}
+.client-contract-launch-item.to_pay{border-left-color:#3b82f6}
+.client-contract-launch-item.informed{border-left-color:#f59e0b}
+.client-contract-launch-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+}
+.client-contract-launch-head>div{min-width:0}
+.client-contract-launch-head small,
+.client-contract-launch-head strong{display:block}
+.client-contract-launch-head small{
+  color:var(--muted,#64748b);
+  font-size:8px;
+  font-weight:900;
+}
+.client-contract-launch-head strong{
+  margin-top:4px;
+  font-size:.94rem;
+  font-weight:950;
+}
+.client-contract-launch-values{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin-top:10px;
+}
+.client-contract-launch-values>div{
+  min-width:0;
+  padding:9px 10px;
+  border:1px solid rgba(148,163,184,.12);
+  border-radius:11px;
+  background:color-mix(in srgb,var(--bg,#f8fafc) 88%,transparent);
+}
+.client-contract-launch-values span,
+.client-contract-launch-values strong,
+.client-contract-launch-values small{display:block}
+.client-contract-launch-values span{
+  color:var(--muted,#64748b);
+  font-size:8px;
+  font-weight:900;
+}
+.client-contract-launch-values strong{
+  margin-top:3px;
+  font-size:.9rem;
+  font-weight:950;
+  white-space:nowrap;
+}
+.client-contract-launch-values small{
+  margin-top:3px;
+  color:#ef4444;
+  font-size:8px;
+  font-weight:800;
+}
+.client-contract-launch-informed{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-top:9px;
+  color:var(--muted,#64748b);
+  font-size:9px;
+  font-weight:800;
+}
+.client-contract-launch-actions{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid rgba(148,163,184,.12);
+}
+.client-contract-launch-pay{
+  min-width:132px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  border-radius:11px;
+  font-weight:900;
+}
+.client-contract-launch-empty{
+  display:grid;
+  place-items:center;
+  gap:5px;
+  padding:30px 16px;
+  text-align:center;
+  color:var(--muted,#64748b);
+}
+.client-contract-launch-empty i{font-size:28px;color:#8b5cf6}
+.client-contract-launch-empty strong{font-size:.85rem;color:var(--text,#0f172a)}
+.client-contract-launch-empty span{font-size:.72rem}
+#clientCrediarioLaunchModal.modal{z-index:2147483509!important}
+.modal-backdrop.client-contract-backdrop{z-index:2147483508!important}
+body.dark .client-crediario-launch-modal .modal-content,
+body.dark .client-contract-filter-bar,
+body.dark .client-contract-launch-summary>div,
+body.dark .client-contract-launch-item{background:#0f192b;border-color:#25344b;color:#f8fafc}
+body.dark .client-crediario-launch-modal .modal-body{background:#091426}
+body.dark .client-contract-launch-values>div{background:#111f34;border-color:#25344b}
+@media(max-width:560px){
+  .client-crediario-launch-modal .modal-dialog{width:calc(100vw - 14px);margin:7px auto}
+  .client-crediario-launch-modal .modal-content{max-height:calc(100dvh - 14px);border-radius:18px}
+  .client-crediario-launch-modal .modal-header,.client-crediario-launch-modal .modal-footer{padding:12px}
+  .client-crediario-launch-modal .modal-body{padding:12px}
+  .client-contract-filter-bar{gap:5px;padding:4px}
+  .client-contract-filter{min-height:44px;gap:4px;padding:7px 4px;font-size:.62rem}
+  .client-contract-filter i{font-size:.9rem}
+  .client-contract-filter em{min-width:18px;height:18px;padding:0 5px;font-size:8px}
+  .client-contract-launch-summary{gap:7px}
+  .client-contract-launch-summary strong{font-size:.88rem}
+  .client-contract-launch-item{padding:11px}
+  .client-contract-launch-values{gap:6px}
+  .client-contract-launch-values strong{font-size:.82rem}
+  .client-contract-launch-pay{width:100%;min-width:0}
+}
+@media(max-width:370px){
+  .client-contract-filter span{font-size:.56rem}
+  .client-contract-filter{gap:3px}
+  .client-contract-launch-head{flex-direction:column}
+  .client-contract-launch-head>.badge{align-self:flex-start}
+}
+
+
+/* =========================================================
+   VALLE 3.6.58 — Área do Cliente: lançamentos só com vales
+   e modal do crediário em tela cheia com filtros melhores.
+   ========================================================= */
+.client-crediario-launch-modal .modal-dialog{
+  width:100vw !important;
+  max-width:none !important;
+  height:100dvh !important;
+  margin:0 !important;
+}
+.client-crediario-launch-modal .modal-content{
+  width:100% !important;
+  height:100dvh !important;
+  max-height:100dvh !important;
+  border-radius:0 !important;
+  border:0 !important;
+  box-shadow:none !important;
+}
+.client-crediario-launch-modal .modal-header,
+.client-crediario-launch-modal .modal-footer{
+  padding:16px 20px !important;
+}
+.client-crediario-launch-modal .modal-body{
+  flex:1 1 auto !important;
+  padding:18px 20px !important;
+}
+.client-contract-filter-bar{
+  gap:10px !important;
+  padding:6px !important;
+  border-radius:18px !important;
+  background:rgba(255,255,255,.82) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35) !important;
+}
+.client-contract-filter{
+  border:1px solid transparent !important;
+  border-radius:13px !important;
+  min-height:52px !important;
+  font-size:.76rem !important;
+  transition:background .18s ease,color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease !important;
+}
+.client-contract-filter:hover{transform:translateY(-1px) !important;}
+.client-contract-filter[data-client-contract-filter="paid"]{
+  color:#166534 !important;
+  background:rgba(34,197,94,.08) !important;
+  border-color:rgba(34,197,94,.16) !important;
+}
+.client-contract-filter[data-client-contract-filter="to_pay"]{
+  color:#1d4ed8 !important;
+  background:rgba(59,130,246,.08) !important;
+  border-color:rgba(59,130,246,.16) !important;
+}
+.client-contract-filter[data-client-contract-filter="informed"]{
+  color:#b45309 !important;
+  background:rgba(245,158,11,.10) !important;
+  border-color:rgba(245,158,11,.20) !important;
+}
+.client-contract-filter[data-client-contract-filter="paid"] em{background:rgba(34,197,94,.15) !important;}
+.client-contract-filter[data-client-contract-filter="to_pay"] em{background:rgba(59,130,246,.15) !important;}
+.client-contract-filter[data-client-contract-filter="informed"] em{background:rgba(245,158,11,.18) !important;}
+.client-contract-filter[data-client-contract-filter="paid"].active{
+  color:#fff !important;
+  background:linear-gradient(135deg,#16a34a,#22c55e) !important;
+  border-color:transparent !important;
+  box-shadow:0 10px 22px rgba(34,197,94,.26) !important;
+}
+.client-contract-filter[data-client-contract-filter="to_pay"].active{
+  color:#fff !important;
+  background:linear-gradient(135deg,#2563eb,#3b82f6) !important;
+  border-color:transparent !important;
+  box-shadow:0 10px 22px rgba(59,130,246,.26) !important;
+}
+.client-contract-filter[data-client-contract-filter="informed"].active{
+  color:#fff !important;
+  background:linear-gradient(135deg,#d97706,#f59e0b) !important;
+  border-color:transparent !important;
+  box-shadow:0 10px 22px rgba(245,158,11,.28) !important;
+}
+.client-contract-filter.active em{background:rgba(255,255,255,.20) !important;color:#fff !important;}
+body.dark .client-contract-filter-bar{background:#0c172a !important;}
+body.dark .client-contract-filter[data-client-contract-filter="paid"]{color:#86efac !important;background:rgba(34,197,94,.12) !important;border-color:rgba(34,197,94,.20) !important;}
+body.dark .client-contract-filter[data-client-contract-filter="to_pay"]{color:#93c5fd !important;background:rgba(59,130,246,.14) !important;border-color:rgba(59,130,246,.22) !important;}
+body.dark .client-contract-filter[data-client-contract-filter="informed"]{color:#fcd34d !important;background:rgba(245,158,11,.14) !important;border-color:rgba(245,158,11,.24) !important;}
+@media(max-width:560px){
+  .client-crediario-launch-modal .modal-header,
+  .client-crediario-launch-modal .modal-footer{padding:12px 14px !important;}
+  .client-crediario-launch-modal .modal-body{padding:12px 14px !important;}
+  .client-contract-filter-bar{gap:6px !important;padding:4px !important;}
+  .client-contract-filter{min-height:46px !important;font-size:.64rem !important;padding:7px 5px !important;}
+}
+
+
+/* =========================================================
+   VALLE 3.6.60 — Pagamentos recusados nos informativos
+   do crediário e do vale avulso.
+   ========================================================= */
+.client-contract-launch-informed.is-rejected{
+  align-items:flex-start !important;
+  color:#dc2626 !important;
+  padding:9px 10px !important;
+  border:1px solid rgba(239,68,68,.18) !important;
+  border-radius:11px !important;
+  background:rgba(239,68,68,.07) !important;
+}
+.client-contract-launch-informed.is-rejected > div{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.client-contract-launch-informed.is-rejected span{
+  color:#dc2626 !important;
+  font-weight:900 !important;
+}
+.client-contract-launch-informed.is-rejected small{
+  display:block;
+  color:#b91c1c !important;
+  font-size:9px;
+  font-weight:800;
+  overflow-wrap:anywhere;
+}
+body.dark .client-contract-launch-informed.is-rejected{
+  color:#fca5a5 !important;
+  background:rgba(239,68,68,.10) !important;
+  border-color:rgba(248,113,113,.22) !important;
+}
+body.dark .client-contract-launch-informed.is-rejected span,
+body.dark .client-contract-launch-informed.is-rejected small{
+  color:#fca5a5 !important;
+}
+
+
+/* VALLE 3.6.62 — Modal PIX simplificado na Área do Cliente */
+.client-pix-footer .btn{min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+@media(max-width:390px){.client-pix-footer{gap:7px!important}.client-pix-footer .btn{padding:.55rem .35rem!important;font-size:.72rem!important}}
+
+
+/* =========================================================
+   VALLE 3.6.63 — Saudação da Área do Cliente em duas linhas
+   Olá em cima e nome do cliente abaixo com pequeno recuo.
+   ========================================================= */
+#clientPortalGreeting{
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:flex-start !important;
+  gap:2px !important;
+  margin:4px 0 5px !important;
+  line-height:1.02 !important;
+}
+#clientPortalGreeting .client-greeting-hello{
+  display:block !important;
+  font:inherit !important;
+  font-weight:950 !important;
+}
+#clientPortalGreeting .client-greeting-name{
+  display:block !important;
+  max-width:100% !important;
+  margin-left:14px !important;
+  font:inherit !important;
+  font-weight:950 !important;
+  line-height:1.04 !important;
+  overflow-wrap:anywhere !important;
+}
+@media(max-width:520px){
+  #clientPortalGreeting .client-greeting-name{margin-left:12px !important;}
+}
+
+
+/* =========================================================
+   VALLE 3.6.64 — Cabeçalho renovado da Área do Cliente +
+   puxar para baixo para atualizar somente no topo.
+   ========================================================= */
+body.client-portal-active{overscroll-behavior-y:contain;}
+.client-portal-top{
+  padding:0 !important;
+  border-bottom:1px solid rgba(148,163,184,.12) !important;
+  background:color-mix(in srgb,var(--card,#fff) 90%,transparent) !important;
+  box-shadow:0 8px 26px rgba(15,23,42,.06) !important;
+  backdrop-filter:blur(22px) saturate(145%) !important;
+  -webkit-backdrop-filter:blur(22px) saturate(145%) !important;
+}
+.client-portal-top-inner{
+  width:min(1180px,calc(100% - 32px));
+  min-height:72px;
+  margin:0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+}
+.client-portal-brand{display:flex !important;align-items:center !important;gap:12px !important;min-width:0 !important;}
+.client-portal-logo-shell{
+  width:46px;height:46px;flex:0 0 46px;display:grid;place-items:center;border-radius:15px;
+  background:linear-gradient(135deg,rgba(124,58,237,.18),rgba(59,130,246,.10));
+  border:1px solid rgba(139,92,246,.18);box-shadow:0 9px 22px rgba(124,58,237,.12);
+}
+.client-portal-logo-shell img{width:34px !important;height:34px !important;border-radius:10px !important;}
+.client-portal-brand-copy{min-width:0;line-height:1.05;}
+.client-portal-brand-copy strong{display:block;font-size:1.08rem !important;font-weight:950;letter-spacing:-.02em;}
+.client-portal-brand-copy small{
+  display:flex !important;align-items:center;gap:5px;margin-top:5px;color:#8b5cf6 !important;
+  font-size:.62rem !important;font-weight:900 !important;letter-spacing:.08em;
+}
+.client-portal-user{display:flex !important;align-items:center !important;gap:12px !important;text-align:right !important;}
+.client-portal-user-copy{min-width:0;line-height:1.05;}
+.client-portal-user-copy small,.client-portal-user-copy strong,.client-portal-user-copy span{display:block;}
+.client-portal-user-copy small{color:var(--muted,#64748b);font-size:.56rem;font-weight:900;letter-spacing:.08em;}
+.client-portal-user-copy strong{
+  max-width:220px;margin-top:4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:.84rem;font-weight:950;
+}
+.client-portal-user-copy span{
+  max-width:220px;margin-top:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+  color:var(--muted,#64748b);font-size:.62rem;font-weight:700;
+}
+.client-portal-logout{
+  width:43px !important;height:43px !important;min-width:43px !important;padding:0 !important;
+  display:inline-grid !important;place-items:center !important;border:1px solid rgba(239,68,68,.18) !important;
+  border-radius:14px !important;background:rgba(239,68,68,.07) !important;color:#ef4444 !important;box-shadow:none !important;
+}
+.client-portal-logout:hover{background:#ef4444 !important;color:#fff !important;border-color:#ef4444 !important;}
+.client-portal-logout span{display:none !important;}
+.client-portal-hero{position:relative;overflow:hidden;}
+.client-portal-hero::after{
+  content:"";position:absolute;width:190px;height:190px;right:-65px;top:-110px;border-radius:50%;
+  background:radial-gradient(circle,rgba(139,92,246,.15),transparent 68%);pointer-events:none;
+}
+.client-pull-refresh{
+  --pull-distance:0px;position:fixed;top:78px;left:50%;z-index:2147483300;min-height:38px;max-width:calc(100vw - 28px);
+  display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 13px;border:1px solid rgba(139,92,246,.20);
+  border-radius:999px;background:color-mix(in srgb,var(--card,#fff) 94%,transparent);color:var(--muted,#64748b);
+  box-shadow:0 12px 30px rgba(15,23,42,.16);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  opacity:0;pointer-events:none;transform:translate(-50%,-18px) scale(.95);
+  transition:opacity .16s ease,transform .18s ease,border-color .18s ease,color .18s ease;
+}
+.client-pull-refresh.is-pulling,.client-pull-refresh.is-refreshing{
+  opacity:1;transform:translate(-50%,clamp(0px,calc(var(--pull-distance) * .10),12px)) scale(1);
+}
+.client-pull-refresh.is-ready{color:#2563eb;border-color:rgba(59,130,246,.34);}
+.client-pull-refresh.is-done{color:#16a34a;border-color:rgba(34,197,94,.30);}
+.client-pull-refresh-icon{
+  width:23px;height:23px;display:grid;place-items:center;border-radius:50%;background:rgba(139,92,246,.10);color:#8b5cf6;
+}
+.client-pull-refresh.is-ready .client-pull-refresh-icon i{transform:rotate(180deg);}
+.client-pull-refresh.is-refreshing .client-pull-refresh-icon i{animation:clientPullSpin .72s linear infinite;}
+.client-pull-refresh strong{font-size:.63rem;font-weight:950;letter-spacing:.04em;white-space:nowrap;}
+.client-pull-refresh-icon i{transition:transform .18s ease;}
+@keyframes clientPullSpin{to{transform:rotate(360deg)}}
+body.dark .client-portal-top{
+  background:rgba(7,16,31,.90) !important;border-bottom-color:rgba(148,163,184,.13) !important;
+  box-shadow:0 8px 28px rgba(0,0,0,.24) !important;
+}
+body.dark .client-pull-refresh{background:rgba(15,25,43,.96);border-color:#26364f;color:#cbd5e1;}
+@media(max-width:575.98px){
+  .client-portal-top-inner{width:calc(100% - 20px) !important;min-height:64px;gap:10px;}
+  .client-portal-logo-shell{width:42px;height:42px;flex-basis:42px;border-radius:13px;}
+  .client-portal-logo-shell img{width:31px !important;height:31px !important;}
+  .client-portal-brand-copy strong{font-size:1rem !important;}
+  .client-portal-brand-copy small{display:flex !important;font-size:.55rem !important;margin-top:4px;}
+  .client-portal-user-copy{display:none !important;}
+  .client-portal-logout{width:41px !important;height:41px !important;min-width:41px !important;border-radius:13px !important;}
+  .client-pull-refresh{top:69px;}
+  .client-portal-main{padding-top:16px !important;}
+  .client-portal-hero{padding:18px 16px !important;}
+}
+
+
+/* =========================================================
+   VALLE 3.6.65 — Pull to refresh da Área do Cliente com
+   deslocamento visual da tela e mensagem aparente.
+   ========================================================= */
+#clientPortal{
+  --client-pull-offset:0px;
+}
+#clientPortal .client-portal-top,
+#clientPortal .client-portal-main{
+  transform:translateY(var(--client-pull-offset));
+  transition:transform .22s ease;
+  will-change:transform;
+}
+#clientPortal.is-pull-active .client-portal-top,
+#clientPortal.is-pull-active .client-portal-main{
+  transition:none;
+}
+.client-pull-refresh{
+  top:72px;
+}
+@media(max-width:575.98px){
+  .client-pull-refresh{top:64px;}
+}
+
+
+/* =========================================================
+   VALLE 3.6.66 — Card principal da Área do Cliente com
+   cantos mais arredondados.
+   ========================================================= */
+#clientPortal .client-portal-hero{
+  border-radius:30px !important;
+  overflow:hidden !important;
+}
+@media(max-width:575.98px){
+  #clientPortal .client-portal-hero{
+    border-radius:24px !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.67 — Cabeçalho da Área do Cliente arredondado
+   ========================================================= */
+.client-portal-top{
+  padding:10px 0 0 !important;
+  border-bottom:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
+.client-portal-top-inner{
+  width:min(1180px,calc(100% - 24px)) !important;
+  padding:0 14px !important;
+  border:1px solid rgba(148,163,184,.12) !important;
+  border-radius:24px !important;
+  background:color-mix(in srgb,var(--card,#fff) 90%,transparent) !important;
+  box-shadow:0 10px 28px rgba(15,23,42,.08) !important;
+  backdrop-filter:blur(22px) saturate(145%) !important;
+  -webkit-backdrop-filter:blur(22px) saturate(145%) !important;
+  overflow:hidden !important;
+}
+body.dark .client-portal-top{
+  background:transparent !important;
+  border-bottom:0 !important;
+  box-shadow:none !important;
+}
+body.dark .client-portal-top-inner{
+  background:rgba(7,16,31,.90) !important;
+  border-color:rgba(148,163,184,.13) !important;
+  box-shadow:0 10px 28px rgba(0,0,0,.24) !important;
+}
+@media(max-width:575.98px){
+  .client-portal-top{padding:8px 0 0 !important;}
+  .client-portal-top-inner{
+    width:calc(100% - 14px) !important;
+    padding:0 12px !important;
+    border-radius:20px !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.68 — Fundo/body da Área do Cliente refinado
+   ========================================================= */
+body.client-portal-active{
+  background:
+    radial-gradient(circle at 18% -8%, rgba(124,58,237,.10), transparent 34%),
+    radial-gradient(circle at 88% 12%, rgba(59,130,246,.08), transparent 30%),
+    linear-gradient(180deg,#f4f7fb 0%,#eef3f9 48%,#e9eff6 100%) !important;
+  background-attachment:fixed !important;
+}
+body.client-portal-active .client-portal{
+  min-height:100dvh !important;
+  background:transparent !important;
+}
+body.dark.client-portal-active{
+  background:
+    radial-gradient(circle at 16% -10%, rgba(124,58,237,.18), transparent 34%),
+    radial-gradient(circle at 88% 8%, rgba(37,99,235,.12), transparent 30%),
+    linear-gradient(180deg,#050b16 0%,#07111f 48%,#050b15 100%) !important;
+  background-attachment:fixed !important;
+}
+body.dark.client-portal-active .client-portal{
+  background:transparent !important;
+}
+body.dark.client-portal-active .client-portal-top-inner{
+  background:linear-gradient(180deg,rgba(8,18,34,.96),rgba(6,15,29,.94)) !important;
+  border-color:rgba(118,145,180,.14) !important;
+}
+@media(max-width:575.98px){
+  body.client-portal-active,
+  body.dark.client-portal-active{
+    background-attachment:scroll !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.71 — Campo NOME DO CREDIÁRIO no Plano de Parcelas
+   ========================================================= */
+#emprestimo #loanCrediarioNome{min-height:44px;font-weight:850;letter-spacing:.01em;text-transform:uppercase;}
+#emprestimo #loanCrediarioNome::placeholder{font-weight:650;letter-spacing:0;}
+
+
+/* =========================================================
+   VALLE 3.6.72 — Cards de crediários responsivos no celular
+   ========================================================= */
+.client-portal-contract,
+.client-portal-contract-head,
+.client-portal-progress-copy,
+.client-portal-contract-stats,
+.client-portal-contract-stats > div{
+  min-width:0 !important;
+}
+.client-portal-contract-head .badge{
+  flex:0 0 auto;
+  max-width:100%;
+}
+.client-portal-progress-copy span,
+.client-portal-progress-copy strong,
+.client-portal-contract-stats strong,
+.client-portal-contract-open span{
+  overflow-wrap:anywhere;
+}
+@media(max-width:575.98px){
+  .client-portal-contracts{
+    grid-template-columns:1fr !important;
+    gap:10px !important;
+  }
+  .client-portal-contract{
+    padding:12px !important;
+    border-radius:16px !important;
+  }
+  .client-portal-contract-head{
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) auto !important;
+    align-items:start !important;
+    gap:8px !important;
+  }
+  .client-portal-contract-head small{
+    font-size:8px !important;
+    letter-spacing:.05em;
+  }
+  .client-portal-contract-head h3{
+    margin-top:4px !important;
+    font-size:.96rem !important;
+    line-height:1.12 !important;
+    white-space:normal !important;
+    overflow:visible !important;
+    text-overflow:unset !important;
+    display:-webkit-box !important;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+  }
+  .client-portal-contract-head .badge{
+    font-size:.64rem !important;
+    line-height:1 !important;
+    padding:.4rem .5rem !important;
+    align-self:start !important;
+    white-space:nowrap !important;
+  }
+  .client-portal-progress-copy{
+    margin-top:10px !important;
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) auto !important;
+    align-items:center !important;
+    gap:8px !important;
+    font-size:9px !important;
+  }
+  .client-portal-progress-copy strong{
+    font-size:.9rem !important;
+    line-height:1 !important;
+  }
+  .client-portal-contract .progress{
+    margin-top:7px !important;
+    height:7px !important;
+  }
+  .client-portal-contract-stats{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    gap:7px !important;
+    margin-top:10px !important;
+  }
+  .client-portal-contract-stats > div{
+    padding:9px 8px !important;
+    border-radius:10px !important;
+  }
+  .client-portal-contract-stats > div:last-child{
+    grid-column:1 / -1 !important;
+  }
+  .client-portal-contract-stats span{
+    font-size:7px !important;
+  }
+  .client-portal-contract-stats strong{
+    font-size:10px !important;
+    line-height:1.15 !important;
+  }
+  .client-portal-contract-open{
+    justify-content:center !important;
+    gap:7px !important;
+    margin-top:10px !important;
+    padding-top:10px !important;
+    font-size:8px !important;
+  }
+}
+@media(max-width:390px){
+  .client-portal-contract{
+    padding:11px !important;
+  }
+  .client-portal-contract-head{
+    grid-template-columns:1fr !important;
+  }
+  .client-portal-contract-head .badge{
+    justify-self:start !important;
+  }
+  .client-portal-contract-head h3{
+    font-size:.92rem !important;
+  }
+  .client-portal-progress-copy{
+    grid-template-columns:1fr auto !important;
+    font-size:8px !important;
+  }
+  .client-portal-contract-stats{
+    grid-template-columns:1fr !important;
+  }
+  .client-portal-contract-stats > div:last-child{
+    grid-column:auto !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.73 — Mensagens sempre acima de qualquer tela
+   ========================================================= */
+body > #toastContainer.app-alert-container,
+#toastContainer.app-alert-container{
+  position:fixed !important;
+  z-index:2147483647 !important;
+  isolation:isolate !important;
+  transform:none !important;
+  contain:none !important;
+}
+#toastContainer .app-bootstrap-alert{
+  position:relative !important;
+  z-index:2147483647 !important;
+}
+.client-pix-copy-feedback{
+  z-index:2147483647 !important;
+}
+
+
+/* =========================================================
+   VALLE 3.6.74 — Modal de senha sempre acima do crediário
+   ========================================================= */
+#abrirValeSenhaModal,
+#abrirValeSenhaModal.valle-password-modal-top{
+  z-index:2147483645 !important;
+}
+.modal-backdrop.abrir-vale-senha-backdrop{
+  z-index:2147483644 !important;
+}
+#abrirValeSenhaModal .modal-dialog,
+#abrirValeSenhaModal .modal-content{
+  position:relative !important;
+  z-index:2147483645 !important;
+}
+
+
+/* =========================================================
+   VALLE 3.6.76 — Botões 50/50 em parcelas pagas do crediário
+   ========================================================= */
+.crediario-detail-modal .crediario-installment-actions.actions-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+.crediario-detail-modal .crediario-installment-actions.actions-1 {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+
+/* =========================================================
+   VALLE 3.6.77 — Badge de pendência na aba Lançamentos
+   para Pagamentos PIX Informados.
+   ========================================================= */
+.tab[data-screen="lancamentos"],
+.tabs .tab[data-screen="lancamentos"]{
+  position: relative;
+  overflow: visible;
+}
+.tab-notify-badge{
+  position:absolute;
+  top:6px;
+  right:8px;
+  min-width:24px;
+  height:22px;
+  padding:0 7px;
+  border-radius:999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(239, 68, 68, .38);
+  background:rgba(239, 68, 68, .12);
+  color:#f87171;
+  font-size:11px;
+  font-weight:900;
+  line-height:1;
+  box-shadow:0 8px 18px rgba(239,68,68,.18);
+  z-index:3;
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+}
+body:not(.dark) .tab-notify-badge{
+  background:rgba(239, 68, 68, .10);
+  color:#dc2626;
+  border-color:rgba(239,68,68,.24);
+}
+.tab.active .tab-notify-badge{
+  background:rgba(239,68,68,.18);
+  color:#fff;
+  border-color:rgba(255,255,255,.26);
+  box-shadow:0 8px 18px rgba(185,28,28,.24);
+}
+@media(max-width:575.98px){
+  .tab-notify-badge{
+    top:4px;
+    right:4px;
+    min-width:22px;
+    height:20px;
+    font-size:10px;
+    padding:0 6px;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.81 — Pull to refresh em todas as abas principais
+   ========================================================= */
+.app {
+  --valle-app-pull-offset: 0px;
+  transition: transform .22s ease;
+}
+.app.valle-app-pull-active {
+  transform: translateY(var(--valle-app-pull-offset));
+  transition: none;
+  will-change: transform;
+}
+.valle-app-pull-refresh {
+  --pull-distance: 0px;
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 2147483300;
+  min-height: 38px;
+  max-width: calc(100vw - 28px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 13px;
+  border: 1px solid rgba(139, 92, 246, .20);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card, #fff) 94%, transparent);
+  color: var(--muted, #64748b);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, .16);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -18px) scale(.95);
+  transition: opacity .16s ease, transform .18s ease, border-color .18s ease, color .18s ease;
+}
+.valle-app-pull-refresh.is-pulling,
+.valle-app-pull-refresh.is-refreshing {
+  opacity: 1;
+  transform: translate(-50%, clamp(0px, calc(var(--pull-distance) * .10), 12px)) scale(1);
+}
+.valle-app-pull-refresh.is-ready {
+  color: #2563eb;
+  border-color: rgba(59, 130, 246, .34);
+}
+.valle-app-pull-refresh.is-done {
+  color: #16a34a;
+  border-color: rgba(34, 197, 94, .30);
+}
+.valle-app-pull-refresh.is-error {
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, .32);
+}
+.valle-app-pull-refresh-icon {
+  width: 23px;
+  height: 23px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(139, 92, 246, .10);
+  color: #8b5cf6;
+}
+.valle-app-pull-refresh.is-ready .valle-app-pull-refresh-icon i {
+  transform: rotate(180deg);
+}
+.valle-app-pull-refresh.is-refreshing .valle-app-pull-refresh-icon i {
+  animation: valleAppPullSpin .72s linear infinite;
+}
+.valle-app-pull-refresh strong {
+  font-size: .63rem;
+  font-weight: 950;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+.valle-app-pull-refresh-icon i {
+  transition: transform .18s ease;
+}
+@keyframes valleAppPullSpin { to { transform: rotate(360deg); } }
+body.dark .valle-app-pull-refresh {
+  background: rgba(15, 25, 43, .96);
+  border-color: #26364f;
+  color: #cbd5e1;
+}
+
+
+/* =========================================================
+   VALLE 3.6.84 — Subabas em Lançamentos: Movimentação e
+   Pagamentos PIX Informados
+   ========================================================= */
+.lancamentos-sections-nav{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin:4px 0 14px;
+}
+.lancamentos-section-btn{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  min-height:46px;
+  padding:10px 16px;
+  border:1px solid rgba(148,163,184,.18);
+  border-radius:14px;
+  background:rgba(255,255,255,.78);
+  color:var(--text);
+  font-size:.84rem;
+  font-weight:900;
+  letter-spacing:.03em;
+  box-shadow:0 10px 22px rgba(15,23,42,.05);
+  transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease, color .18s ease;
+}
+.lancamentos-section-btn:hover,
+.lancamentos-section-btn:focus-visible{
+  transform:translateY(-1px);
+  border-color:rgba(124,58,237,.28);
+  box-shadow:0 14px 26px rgba(124,58,237,.10);
+}
+.lancamentos-section-btn.active{
+  background:linear-gradient(135deg, rgba(124,58,237,.14), rgba(59,130,246,.10));
+  color:var(--p);
+  border-color:rgba(124,58,237,.28);
+  box-shadow:0 16px 30px rgba(124,58,237,.12);
+}
+.lancamentos-section-btn i{font-size:1rem;flex:0 0 auto}
+.lancamentos-section-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:22px;
+  height:22px;
+  padding:0 6px;
+  border-radius:999px;
+  background:rgba(239,68,68,.14);
+  color:#dc2626;
+  border:1px solid rgba(239,68,68,.24);
+  font-size:.72rem;
+  font-style:normal;
+  font-weight:900;
+  line-height:1;
+}
+.lancamentos-section-panel.hidden{display:none!important}
+body.dark .lancamentos-section-btn{
+  background:rgba(15,25,43,.92);
+  color:#e2e8f0;
+  border-color:#25344b;
+  box-shadow:none;
+}
+body.dark .lancamentos-section-btn.active{
+  background:linear-gradient(135deg, rgba(124,58,237,.18), rgba(59,130,246,.14));
+  color:#c4b5fd;
+  border-color:rgba(124,58,237,.26);
+}
+body.dark .lancamentos-section-badge{
+  background:rgba(127,29,29,.34);
+  color:#fca5a5;
+  border-color:rgba(248,113,113,.26);
+}
+@media(max-width:700px){
+  .lancamentos-sections-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .lancamentos-section-btn{width:100%;padding:10px 12px;font-size:.78rem}
+}
+@media(max-width:460px){
+  .lancamentos-sections-nav{grid-template-columns:1fr}
+}
+
+
+/* =========================================================
+   VALLE 3.6.86 — Carrossel e pull-to-refresh sem disputa
+   ========================================================= */
+@media (max-width:780px) {
+  .tabs {
+    touch-action: pan-x pinch-zoom !important;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: none;
+  }
+  .tabs .tab {
+    touch-action: pan-x pinch-zoom !important;
+  }
+  .lancamentos-sections-nav {
+    touch-action: manipulation;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.87 — Swipe móvel usando a mesma troca do clique
+   no botão do carrossel, sem View Transition pesado.
+   ========================================================= */
+@media(max-width:780px){
+  body.valle-swipe-switching .screen.active{
+    animation:show .22s ease !important;
+    backface-visibility:hidden;
+    transform:translateZ(0);
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.88 — Transição móvel leve e agradável
+   Mesma sensação no clique e no swipe, sem snapshots pesados.
+   ========================================================= */
+@media(max-width:780px){
+  .screen.active.valle-screen-enter-next{
+    animation:valleScreenEnterNext .18s cubic-bezier(.16,1,.3,1) both !important;
+  }
+  .screen.active.valle-screen-enter-prev{
+    animation:valleScreenEnterPrev .18s cubic-bezier(.16,1,.3,1) both !important;
+  }
+  .screen.active.valle-screen-enter-neutral{
+    animation:valleScreenEnterNeutral .16s cubic-bezier(.16,1,.3,1) both !important;
+  }
+  body.valle-swipe-switching .screen.active{
+    animation:none !important;
+  }
+}
+@keyframes valleScreenEnterNext{
+  from{opacity:.88;transform:translate3d(9px,0,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
+}
+@keyframes valleScreenEnterPrev{
+  from{opacity:.88;transform:translate3d(-9px,0,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
+}
+@keyframes valleScreenEnterNeutral{
+  from{opacity:.90;transform:translate3d(0,3px,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
+}
+@media (prefers-reduced-motion: reduce){
+  .screen.active.valle-screen-enter-next,
+  .screen.active.valle-screen-enter-prev,
+  .screen.active.valle-screen-enter-neutral{animation:none !important}
+}
+
+
+/* VALLE 3.6.89 — evita camadas antigas de View Transition na navegação comum */
+@media(max-width:780px){
+  .screen.active{view-transition-name:none !important;}
 }

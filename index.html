@@ -273,14 +273,14 @@
       .valle-loading-progress span { width: 100%; }
     }
   </style>
-  <link rel="manifest" href="manifest.json?v=97">
+  <link rel="manifest" href="manifest.json?v=98">
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="vendor/bootstrap/bootstrap.min.css">
   <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="css/app.css?v=95">
+  <link rel="stylesheet" href="css/app.css?v=102">
 </head>
 
 <body class="bootstrap-only-ui" style="background:#070b18">
@@ -397,6 +397,7 @@
       <button class="tab notification-tab" data-screen="notificacoes">🔔<span>Notificações</span><em id="notifCount"
           class="notif-count">0</em></button>
       <button class="tab" data-screen="emprestimo">💰<span>Novo</span></button>
+      <button class="tab" data-screen="crediarios">💳<span>Crediários</span></button>
       <button class="tab" data-screen="clientes">👤<span>Clientes</span></button>
       <button class="tab" data-screen="historico">📜<span>Histórico</span></button>
       <button class="tab" data-screen="relatorios">📊<span>Relatórios</span></button>
@@ -673,6 +674,14 @@
                     <span class="badge rounded-pill" id="loanCrediarioResumo">2X</span>
                   </div>
                   <div class="row g-3">
+                    <div class="col-12">
+                      <label class="form-label" for="loanCrediarioNome"><i class="bi bi-tag-fill me-2"></i>NOME DO CREDIÁRIO</label>
+                      <div class="input-group loan-input-group">
+                        <span class="input-group-text"><i class="bi bi-card-heading"></i></span>
+                        <input class="form-control" id="loanCrediarioNome" type="text" maxlength="60" autocomplete="off" placeholder="EX.: MOTO BIZ, TV SALA, GELADEIRA">
+                      </div>
+                      <div class="form-text loan-rate-help">Nome usado para identificar o contrato. Não é mais puxado da observação.</div>
+                    </div>
                     <div class="col-12 col-md-6">
                       <label class="form-label" for="loanParcelas"><i class="bi bi-123 me-2"></i>QUANTIDADE DE PARCELAS</label>
                       <div class="input-group loan-input-group">
@@ -688,6 +697,28 @@
                         <option value="semanal">SEMANAL</option>
                       </select>
                     </div>
+                    <div class="col-12 col-md-6">
+                      <label class="form-label" for="loanEntrada"><i class="bi bi-cash-coin me-2"></i>ENTRADA</label>
+                      <div class="input-group loan-input-group">
+                        <span class="input-group-text">R$</span>
+                        <input class="form-control" id="loanEntrada" inputmode="decimal" value="R$ 0,00" placeholder="R$ 0,00">
+                      </div>
+                      <div class="form-text loan-rate-help">A entrada é abatida antes de calcular as parcelas e os juros.</div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                      <label class="form-label" for="loanMultaAtraso"><i class="bi bi-exclamation-triangle me-2"></i>MULTA POR ATRASO</label>
+                      <div class="input-group loan-input-group">
+                        <span class="input-group-text">%</span>
+                        <input class="form-control" id="loanMultaAtraso" inputmode="decimal" value="0%" placeholder="0%">
+                      </div>
+                      <div class="form-text loan-rate-help">Aplicada uma única vez quando a parcela entrar em atraso.</div>
+                    </div>
+                  </div>
+                  <div class="loan-contract-preview mt-3" id="loanContractPreview">
+                    <div><span>VALOR BASE</span><strong id="loanCrediarioValorBase">R$ 0,00</strong></div>
+                    <div><span>ENTRADA</span><strong id="loanCrediarioEntradaResumo">R$ 0,00</strong></div>
+                    <div><span>FINANCIADO</span><strong id="loanCrediarioFinanciado">R$ 0,00</strong></div>
+                    <div><span>TOTAL PARCELADO</span><strong id="loanCrediarioTotalParcelado">R$ 0,00</strong></div>
                   </div>
                   <div class="loan-installment-preview mt-3">
                     <div class="loan-installment-preview-head">
@@ -719,14 +750,18 @@
                 <div class="form-text loan-rate-help">Aplicada por dia após o vencimento.</div>
               </div>
 
-              <div class="col-12 col-md-6">
-                <label class="form-label" for="loanInicio"><i class="bi bi-calendar-event me-2"></i>DATA INICIAL</label>
-                <input class="form-control loan-form-control" id="loanInicio" type="date">
-              </div>
+              <div class="col-12 loan-date-row-wrap">
+                <div class="row g-3 loan-date-row">
+                  <div class="col-12 col-md-6">
+                    <label class="form-label" for="loanInicio"><i class="bi bi-calendar-event me-2"></i>DATA INICIAL</label>
+                    <input class="form-control loan-form-control" id="loanInicio" type="date">
+                  </div>
 
-              <div class="col-12 col-md-6">
-                <label class="form-label" for="loanFinal"><i class="bi bi-calendar-check me-2"></i><span id="loanFinalLabelText">DATA FINAL</span></label>
-                <input class="form-control loan-form-control" id="loanFinal" type="date">
+                  <div class="col-12 col-md-6">
+                    <label class="form-label" for="loanFinal"><i class="bi bi-calendar-check me-2"></i><span id="loanFinalLabelText">DATA FINAL</span></label>
+                    <input class="form-control loan-form-control" id="loanFinal" type="date">
+                  </div>
+                </div>
               </div>
 
               <div class="col-12">
@@ -752,6 +787,38 @@
                   class="bi bi-check-circle me-2"></i>SALVAR</button>
             </div>
           </form>
+        </div>
+      </section>
+
+      <section id="crediarios" class="screen crediarios-screen">
+        <div class="card border-0 shadow-lg crediarios-page-card">
+          <div class="card-header crediarios-page-header bg-transparent">
+            <div class="d-flex align-items-center gap-3 flex-grow-1 min-w-0">
+              <span class="crediarios-page-icon"><i class="bi bi-credit-card-2-front-fill"></i></span>
+              <div class="min-w-0">
+                <h2 class="mb-1">CREDIÁRIOS</h2>
+                <p class="mb-0">Acompanhe contratos, parcelas, saldo devedor e recebimentos.</p>
+              </div>
+            </div>
+            <button id="newCrediarioBtn" type="button" class="btn btn-primary" onclick="if(valleRequirePermission('can_create_vale')){openNewLoan();setLoanPaymentMode('crediario')}"><i class="bi bi-plus-lg me-1"></i>NOVO CREDIÁRIO</button>
+          </div>
+          <div class="card-body p-3 p-md-4">
+            <div id="crediariosResumo" class="crediarios-summary-grid"></div>
+            <div class="crediarios-toolbar mt-3">
+              <div class="input-group crediarios-search-group">
+                <span class="input-group-text crediarios-search-icon" aria-hidden="true"><i class="bi bi-search"></i></span>
+                <input id="searchCrediarios" class="form-control crediarios-search-input" type="search"
+                  placeholder="PESQUISAR CLIENTE OU CONTRATO" aria-label="Pesquisar cliente ou contrato" autocomplete="off">
+              </div>
+              <select id="filtroCrediariosStatus" class="form-select" aria-label="Status do crediário">
+                <option value="TODOS">TODOS OS STATUS</option>
+                <option value="EM_DIA">EM DIA</option>
+                <option value="ATRASADO">ATRASADOS</option>
+                <option value="QUITADO">QUITADOS</option>
+              </select>
+            </div>
+            <div id="crediariosLista" class="crediarios-list mt-3"></div>
+          </div>
         </div>
       </section>
 
@@ -908,7 +975,14 @@
           <div class="form-grid config-grid">
             <label class="field"><span>🏦 Capital investido</span><input id="configCapitalInvestido" inputmode="numeric"
                 placeholder="R$ 0,00"></label>
+            <label class="field"><span>🔑 Chave PIX da sessão</span><input id="configPixKey" type="text" autocapitalize="none" spellcheck="false"
+                placeholder="CPF, telefone, e-mail ou chave aleatória"></label>
+            <label class="field"><span>👤 Nome do beneficiário PIX</span><input id="configPixBeneficiaryName" type="text"
+                placeholder="NOME DO RECEBEDOR"></label>
+            <label class="field"><span>📍 Cidade do beneficiário PIX</span><input id="configPixCity" type="text"
+                placeholder="EX.: SAO PAULO"></label>
           </div>
+          <p class="backup-help" style="margin-top:10px">A chave, o beneficiário e a cidade do PIX são configurações da sessão e valem para todos os usuários de serviço vinculados.</p>
           <div class="actions config-actions">
             <button class="btn primary" id="saveConfigBtn">SALVAR CONFIGURAÇÃO</button>
           </div>
@@ -938,9 +1012,6 @@
                 <p>Confira pagamentos e novos vales registrados na sessão.</p>
               </div>
             </div>
-            <button type="button" class="btn lancamentos-refresh-btn" id="lancamentosRefreshBtn">
-              <i class="bi bi-arrow-clockwise"></i><span>ATUALIZAR</span>
-            </button>
           </header>
 
           <div class="lancamentos-page-body">
@@ -971,51 +1042,80 @@
               </article>
             </section>
 
-            <section class="lancamentos-filters" aria-label="Filtros dos lançamentos">
-              <div class="lancamentos-filters-row">
-                <div class="lancamentos-search-wrap">
-                  <label class="visually-hidden" for="lancamentosSearch">Buscar cliente, vale ou usuário</label>
-                  <div class="input-group lancamentos-search-group">
-                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="search" class="form-control" id="lancamentosSearch"
-                      placeholder="BUSCAR CLIENTE, VALE OU USUÁRIO" autocomplete="off">
+            <div class="lancamentos-sections-nav" id="lancamentosSectionsNav" role="tablist" aria-label="Seções dos lançamentos">
+              <button type="button" class="lancamentos-section-btn active" data-lancamentos-section="movimentacao" aria-selected="true">
+                <i class="bi bi-list-check"></i><span>MOVIMENTAÇÃO</span>
+              </button>
+              <button type="button" class="lancamentos-section-btn hidden" id="lancamentosPixSectionBtn" data-lancamentos-section="pix" aria-selected="false">
+                <i class="bi bi-qr-code-scan"></i><span>PAGAMENTOS PIX INFORMADOS</span><em class="lancamentos-section-badge hidden" id="lancamentosPixSectionBadge">0</em>
+              </button>
+            </div>
+
+            <section class="lancamentos-section-panel" id="lancamentosMovimentacaoPanel" aria-label="Movimentação">
+              <section class="lancamentos-filters" aria-label="Filtros dos lançamentos">
+                <div class="lancamentos-filters-row">
+                  <div class="lancamentos-search-wrap">
+                    <label class="visually-hidden" for="lancamentosSearch">Buscar cliente, vale ou usuário</label>
+                    <div class="input-group lancamentos-search-group">
+                      <span class="input-group-text"><i class="bi bi-search"></i></span>
+                      <input type="search" class="form-control" id="lancamentosSearch"
+                        placeholder="BUSCAR CLIENTE, VALE OU USUÁRIO" autocomplete="off">
+                    </div>
                   </div>
+                  <select class="form-select" id="lancamentosTipo" aria-label="Filtrar tipo de lançamento">
+                    <option value="todos">TODOS OS LANÇAMENTOS</option>
+                    <option value="pagamentos">TODOS OS PAGAMENTOS</option>
+                    <option value="quitados">PAGAMENTOS QUITADOS</option>
+                    <option value="parciais">PAGAMENTOS PARCIAIS</option>
+                    <option value="juros">PAGAMENTOS DE JUROS</option>
+                    <option value="vales">NOVOS VALES</option>
+                  </select>
+                  <select class="form-select" id="lancamentosUsuario" aria-label="Filtrar usuário">
+                    <option value="">TODOS OS USUÁRIOS</option>
+                  </select>
+                  <div class="lancamentos-date-field">
+                    <label for="lancamentosDataInicial"><i class="bi bi-calendar-event"></i> DATA INICIAL</label>
+                    <input type="date" class="form-control" id="lancamentosDataInicial">
+                  </div>
+                  <div class="lancamentos-date-field">
+                    <label for="lancamentosDataFinal"><i class="bi bi-calendar-check"></i> DATA FINAL</label>
+                    <input type="date" class="form-control" id="lancamentosDataFinal">
+                  </div>
+                  <button type="button" class="btn lancamentos-clear-btn" id="lancamentosLimparBtn">
+                    <i class="bi bi-eraser"></i><span>LIMPAR FILTROS</span>
+                  </button>
                 </div>
-                <select class="form-select" id="lancamentosTipo" aria-label="Filtrar tipo de lançamento">
-                  <option value="todos">TODOS OS LANÇAMENTOS</option>
-                  <option value="pagamentos">TODOS OS PAGAMENTOS</option>
-                  <option value="quitados">PAGAMENTOS QUITADOS</option>
-                  <option value="parciais">PAGAMENTOS PARCIAIS</option>
-                  <option value="juros">PAGAMENTOS DE JUROS</option>
-                  <option value="vales">NOVOS VALES</option>
-                </select>
-                <select class="form-select" id="lancamentosUsuario" aria-label="Filtrar usuário">
-                  <option value="">TODOS OS USUÁRIOS</option>
-                </select>
-                <div class="lancamentos-date-field">
-                  <label for="lancamentosDataInicial"><i class="bi bi-calendar-event"></i> DATA INICIAL</label>
-                  <input type="date" class="form-control" id="lancamentosDataInicial">
+              </section>
+
+              <div class="lancamentos-list-header">
+                <div>
+                  <span class="lancamentos-list-title"><i class="bi bi-list-check"></i> MOVIMENTAÇÕES</span>
+                  <div class="lancamentos-result-info" id="lancamentosResultInfo">Carregando lançamentos...</div>
                 </div>
-                <div class="lancamentos-date-field">
-                  <label for="lancamentosDataFinal"><i class="bi bi-calendar-check"></i> DATA FINAL</label>
-                  <input type="date" class="form-control" id="lancamentosDataFinal">
-                </div>
-                <button type="button" class="btn lancamentos-clear-btn" id="lancamentosLimparBtn">
-                  <i class="bi bi-eraser"></i><span>LIMPAR FILTROS</span>
-                </button>
+              </div>
+
+              <div class="lancamentos-list" id="lancamentosLista">
+                <div class="lancamentos-loading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> CARREGANDO...</div>
               </div>
             </section>
 
-            <div class="lancamentos-list-header">
-              <div>
-                <span class="lancamentos-list-title"><i class="bi bi-list-check"></i> MOVIMENTAÇÕES</span>
-                <div class="lancamentos-result-info" id="lancamentosResultInfo">Carregando lançamentos...</div>
-              </div>
-            </div>
-
-            <div class="lancamentos-list" id="lancamentosLista">
-              <div class="lancamentos-loading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> CARREGANDO...</div>
-            </div>
+            <section class="lancamentos-section-panel hidden" id="lancamentosPixPanel" aria-label="Pagamentos PIX informados">
+              <section class="client-payment-requests-card hidden" id="clientPaymentRequestsCard" aria-label="Pagamentos informados pelos clientes">
+                <div class="client-payment-requests-head">
+                  <div>
+                    <small>PORTAL DO CLIENTE</small>
+                    <h3><i class="bi bi-qr-code-scan"></i> PAGAMENTOS PIX INFORMADOS</h3>
+                    <p>Confira os pagamentos que os clientes marcaram como “Já paguei”.</p>
+                  </div>
+                  <div class="client-payment-requests-actions">
+                    <span class="badge text-bg-warning" id="clientPaymentRequestsPendingBadge">0 PENDENTES</span>
+                  </div>
+                </div>
+                <div id="clientPaymentRequestsList" class="client-payment-requests-list">
+                  <div class="client-payment-request-empty"><span class="spinner-border spinner-border-sm"></span> CARREGANDO...</div>
+                </div>
+              </section>
+            </section>
           </div>
         </div>
       </section>
@@ -1168,13 +1268,15 @@
     });
   </script>
   <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
-  <script src="js/version.js?v=3.6.24"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="js/version.js?v=3.6.89"></script>
   <script src="js/supabase-config.js?v=34"></script>
-  <script src="js/supabase-client.js?v=34"></script>
-  <script src="js/app.js?v=3.6.24"></script>
-  <script src="js/lancamentos.js?v=3.6.24"></script>
-  <script src="js/auth-ui.js?v=3.6.24"></script>
-  <script src="js/bootstrap-enhance.js?v=52"></script>
+  <script src="js/supabase-client.js?v=3.6.43"></script>
+  <script src="js/app.js?v=3.6.89"></script>
+  <script src="js/lancamentos.js?v=3.6.89"></script>
+  <script src="js/client-payments.js?v=3.6.89"></script>
+  <script src="js/auth-ui.js?v=3.6.89"></script>
+  <script src="js/bootstrap-enhance.js?v=53"></script>
   <script src="js/push-notifications.js?v=34"></script>
   <script>
     (function () {
@@ -1192,7 +1294,7 @@
       window.addEventListener('load', async function () {
         try {
           const registro = await navigator.serviceWorker.register(
-            'service-worker.js?v=97',
+            'service-worker.js?v=103',
             { updateViaCache: 'none' }
           );
 

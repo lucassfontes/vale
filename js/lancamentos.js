@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const ACTIONS = new Set(['CRIAR_VALE','QUITAR_VALE','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS']);
+  const ACTIONS = new Set(['CRIAR_VALE','REABRIR_VALE','QUITAR_VALE','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS','PAGAMENTO_ENTRADA']);
   const PAYMENT_ACTIONS = new Set(['QUITAR_VALE','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS']);
   const state = { entries: [], loading: false, loadedAt: 0, bound: false };
 
@@ -60,9 +60,11 @@
   function actionMeta(action){
     const map = {
       CRIAR_VALE: { category:'vales', label:'NOVO VALE', icon:'bi-file-earmark-plus', tone:'purple' },
+      REABRIR_VALE: { category:'vales', label:'VALE REABERTO', icon:'bi-unlock-fill', tone:'cyan' },
       QUITAR_VALE: { category:'pagamentos', label:'PAGAMENTO TOTAL', icon:'bi-check-circle-fill', tone:'green' },
       PAGAMENTO_PARCIAL: { category:'pagamentos', label:'PAGAMENTO PARCIAL', icon:'bi-cash-stack', tone:'orange' },
-      PAGAMENTO_JUROS: { category:'pagamentos', label:'PAGAMENTO DE JUROS', icon:'bi-percent', tone:'cyan' }
+      PAGAMENTO_JUROS: { category:'pagamentos', label:'PAGAMENTO DE JUROS', icon:'bi-percent', tone:'cyan' },
+      PAGAMENTO_ENTRADA: { category:'pagamentos', label:'ENTRADA DO CREDIÁRIO', icon:'bi-cash-coin', tone:'green' }
     };
     return map[action] || { category:'outros', label:String(action || 'LANÇAMENTO').replaceAll('_',' '), icon:'bi-journal-text', tone:'gray' };
   }
@@ -240,7 +242,7 @@
   }
 
   function entryHtml(item){
-    const amountLabel = item.category === 'vales' ? 'VALOR LIBERADO' : 'VALOR PAGO';
+    const amountLabel = item.action === 'REABRIR_VALE' ? 'SALDO REABERTO' : (item.category === 'vales' ? 'VALOR LIBERADO' : 'VALOR PAGO');
     const access = actionAccess(item);
     const disabledOpen = access.canOpen ? '' : ' disabled aria-disabled="true"';
     const disabledEdit = access.canEdit ? '' : ' disabled aria-disabled="true"';
@@ -262,6 +264,7 @@
               <div class="lancamento-meta">
                 <span><i class="bi bi-person-check"></i><b>REALIZADO POR:</b> ${escapeHtml(item.actorName)}</span>
                 <span><i class="bi bi-calendar3"></i><b>DATA:</b> ${escapeHtml(item.date)}</span>
+                ${item.action === 'REABRIR_VALE' ? `<span><i class="bi bi-clock"></i><b>HORA:</b> ${escapeHtml(item.time)}</span>` : ''}
               </div>
             </div>
             <div class="lancamento-value">

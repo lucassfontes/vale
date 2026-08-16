@@ -1,7 +1,7 @@
 /* VERSÃO DO SISTEMA — controlada em js/version.js */
 const versao = document.getElementById("versao_sytem");
 if (versao) {
-  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.24'}`;
+  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.89'}`;
 }
 /**
  * ARQUIVO PRINCIPAL DO VALLE
@@ -98,6 +98,7 @@ async function valleRequireFreshPermission(permission) {
 function applyVallePermissionVisibility(root = document) {
   if (!root?.querySelectorAll) return;
   const selectors = {
+    can_create_vale: ['#newCrediarioBtn'],
     can_create_client: ['[onclick*="openClientModal(false"]'],
     can_edit_client: ['[onclick*="editClient("]', '[onclick*="editarCliente("]'],
     can_delete_client: ['[onclick*="deleteClient("]', '[onclick*="excluirCliente("]'],
@@ -192,7 +193,7 @@ function appAlert(message, options = {}) {
  * Cria a estrutura padrão do banco local quando o sistema é aberto pela primeira vez ou quando os dados são apagados.
  */
 function seed() {
-  return { settings: { theme: 'auto', seq: 1, capitalInvestido: 0, percentualJuros50: 50, taxaAtrasoDiario: 0, tipoTaxaAtrasoDiario: 'percentual' }, clientes: [], vales: [] };
+  return { settings: { theme: 'auto', seq: 1, crediarioSeq: 1, capitalInvestido: 0, percentualJuros50: 50, taxaAtrasoDiario: 0, tipoTaxaAtrasoDiario: 'percentual', pixKey: '', pixBeneficiaryName: '', pixCity: '' }, clientes: [], vales: [] };
 }
 
 /**
@@ -214,6 +215,7 @@ function normalizeDb(obj, usarChavesSeparadas = false) {
   obj = obj && typeof obj === 'object' ? obj : base;
   obj.settings = { ...base.settings, ...(obj.settings || {}) };
   obj.settings.seq = Number(obj.settings.seq || 1);
+  obj.settings.crediarioSeq = Math.max(1, Number(obj.settings.crediarioSeq || 1));
 
   // Migração: se existir a configuração antiga, mantém o valor.
   if (obj.settings.percentualJuros50 === undefined && obj.settings.percentualJuros !== undefined) {
@@ -249,6 +251,9 @@ function normalizeDb(obj, usarChavesSeparadas = false) {
   if (Number.isNaN(obj.settings.capitalInvestido)) obj.settings.capitalInvestido = 0;
   if (Number.isNaN(obj.settings.percentualJuros50)) obj.settings.percentualJuros50 = 50;
   if (Number.isNaN(obj.settings.taxaAtrasoDiario)) obj.settings.taxaAtrasoDiario = 0;
+  obj.settings.pixKey = String(obj.settings.pixKey || '').trim();
+  obj.settings.pixBeneficiaryName = String(obj.settings.pixBeneficiaryName || '').trim();
+  obj.settings.pixCity = String(obj.settings.pixCity || '').trim();
 
   // Mantém compatibilidade com versões antigas do backup.
   delete obj.settings.percentualJuros;
@@ -291,6 +296,12 @@ function normalizeDb(obj, usarChavesSeparadas = false) {
     periodicidade: ['mensal','quinzenal','semanal'].includes(v.periodicidade) ? v.periodicidade : 'mensal',
     crediarioValorPrincipal: Number(v.crediarioValorPrincipal || 0),
     crediarioValorTotal: Number(v.crediarioValorTotal || 0),
+    crediarioValorBruto: Number(v.crediarioValorBruto || v.crediarioValorPrincipal || 0),
+    crediarioEntrada: Number(v.crediarioEntrada || 0),
+    crediarioValorFinanciado: Number(v.crediarioValorFinanciado || v.crediarioValorPrincipal || 0),
+    crediarioCodigo: upper(v.crediarioCodigo || ''),
+    crediarioNome: upper(v.crediarioNome || v.crediario_nome || ''),
+    multaAtrasoPercentual: Math.max(0, Number(v.multaAtrasoPercentual || 0)),
     dataInicial: v.dataInicial || '',
     dataFinal: v.dataFinal || '',
     observacao: upper(v.observacao || ''),
@@ -308,6 +319,14 @@ function normalizeDb(obj, usarChavesSeparadas = false) {
     if (!v.numero) v.numero = ++obj.settings.seq;
   });
   obj.settings.seq = Math.max(Number(obj.settings.seq || 1), maiorNumero + 1);
+
+  // Mantém uma sequência independente para contratos de crediário novos.
+  // Crediários antigos continuam válidos mesmo sem código persistido.
+  const maiorCrediarioCodigo = obj.vales.reduce((max, v) => {
+    const match = String(v.crediarioCodigo || '').match(/CRD-(\d+)/i);
+    return match ? Math.max(max, Number(match[1] || 0)) : max;
+  }, 0);
+  obj.settings.crediarioSeq = Math.max(Number(obj.settings.crediarioSeq || 1), maiorCrediarioCodigo + 1, maiorNumero + 1);
   return obj;
 }
 
@@ -375,6 +394,8 @@ function h(s) {
 function toast(msg, type = 'info') {
   const container = $('toastContainer');
   if (!container) return;
+  if (container.parentElement !== document.body) document.body.appendChild(container);
+  container.style.setProperty('z-index', '2147483647', 'important');
 
   const original = String(msg || '').trim();
   if (!original) return;
@@ -601,28 +622,46 @@ function loanStatus(v) { if (v.status === 'PAGO') return 'pago'; const today = i
  * - Reais: soma um valor fixo em R$ por dia de atraso.
  * A taxa só entra em vales em aberto e vencidos.
  */
-function dailyLateFee(v) {
-  if (!v || String(v.status || '').toUpperCase() === 'PAGO') return 0;
-  if (!v.dataFinal) return 0;
+function lateChargeBreakdown(v) {
+  const empty = { diasAtraso: 0, multa: 0, jurosDiario: 0, total: 0 };
+  if (!v || String(v.status || '').toUpperCase() === 'PAGO' || !v.dataFinal) return empty;
   const hoje = inputDate(new Date());
-  if (v.dataFinal >= hoje) return 0;
+  if (v.dataFinal >= hoje) return empty;
+
   const diasAtraso = Math.max(0, days(v.dataFinal, hoje));
+  if (!diasAtraso) return empty;
+
   const cliente = clienteById(v.clienteId) || clienteByName(v.cliente) || {};
+  const baseTotalAberto = Math.max(0, originalLoanTotal(v) - Number(v.parcialRecebido || 0));
+  const multaPct = Math.max(0, Number(v.multaAtrasoPercentual || 0));
+  const multa = baseTotalAberto * (multaPct / 100);
+
   const taxa = Math.max(0, Number(v.taxaAtrasoDiario ?? cliente.taxaAtrasoDiario ?? 0));
-  if (!diasAtraso || !taxa) return 0;
   const tipoOriginal = v.tipoTaxaAtrasoDiario ?? cliente.tipoTaxaAtrasoDiario;
   const tipo = tipoOriginal === 'reais' ? 'reais' : 'percentual';
-  if (tipo === 'reais') return diasAtraso * taxa;
-  const base = Math.max(0, originalLoanValue(v) - Number(v.principalRecebido || 0));
-  return base * (taxa / 100) * diasAtraso;
+  let jurosDiario = 0;
+  if (taxa > 0) {
+    if (tipo === 'reais') jurosDiario = diasAtraso * taxa;
+    else {
+      const basePrincipal = Math.max(0, originalLoanValue(v) - Number(v.principalRecebido || 0));
+      jurosDiario = basePrincipal * (taxa / 100) * diasAtraso;
+    }
+  }
+
+  return { diasAtraso, multa, jurosDiario, total: multa + jurosDiario };
+}
+
+function dailyLateFee(v) {
+  return lateChargeBreakdown(v).total;
 }
 
 function lateFeeLabel(v = null) {
   const cliente = v ? (clienteById(v.clienteId) || clienteByName(v.cliente) || {}) : {};
   const taxa = Math.max(0, Number(v?.taxaAtrasoDiario ?? cliente.taxaAtrasoDiario ?? 0));
   const tipo = (v?.tipoTaxaAtrasoDiario ?? cliente.tipoTaxaAtrasoDiario) === 'reais' ? 'reais' : 'percentual';
-  if (tipo === 'reais') return money(taxa) + ' / DIA';
-  return String(taxa).replace('.', ',') + '% / DIA';
+  const diaria = tipo === 'reais' ? money(taxa) + ' / DIA' : String(taxa).replace('.', ',') + '% / DIA';
+  const multa = Math.max(0, Number(v?.multaAtrasoPercentual || 0));
+  return multa > 0 ? `${String(multa).replace('.', ',')}% MULTA + ${diaria}` : diaria;
 }
 
 /**
@@ -670,18 +709,56 @@ function applyTheme() {
 /**
  * Troca a aba/tela visível do sistema e atualiza todos os dados renderizados.
  */
+let valleMobileRenderTimer = null;
 function switchScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  if ($(id)) $(id).classList.add('active');
-
-  // Atualiza o botão ativo do menu e, no celular, centraliza o botão selecionado na barra horizontal.
-  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.screen === id));
-  const activeTab = document.querySelector(`.tab[data-screen="${id}"]`);
-  if (activeTab && window.innerWidth <= 780) {
-    activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  const previousId = document.querySelector('.screen.active')?.id || '';
+  const mobile = window.innerWidth <= 780;
+  const mobileOrder = ['dashboard','notificacoes','emprestimo','crediarios','clientes','historico','relatorios','calendario','lancamentos'];
+  let transitionDirection = 'neutral';
+  if (mobile && previousId && previousId !== id) {
+    const fromIndex = mobileOrder.indexOf(previousId);
+    const toIndex = mobileOrder.indexOf(id);
+    if (fromIndex >= 0 && toIndex >= 0) transitionDirection = toIndex > fromIndex ? 'next' : 'prev';
   }
 
-  renderAll();
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active','valle-screen-enter-next','valle-screen-enter-prev','valle-screen-enter-neutral');
+  });
+  const nextScreen = $(id);
+  if (nextScreen) {
+    nextScreen.classList.add('active');
+    if (mobile && previousId && previousId !== id) {
+      const cls = transitionDirection === 'next' ? 'valle-screen-enter-next' : transitionDirection === 'prev' ? 'valle-screen-enter-prev' : 'valle-screen-enter-neutral';
+      nextScreen.classList.add(cls);
+      const cleanup = () => nextScreen.classList.remove('valle-screen-enter-next','valle-screen-enter-prev','valle-screen-enter-neutral');
+      nextScreen.addEventListener('animationend', cleanup, { once:true });
+      setTimeout(cleanup, 240);
+    }
+  }
+
+  // Atualiza o botão ativo do menu e, no celular, centraliza o botão selecionado.
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.screen === id));
+  const activeTab = document.querySelector(`.tab[data-screen="${id}"]`);
+  if (activeTab && mobile) {
+    requestAnimationFrame(() => activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }));
+  }
+
+  if (!mobile || !previousId || previousId === id) {
+    renderAll();
+    return;
+  }
+
+  // No celular, deixa a transição terminar antes de executar renderizações pesadas.
+  // Isso evita engasgos durante swipe e clique nas abas.
+  clearTimeout(valleMobileRenderTimer);
+  valleMobileRenderTimer = setTimeout(() => {
+    if (document.querySelector('.screen.active')?.id !== id) return;
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(() => renderAll(), { timeout: 160 });
+    } else {
+      setTimeout(() => renderAll(), 0);
+    }
+  }, 190);
 }
 
 
@@ -695,8 +772,11 @@ function getLoanFormState() {
     tipoTaxaAtrasoDiario: $('loanTipoTaxaDiaria')?.value || 'percentual',
     taxaAtrasoDiario: $('loanTaxaDiaria')?.value || '',
     formaPagamento: $('loanFormaPagamento')?.value || 'avista',
+    crediarioNome: $('loanCrediarioNome')?.value || '',
     parcelas: $('loanParcelas')?.value || '2',
     periodicidade: $('loanPeriodicidade')?.value || 'mensal',
+    entrada: $('loanEntrada')?.value || '',
+    multaAtrasoPercentual: $('loanMultaAtraso')?.value || '',
     dataInicial: $('loanInicio')?.value || '',
     dataFinal: $('loanFinal')?.value || '',
     observacao: $('loanObs')?.value || ''
@@ -789,13 +869,13 @@ function syncLoanRatesFromSelectedClient() {
  */
 function resolveLoanEditReturnScreen(preferred = '') {
   const requested = String(preferred || '').toLowerCase();
-  if (requested === 'historico' || requested === 'lancamentos') return requested;
+  if (['historico','lancamentos','crediarios'].includes(requested)) return requested;
   const active = String(document.querySelector('.screen.active')?.id || '').toLowerCase();
-  return active === 'lancamentos' ? 'lancamentos' : 'historico';
+  return ['lancamentos','crediarios'].includes(active) ? active : 'historico';
 }
 
 function getLoanEditReturnScreen() {
-  return loanEditReturnScreen === 'lancamentos' ? 'lancamentos' : 'historico';
+  return ['lancamentos','crediarios'].includes(loanEditReturnScreen) ? loanEditReturnScreen : 'historico';
 }
 
 /**
@@ -814,8 +894,11 @@ function clearLoan() {
   updateLoanDailyRateUI();
   $('loanTotal').value = '';
   $('loanObs').value = '';
+  if ($('loanCrediarioNome')) { $('loanCrediarioNome').value = ''; $('loanCrediarioNome').disabled = false; }
   if ($('loanParcelas')) { $('loanParcelas').value = '2'; $('loanParcelas').disabled = false; }
   if ($('loanPeriodicidade')) { $('loanPeriodicidade').value = 'mensal'; $('loanPeriodicidade').disabled = false; }
+  if ($('loanEntrada')) { $('loanEntrada').value = money(0); $('loanEntrada').disabled = false; }
+  if ($('loanMultaAtraso')) { $('loanMultaAtraso').value = '0%'; $('loanMultaAtraso').disabled = false; }
   document.querySelectorAll('[data-loan-payment]').forEach(btn => { btn.disabled = false; btn.classList.remove('locked'); });
   setLoanPaymentMode('avista', true);
   const hoje = new Date();
@@ -835,14 +918,14 @@ function valleElectronicSignature(){
 }
 function valleAuditDiff(before,after){
   const ignored=new Set(['ultimaAssinaturaEletronica','assinaturaEletronica','editadoEm','criadoEm']);
-  const labels={nome:'Nome',cliente:'Cliente',telefone:'Telefone',cpf:'CPF',obs:'Observação',observacao:'Observação',valor:'Valor emprestado',total:'Valor a receber',juros:'Taxa de juros',taxaAtrasoDiario:'Taxa de atraso diária',tipoTaxaAtrasoDiario:'Tipo da taxa de atraso',formaPagamento:'Forma de pagamento',parcelaNumero:'Número da parcela',parcelaTotal:'Total de parcelas',periodicidade:'Periodicidade',dataInicial:'Data inicial',dataFinal:'Data final',status:'Status',principalRecebido:'Principal recebido',jurosRecebidos:'Juros recebidos',parcialRecebido:'Pagamento parcial acumulado',listaNegra:'Lista negra'};
+  const labels={nome:'Nome',cliente:'Cliente',telefone:'Telefone',cpf:'CPF',obs:'Observação',observacao:'Observação',valor:'Valor emprestado',total:'Valor a receber',juros:'Taxa de juros',taxaAtrasoDiario:'Taxa de atraso diária',tipoTaxaAtrasoDiario:'Tipo da taxa de atraso',multaAtrasoPercentual:'Multa por atraso',formaPagamento:'Forma de pagamento',crediarioCodigo:'Contrato de crediário',crediarioNome:'Nome do crediário',crediarioEntrada:'Entrada',parcelaNumero:'Número da parcela',parcelaTotal:'Total de parcelas',periodicidade:'Periodicidade',dataInicial:'Data inicial',dataFinal:'Data final',status:'Status',principalRecebido:'Principal recebido',jurosRecebidos:'Juros recebidos',parcialRecebido:'Pagamento parcial acumulado',listaNegra:'Lista negra'};
   const out={}; const keys=new Set([...Object.keys(before||{}),...Object.keys(after||{})]);
   keys.forEach(k=>{if(ignored.has(k))return;const a=before?.[k],b=after?.[k];if(JSON.stringify(a)!==JSON.stringify(b))out[k]={label:labels[k]||k,anterior:a??null,novo:b??null}});
   return out;
 }
 function valleAudit(action,type,record,extra={}){
   try{
-    const names={CRIAR_CLIENTE:['CLIENTES','Novo cliente criado'],ATUALIZAR_CLIENTE:['CLIENTES','Cliente atualizado'],EXCLUIR_CLIENTE:['CLIENTES','Cliente excluído'],CRIAR_VALE:['VALES','Novo vale criado'],ATUALIZAR_VALE:['VALES','Vale atualizado'],EXCLUIR_VALE:['VALES','Vale excluído'],QUITAR_VALE:['PAGAMENTOS','Vale quitado'],PAGAMENTO_PARCIAL:['PAGAMENTOS','Pagamento parcial registrado'],PAGAMENTO_JUROS:['PAGAMENTOS','Pagamento de juros registrado'],NAO_PAGOU:['PAGAMENTOS','Não pagamento registrado'],LISTA_NEGRA:['CLIENTES','Cliente adicionado à lista negra']};
+    const names={CRIAR_CLIENTE:['CLIENTES','Novo cliente criado'],ATUALIZAR_CLIENTE:['CLIENTES','Cliente atualizado'],EXCLUIR_CLIENTE:['CLIENTES','Cliente excluído'],CRIAR_VALE:['VALES','Novo vale criado'],ATUALIZAR_VALE:['VALES','Vale atualizado'],EXCLUIR_VALE:['VALES','Vale excluído'],QUITAR_VALE:['PAGAMENTOS','Vale quitado'],PAGAMENTO_PARCIAL:['PAGAMENTOS','Pagamento parcial registrado'],PAGAMENTO_JUROS:['PAGAMENTOS','Pagamento de juros registrado'],NAO_PAGOU:['PAGAMENTOS','Não pagamento registrado'],LISTA_NEGRA:['CLIENTES','Cliente adicionado à lista negra'],PAGAMENTO_ENTRADA:['PAGAMENTOS','Entrada de crediário recebida'],REABRIR_VALE:['VALES','Vale reaberto']};
     const key=String(action||'').toUpperCase(); const meta=names[key]||[String(type||'SISTEMA').toUpperCase(),'Ação registrada'];
     const before=extra.old_data||null,after=extra.new_data||record||null,changes=extra.changes||valleAuditDiff(before,after);
     const user=window.ValleCloud?.profile?.name||'Usuário'; const target=record?.numero?`Vale #${record.numero}`:(record?.nome||record?.cliente||record?.id||'registro');
@@ -970,7 +1053,7 @@ window.valleUndoAuditRecord=async function(record,logs=[]){
     }else if(action==='CRIAR_VALE'){
       const current=valleAuditFindVale(record);
       if(current){db.vales=db.vales.filter(v=>String(v.id)!==String(current.id));changed=true}
-    }else if(['ATUALIZAR_VALE','QUITAR_VALE'].includes(action)){
+    }else if(['ATUALIZAR_VALE','QUITAR_VALE','REABRIR_VALE'].includes(action)){
       if(!oldData)throw new Error('Este registro não possui o estado anterior do vale.');
       valleAuditReplace(db.vales,valleAuditFindVale(record),oldData);changed=true;
     }else if(action==='EXCLUIR_VALE'){
@@ -1075,9 +1158,13 @@ function getCrediarioPlan(materializeAll = false) {
   const count = normalizeInstallmentCount($('loanParcelas')?.value || 2);
   const periodicidade = ['mensal','quinzenal','semanal'].includes($('loanPeriodicidade')?.value)
     ? $('loanPeriodicidade').value : 'mensal';
-  const principal = moneyNum($('loanValor')?.value || '0');
+  const valorBruto = Math.max(0, moneyNum($('loanValor')?.value || '0'));
+  const entrada = Math.min(valorBruto, Math.max(0, moneyNum($('loanEntrada')?.value || '0')));
+  const principal = Math.max(0, valorBruto - entrada);
   const juros = taxaNum($('loanJuros')?.value || '0');
+  const multaAtrasoPercentual = Math.max(0, taxaNum($('loanMultaAtraso')?.value || '0'));
   const total = Math.max(0, principal + (principal * juros / 100));
+  const totalContrato = Math.max(0, entrada + total);
   const firstDue = $('loanFinal')?.value || '';
   const previewLimit = 120;
   const materializedCount = materializeAll ? count : Math.min(count, previewLimit);
@@ -1089,7 +1176,8 @@ function getCrediarioPlan(materializeAll = false) {
   }));
   const totalCents = Math.max(0, Math.round(Number(total || 0) * 100));
   return {
-    count, periodicidade, principal, juros, total, firstDue, parcelas,
+    count, periodicidade, valorBruto, entrada, principal, juros, multaAtrasoPercentual,
+    total, totalContrato, firstDue, parcelas,
     previewLimit, previewTruncated: !materializeAll && count > previewLimit,
     installmentsEqual: totalCents % count === 0
   };
@@ -1119,19 +1207,37 @@ function renderCrediarioPreview() {
     if ($('diasBadge')) $('diasBadge').textContent = `${Number(editingInstallment.parcelaNumero || 1)}/${totalParcelas}`;
     if (suffix) suffix.textContent = 'PARCELA';
     if ($('loanCrediarioResumo')) $('loanCrediarioResumo').textContent = `PARCELA ${Number(editingInstallment.parcelaNumero || 1)}/${totalParcelas}`;
+    const valorBrutoContrato = Number(editingInstallment.crediarioValorBruto || editingInstallment.crediarioValorPrincipal || 0);
+    const entradaContrato = Number(editingInstallment.crediarioEntrada || 0);
+    const financiadoContrato = Number(editingInstallment.crediarioValorFinanciado || editingInstallment.crediarioValorPrincipal || 0);
+    if ($('loanCrediarioValorBase')) $('loanCrediarioValorBase').textContent = money(valorBrutoContrato);
+    if ($('loanCrediarioEntradaResumo')) $('loanCrediarioEntradaResumo').textContent = money(entradaContrato);
+    if ($('loanCrediarioFinanciado')) $('loanCrediarioFinanciado').textContent = money(financiadoContrato);
+    if ($('loanCrediarioTotalParcelado')) $('loanCrediarioTotalParcelado').textContent = money(Number(editingInstallment.crediarioValorTotal || 0));
     if ($('loanValorParcela')) $('loanValorParcela').textContent = money(moneyNum($('loanTotal')?.value || editingInstallment.total || 0));
     if ($('loanParcelasPreview')) {
-      $('loanParcelasPreview').innerHTML = siblings.map(p => `
+      const previewLimit = 120;
+      const visibleSiblings = siblings.slice(0, previewLimit);
+      $('loanParcelasPreview').innerHTML = visibleSiblings.map(p => `
         <div class="loan-installment-row ${p.id === editingInstallment.id ? 'is-current' : ''}">
           <span class="loan-installment-number">${Number(p.parcelaNumero || 1)}</span>
           <div><small>PARCELA ${Number(p.parcelaNumero || 1)}/${totalParcelas}${p.id === editingInstallment.id ? ' • EDITANDO' : ''}</small><strong>${p.dataFinal ? brDate(p.dataFinal) : 'SEM DATA'}</strong></div>
           <strong>${money(p.id === editingInstallment.id ? moneyNum($('loanTotal')?.value || p.total || 0) : Number(p.total || 0))}</strong>
-        </div>`).join('');
+        </div>`).join('') + (siblings.length > previewLimit ? `
+        <div class="loan-installment-row loan-installment-preview-more">
+          <span class="loan-installment-number"><i class="bi bi-three-dots"></i></span>
+          <div><small>PRÉVIA OTIMIZADA</small><strong>EXIBINDO ${previewLimit} DE ${siblings.length} PARCELAS</strong></div>
+          <strong>${siblings.length - previewLimit} RESTANTES</strong>
+        </div>` : '');
     }
     return;
   }
 
   const plan = getCrediarioPlan();
+  if ($('loanCrediarioValorBase')) $('loanCrediarioValorBase').textContent = money(plan.valorBruto);
+  if ($('loanCrediarioEntradaResumo')) $('loanCrediarioEntradaResumo').textContent = money(plan.entrada);
+  if ($('loanCrediarioFinanciado')) $('loanCrediarioFinanciado').textContent = money(plan.principal);
+  if ($('loanCrediarioTotalParcelado')) $('loanCrediarioTotalParcelado').textContent = money(plan.total);
   if ($('loanParcelas') && document.activeElement !== $('loanParcelas')) $('loanParcelas').value = String(plan.count);
   if ($('diasBadge')) $('diasBadge').textContent = plan.count;
   if (suffix) suffix.textContent = plan.count === 1 ? 'PARCELA' : 'PARCELAS';
@@ -1180,12 +1286,15 @@ function setLoanPaymentMode(mode = 'avista', silent = false) {
 function calcLoan() {
   const valor = moneyNum($('loanValor').value);
   const juros = taxaNum($('loanJuros').value);
-  let total = Math.max(0, valor + (valor * juros / 100));
+  const editingInstallment = editLoanId ? db.vales.find(v => v.id === editLoanId) : null;
+  const newCrediario = !editingInstallment && loanPaymentMode() === 'crediario';
+  const entrada = newCrediario ? Math.max(0, moneyNum($('loanEntrada')?.value || '0')) : 0;
+  const baseJuros = newCrediario ? Math.max(0, valor - Math.min(valor, entrada)) : valor;
+  let total = Math.max(0, baseJuros + (baseJuros * juros / 100));
 
   // Parcelas de crediário podem ter ajuste de centavos para o total geral fechar
   // exatamente. Ao abrir uma parcela para edição sem mudar valor/juros, preserva
   // o total original daquela parcela em vez de recalcular e criar 1 centavo a mais.
-  const editingInstallment = editLoanId ? db.vales.find(v => v.id === editLoanId) : null;
   if (editingInstallment?.crediarioId
       && Math.abs(valor - Number(editingInstallment.valor || 0)) < 0.001
       && Math.abs(juros - Number(editingInstallment.juros || 0)) < 0.001) {
@@ -1224,6 +1333,12 @@ function currentLoan() {
     periodicidade: old?.periodicidade || ($('loanPeriodicidade')?.value || 'mensal'),
     crediarioValorPrincipal: Number(old?.crediarioValorPrincipal || 0),
     crediarioValorTotal: Number(old?.crediarioValorTotal || 0),
+    crediarioValorBruto: Number(old?.crediarioValorBruto || 0),
+    crediarioEntrada: Number(old?.crediarioEntrada || (!old && loanPaymentMode() === 'crediario' ? moneyNum($('loanEntrada')?.value || '0') : 0)),
+    crediarioValorFinanciado: Number(old?.crediarioValorFinanciado || 0),
+    crediarioCodigo: upper(old?.crediarioCodigo || ''),
+    crediarioNome: upper(old?.crediarioId ? ($('loanCrediarioNome')?.value || old?.crediarioNome || '') : ($('loanCrediarioNome')?.value || '')),
+    multaAtrasoPercentual: Math.max(0, old?.crediarioId ? Number(old?.multaAtrasoPercentual || 0) : taxaNum($('loanMultaAtraso')?.value || '0')),
     dataInicial: $('loanInicio').value,
     dataFinal: $('loanFinal').value,
     observacao: upper($('loanObs').value),
@@ -1246,8 +1361,11 @@ function validateLoan(v) {
   if (!v.dataInicial || !v.dataFinal) return 'INFORME AS DATAS';
   if (days(v.dataInicial, v.dataFinal) < 0) return 'DATA FINAL MENOR QUE A INICIAL';
   if (!editLoanId && v.formaPagamento === 'crediario') {
+    if (!String(v.crediarioNome || '').trim()) return 'INFORME O NOME DO CREDIÁRIO';
     const qtd = Math.trunc(Number($('loanParcelas')?.value || 0));
     if (!Number.isFinite(qtd) || qtd < 2) return 'INFORME 2 OU MAIS PARCELAS';
+    const entrada = Math.max(0, moneyNum($('loanEntrada')?.value || '0'));
+    if (entrada >= v.valor) return 'A ENTRADA DEVE SER MENOR QUE O VALOR DO CREDIÁRIO';
   }
   return '';
 }
@@ -1284,12 +1402,18 @@ function saveLoan() {
     if (i < 0) { toast('VALE NÃO ENCONTRADO'); return null; }
     const anterior = JSON.parse(JSON.stringify(db.vales[i]));
     db.vales[i] = { ...db.vales[i], ...v, valorOriginal: v.valor, totalOriginal: v.total, editadoEm: new Date().toISOString() };
+    if (db.vales[i].crediarioId && String(v.crediarioNome || '').trim()) {
+      db.vales.forEach(item => { if (item.crediarioId === db.vales[i].crediarioId) item.crediarioNome = upper(v.crediarioNome); });
+    }
     valleAudit('ATUALIZAR_VALE','vale',db.vales[i],{old_data:anterior,new_data:db.vales[i]});
     toast('VALE ALTERADO');
   } else if (v.formaPagamento === 'crediario') {
     const plan = getCrediarioPlan(true);
     const crediarioId = `CR${Date.now()}${Math.random().toString(16).slice(2,8).toUpperCase()}`;
+    const crediarioCodigo = `CRD-${String(db.settings.crediarioSeq++).padStart(6, '0')}`;
+    const crediarioNome = upper(v.crediarioNome || '');
     const criadoEm = new Date().toISOString();
+    const entradaObs = plan.entrada > 0 ? `${brDate(inputDate(new Date()))} - ENTRADA ${money(plan.entrada)} | ${crediarioCodigo}` : '';
     const parcelas = plan.parcelas.map((p, index) => {
       const parcela = {
         ...v,
@@ -1307,6 +1431,13 @@ function saveLoan() {
         periodicidade: plan.periodicidade,
         crediarioValorPrincipal: plan.principal,
         crediarioValorTotal: plan.total,
+        crediarioValorBruto: plan.valorBruto,
+        crediarioEntrada: plan.entrada,
+        crediarioValorFinanciado: plan.principal,
+        crediarioCodigo,
+        crediarioNome,
+        multaAtrasoPercentual: plan.multaAtrasoPercentual,
+        observacao: index === 0 && entradaObs ? [v.observacao, entradaObs].filter(Boolean).join('\n') : v.observacao,
         criadoEm,
         assinaturaEletronica: valleElectronicSignature(),
         ultimaAssinaturaEletronica: valleElectronicSignature()
@@ -1319,14 +1450,23 @@ function saveLoan() {
         crediario_id:crediarioId,
         parcela_numero:p.numero,
         parcela_total:plan.count,
-        description:`Crediário ${p.numero}/${plan.count} criado — Vale #${parcela.numero}, vencimento ${brDate(parcela.dataFinal)}, total ${money(parcela.total)}.`
+        description:`${crediarioCodigo} • Parcela ${p.numero}/${plan.count} criada — Vale #${parcela.numero}, vencimento ${brDate(parcela.dataFinal)}, total ${money(parcela.total)}.`
       });
       return parcela;
     });
     db.vales.unshift(...parcelas);
+    if (plan.entrada > 0 && parcelas[0]) {
+      valleAudit('PAGAMENTO_ENTRADA','crediario',parcelas[0],{
+        new_data: parcelas[0], valor_pago: plan.entrada, valor_principal_pago: plan.entrada, valor_juros_pago: 0, data_pagamento: criadoEm,
+        crediario_id: crediarioId, crediario_codigo: crediarioCodigo,
+        description:`Entrada de ${money(plan.entrada)} recebida no ${crediarioCodigo}.`
+      });
+    }
     v.parcelasGeradas = parcelas;
     v.crediarioId = crediarioId;
-    toast(`CREDIÁRIO SALVO • ${plan.count} PARCELAS`);
+    v.crediarioCodigo = crediarioCodigo;
+    v.crediarioNome = crediarioNome;
+    toast(`${crediarioNome} • ${plan.count} PARCELAS`);
   } else {
     v.numero = db.settings.seq++;
     v.formaPagamento = 'avista';
@@ -1352,9 +1492,14 @@ async function saveSendPdf() { const v = saveLoan(); if (v) { await sharePdf(v);
  * Salva o vale sem imprimir e leva o usuário para o histórico.
  */
 function saveOnly() {
-  const destination = editLoanId ? getLoanEditReturnScreen() : 'historico';
+  const editing = !!editLoanId;
+  const destination = editing ? getLoanEditReturnScreen() : 'historico';
   const v = saveLoan();
-  if (v) { clearLoan(); switchScreen(destination); }
+  if (v) {
+    const next = editing ? destination : (v.crediarioId ? 'crediarios' : 'historico');
+    clearLoan();
+    switchScreen(next);
+  }
 }
 
 /**
@@ -1665,6 +1810,9 @@ async function deleteClient(id) {
   });
   if (!ok) return;
   const removido=db.clientes.find(c=>c.id===id);
+  // Se existir um login do Portal do Cliente, remove a conta antes de apagar o cadastro.
+  // A exclusão do cliente continua funcionando offline; falha de rede não bloqueia o fluxo local.
+  try{if(window.ValleCloud?.isOnline?.())await window.ValleCloud.invokeManage('client_access_delete',{clientId:id})}catch(err){console.warn('Não foi possível remover o acesso do cliente:',err)}
   db.clientes = db.clientes.filter(c => c.id !== id);
   if(removido)valleAudit('EXCLUIR_CLIENTE','cliente',removido,{old_data:removido});
   save(); renderAll();
@@ -1691,15 +1839,21 @@ function startLoanEdit(id, originScreen = '') {
   $('loanInicio').value = v.dataInicial;
   $('loanFinal').value = v.dataFinal;
   $('loanObs').value = v.observacao || '';
+  if ($('loanCrediarioNome')) $('loanCrediarioNome').value = v.crediarioNome || '';
   if (v.crediarioId) {
     if ($('loanParcelas')) { $('loanParcelas').value = String(v.parcelaTotal || 2); $('loanParcelas').disabled = true; }
     if ($('loanPeriodicidade')) { $('loanPeriodicidade').value = v.periodicidade || 'mensal'; $('loanPeriodicidade').disabled = true; }
+    if ($('loanEntrada')) { $('loanEntrada').value = money(Number(v.crediarioEntrada || 0)); $('loanEntrada').disabled = true; }
+    if ($('loanMultaAtraso')) { $('loanMultaAtraso').value = String(Number(v.multaAtrasoPercentual || 0)).replace('.', ',') + '%'; $('loanMultaAtraso').disabled = true; }
     document.querySelectorAll('[data-loan-payment]').forEach(btn => { btn.disabled = btn.dataset.loanPayment !== 'crediario'; btn.classList.toggle('locked', btn.disabled); });
     setLoanPaymentMode('crediario', true);
     if ($('loanCrediarioResumo')) $('loanCrediarioResumo').textContent = `PARCELA ${Number(v.parcelaNumero || 1)}/${Number(v.parcelaTotal || 1)}`;
   } else {
+    if ($('loanCrediarioNome')) $('loanCrediarioNome').value = '';
     if ($('loanParcelas')) $('loanParcelas').disabled = false;
     if ($('loanPeriodicidade')) $('loanPeriodicidade').disabled = false;
+    if ($('loanEntrada')) { $('loanEntrada').value = money(0); $('loanEntrada').disabled = false; }
+    if ($('loanMultaAtraso')) { $('loanMultaAtraso').value = '0%'; $('loanMultaAtraso').disabled = false; }
     document.querySelectorAll('[data-loan-payment]').forEach(btn => { btn.disabled = false; btn.classList.remove('locked'); });
     setLoanPaymentMode(v.formaPagamento === 'crediario' ? 'crediario' : 'avista', true);
   }
@@ -1757,6 +1911,62 @@ function togglePaid(id) {
   openReceiveModal(id);
 }
 
+/**
+ * Reabre efetivamente um vale quitado depois da confirmação de senha.
+ * A ação fica registrada na Auditoria e também aparece em Lançamentos,
+ * incluindo usuário, data/hora e o saldo que voltou a ficar em aberto.
+ */
+function reabrirValeQuitado(id) {
+  if (!valleRequirePermission('can_receive_payment')) return false;
+  const v = db.vales.find(x => x.id === id);
+  if (!v) {
+    toast('VALE NÃO ENCONTRADO');
+    return false;
+  }
+  if (!valeEstaQuitado(v)) {
+    toast('ESTE VALE JÁ ESTÁ EM ABERTO');
+    return false;
+  }
+
+  const anterior = valleAuditClone(v);
+  const assinatura = valleElectronicSignature();
+  const agora = assinatura.signedAt || new Date().toISOString();
+
+  v.status = 'ABERTO';
+  v.ultimoRecebimento = 'REABERTO';
+  v.editadoEm = agora;
+  v.reabertoEm = agora;
+  v.reabertoPor = assinatura.userName || 'USUÁRIO';
+  v.reabertoPorId = assinatura.userId || '';
+  v.ultimaAssinaturaEletronica = assinatura;
+
+  const saldoReaberto = loanTotalBalance(v);
+  const dataReabertura = new Date(agora).toLocaleString('pt-BR');
+  const linhaReabertura = `${dataReabertura} - VALE REABERTO POR ${String(v.reabertoPor || 'USUÁRIO').toLocaleUpperCase('pt-BR')}`;
+  const obsAtual = String(v.observacao || '').trim();
+  v.observacao = obsAtual ? `${obsAtual}
+${linhaReabertura}` : linhaReabertura;
+
+  valleAudit('REABRIR_VALE', 'vale', v, {
+    old_data: anterior,
+    new_data: valleAuditClone(v),
+    valor_lancamento: saldoReaberto,
+    saldo_reaberto: saldoReaberto,
+    reaberto_em: agora,
+    reaberto_por: assinatura.userName || 'USUÁRIO',
+    assinatura,
+    title: 'Vale reaberto',
+    description: `${assinatura.userName || 'Usuário'} reabriu o Vale #${v.numero || v.id}. Saldo reaberto: ${money(saldoReaberto)}.`
+  });
+
+  save();
+  renderAll();
+  try { window.renderLancamentos?.(true); } catch (_) {}
+  toast('VALE REABERTO COM SUCESSO');
+  return true;
+}
+window.reabrirValeQuitado = reabrirValeQuitado;
+
 
 
 /**
@@ -1766,6 +1976,32 @@ function togglePaid(id) {
 let valeAguardandoSenhaId = null;
 let valeAguardandoSenhaAcao = 'reabrir';
 let valeAguardandoSenhaOrigem = 'historico';
+let abrirValeSenhaBackdropEl = null;
+
+function limparBackdropModalSenhaVale() {
+  // Remove somente o backdrop criado para o modal de senha. O backdrop do
+  // modal que está atrás (ex.: Ver contrato do crediário) deve permanecer.
+  if (abrirValeSenhaBackdropEl?.isConnected) abrirValeSenhaBackdropEl.remove();
+  abrirValeSenhaBackdropEl = null;
+
+  document.querySelectorAll('.modal-backdrop.abrir-vale-senha-backdrop').forEach(bd => {
+    // Nunca apaga backdrops pertencentes a outros modais empilhados.
+    if (bd.classList.contains('client-contract-backdrop') || bd.classList.contains('client-pix-backdrop')) {
+      bd.classList.remove('abrir-vale-senha-backdrop');
+      return;
+    }
+    bd.remove();
+  });
+
+  // O Bootstrap pode remover modal-open ao fechar o modal superior. Se existe
+  // outro modal visível atrás, restaura o bloqueio correto da página.
+  const outroModalAberto = [...document.querySelectorAll('.modal.show')]
+    .some(m => m.id !== 'abrirValeSenhaModal');
+  if (outroModalAberto) {
+    document.body.classList.add('modal-open');
+    document.body.style.overflow = 'hidden';
+  }
+}
 
 function getAbrirValeSenhaModal() {
   const modalEl = $('abrirValeSenhaModal');
@@ -1812,11 +2048,23 @@ function abrirModalSenhaVale(id, acao = 'reabrir', originScreen = '') {
   valeAguardandoSenhaOrigem = resolveLoanEditReturnScreen(originScreen);
   limparModalSenhaAbrirVale();
   atualizarTextoModalSenhaVale(valeAguardandoSenhaAcao);
+  const modalEl = $('abrirValeSenhaModal');
   const modal = getAbrirValeSenhaModal();
-  if (!modal) {
+  if (!modal || !modalEl) {
     toast('NÃO FOI POSSÍVEL ABRIR A CONFIRMAÇÃO DE SENHA');
     return;
   }
+
+  // Guarda os backdrops que já existiam antes de abrir a senha para nunca
+  // confundir o backdrop do crediário com o backdrop novo da confirmação.
+  const backdropsAntes = new Set(document.querySelectorAll('.modal-backdrop'));
+  modalEl.classList.add('valle-password-modal-top');
+  modalEl.addEventListener('shown.bs.modal', () => {
+    const backdrops = [...document.querySelectorAll('.modal-backdrop.show')];
+    const novoBackdrop = [...backdrops].reverse().find(bd => !backdropsAntes.has(bd));
+    abrirValeSenhaBackdropEl = novoBackdrop || null;
+    if (abrirValeSenhaBackdropEl) abrirValeSenhaBackdropEl.classList.add('abrir-vale-senha-backdrop');
+  }, { once: true });
   modal.show();
   setTimeout(() => $('abrirValeSenhaInput')?.focus(), 180);
 }
@@ -1850,8 +2098,14 @@ async function confirmarSenhaAbrirVale() {
 
     const modalEl = $('abrirValeSenhaModal');
     const executarAcao = () => {
-      if (acao === 'editar') startLoanEdit(id, origem);
-      else togglePaid(id);
+      if (acao === 'editar') {
+        if (origem === 'crediarios' && $('crediarioDetailModal')?.classList.contains('show')) {
+          closeCrediarioDetail();
+          setTimeout(() => startLoanEdit(id, origem), 180);
+        } else {
+          startLoanEdit(id, origem);
+        }
+      } else reabrirValeQuitado(id);
     };
     if (modalEl) {
       modalEl.addEventListener('hidden.bs.modal', executarAcao, { once: true });
@@ -1912,8 +2166,15 @@ document.addEventListener('DOMContentLoaded', () => {
     valeAguardandoSenhaAcao = 'reabrir';
     valeAguardandoSenhaOrigem = 'historico';
     getAbrirValeSenhaModal()?.hide();
+    // Fallback para navegadores/mobile em que a transição do Bootstrap pode
+    // deixar o backdrop órfão após o clique em CANCELAR.
+    setTimeout(limparBackdropModalSenhaVale, 380);
   });
-  if (modalEl) modalEl.addEventListener('hidden.bs.modal', limparModalSenhaAbrirVale);
+  if (modalEl) modalEl.addEventListener('hidden.bs.modal', () => {
+    limparModalSenhaAbrirVale();
+    modalEl.classList.remove('valle-password-modal-top');
+    limparBackdropModalSenhaVale();
+  });
 });
 
 function loanPrincipalBalance(v) {
@@ -2071,7 +2332,7 @@ function openReceiveModal(id, editing = false) {
 
       <div class="row g-2">
         <div class="col-12 col-md"><button id="receiveEditBtn" type="button" class="btn btn-outline-primary w-100" onclick="${editing ? `saveReceiveModalEdit('${v.id}')` : `openReceiveModal('${v.id}', true)`}"><i class="bi ${editing ? 'bi-floppy' : 'bi-pencil-square'}"></i><span>${editing ? 'Salvar alterações' : 'Editar'}</span></button></div>
-        <div class="col-12 col-md"><button id="receiveCloseBtn" type="button" class="btn btn-outline-secondary w-100" onclick="closeReceiveModal()"><i class="bi bi-x-lg"></i><span>Fechar</span></button></div>
+        <div class="col-12 col-md"><button id="receiveCloseBtn" type="button" class="btn btn-outline-secondary w-100" onclick="window.valleCancelClientPaymentReceive?.();closeReceiveModal()"><i class="bi bi-x-lg"></i><span>Fechar</span></button></div>
         <div class="col-12 col-md"><button id="receiveRemoveBtn" type="button" class="btn btn-outline-danger w-100" onclick="receiveRemover('${v.id}')"><i class="bi bi-trash3"></i><span>Remover registro</span></button></div>
       </div>
     </div>`
@@ -2151,11 +2412,18 @@ function receiveQuitado(id) {
   const valorQuitacao=loanTotalBalance(v);
   v.status = 'PAGO';
   v.ultimoRecebimento = 'QUITADO';
+  v.editadoEm = new Date().toISOString();
+  const dataPagamento = brDate(inputDate(new Date()));
+  const linhaQuitacao = `${dataPagamento} - PAGO ${money(valorQuitacao)} | QUITADO${v.crediarioId ? ` PARCELA ${Number(v.parcelaNumero || 0)}/${Number(v.parcelaTotal || 0)}` : ''}`;
+  const obsQuitacao = String(v.observacao || '').trim();
+  v.observacao = obsQuitacao ? `${obsQuitacao}\n${linhaQuitacao}` : linhaQuitacao;
   const principalAntesQuitacao = loanPrincipalBalance(anterior);
   const principalPagoQuitacao = Math.min(valorQuitacao, principalAntesQuitacao);
   const jurosPagoQuitacao = Math.max(0, valorQuitacao - principalPagoQuitacao);
   valleAudit('QUITAR_VALE','vale',v,{old_data:anterior,new_data:v,valor_pago:valorQuitacao,valor_principal_pago:principalPagoQuitacao,valor_juros_pago:jurosPagoQuitacao,data_pagamento:new Date().toISOString(),description:`Pagamento total de ${money(valorQuitacao)} no Vale #${v.numero||v.id}.`});
-  save(); closeReceiveModal(); renderAll(); toast('VALE MARCADO COMO QUITADO');
+  save(); closeReceiveModal(); renderAll();
+  window.valleCompleteClientPaymentReceive?.(id,'QUITADO',valorQuitacao);
+  toast('VALE MARCADO COMO QUITADO');
 }
 
 function addDaysToDate(dateStr, daysToAdd) {
@@ -2276,7 +2544,9 @@ function receiveSoJuros(id) {
   v.observacao = observacaoAtual ? `${observacaoAtual}\n${novoRegistroObs}` : novoRegistroObs;
 
   valleAudit('PAGAMENTO_JUROS','vale',v,{old_data:anterior,new_data:v,valor_pago:juros,valor_principal_pago:0,valor_juros_pago:juros,data_pagamento:new Date().toISOString()});
-  save(); closeReceiveModal(); renderAll(); toast('JUROS REGISTRADO E VENCIMENTO ADIADO POR MAIS 30 DIAS');
+  save(); closeReceiveModal(); renderAll();
+  window.valleCompleteClientPaymentReceive?.(id,'SÓ JUROS',juros);
+  toast('JUROS REGISTRADO E VENCIMENTO ADIADO POR MAIS 30 DIAS');
 }
 
 function receiveParcial(id) {
@@ -2340,6 +2610,7 @@ function receiveParcial(id) {
   partialPaymentValeId = null;
   closeReceiveModal();
   renderAll();
+  window.valleCompleteClientPaymentReceive?.(id,'PAGAMENTO PARCIAL',valorRecebido);
   toast('PAGAMENTO PARCIAL REGISTRADO');
 }
 
@@ -2351,6 +2622,7 @@ function receiveNaoPagou(id) {
   v.status = 'ABERTO';
   v.ultimoRecebimento = 'NÃO PAGOU';
   valleAudit('NAO_PAGOU','vale',v,{old_data:anterior,new_data:v});
+  window.valleCancelClientPaymentReceive?.();
   save(); closeReceiveModal(); renderAll(); toast('VALE CONTINUA EM ABERTO');
 }
 
@@ -2367,6 +2639,7 @@ function receiveListaNegra(id) {
 }
 
 function receiveRemover(id) {
+  window.valleCancelClientPaymentReceive?.();
   if (!valleRequirePermission('can_receive_payment')) return;
   closeReceiveModal();
   deleteLoan(id);
@@ -2398,6 +2671,48 @@ function openWhatsLoan(id) {
  */
 function avatar(c) { return `<div class="avatar">${h((c?.nome || '?').slice(0, 1))}</div>`; }
 
+
+
+let valleClientAccessId='';
+function ensureClientAccessModal(){
+ let modal=$('clientAccessModal');if(modal)return modal;
+ modal=document.createElement('div');modal.id='clientAccessModal';modal.className='modal fade client-access-modal';modal.tabIndex=-1;modal.setAttribute('aria-hidden','true');
+ modal.innerHTML=`<div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form id="clientAccessForm"><div class="modal-header"><div class="d-flex align-items-center gap-3 min-w-0"><span id="clientAccessInitial" class="client-access-icon" aria-hidden="true">C</span><div class="min-w-0"><small>PORTAL DO CLIENTE</small><h2 class="h5 mb-0 text-break" id="clientAccessTitle">Acesso do cliente</h2></div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div><div class="modal-body"><input id="clientAccessClientId" type="hidden"><div id="clientAccessStatus" class="client-access-status mb-3"></div><label class="form-label" for="clientAccessEmail">E-MAIL DE ACESSO</label><div class="input-group client-access-field mb-3"><span class="input-group-text" aria-hidden="true"><i class="bi bi-envelope"></i></span><input id="clientAccessEmail" class="form-control" type="email" required autocomplete="email" autocapitalize="none" spellcheck="false" inputmode="email" placeholder="cliente@email.com"></div><label class="form-label" for="clientAccessPassword">SENHA</label><div class="input-group client-access-field mb-2"><span class="input-group-text" aria-hidden="true"><i class="bi bi-key"></i></span><input id="clientAccessPassword" class="form-control" type="password" minlength="6" autocomplete="new-password" autocapitalize="none" spellcheck="false" placeholder="Mínimo 6 caracteres"></div><small class="text-body-secondary d-block mb-3" id="clientAccessPasswordHelp">Informe a senha inicial do cliente.</small><label class="client-access-active"><input id="clientAccessActive" class="form-check-input" type="checkbox" checked><span><strong>ACESSO ATIVO</strong><small>Desmarque para bloquear o login deste cliente.</small></span></label></div><div class="modal-footer"><button id="clientAccessDelete" type="button" class="btn btn-outline-danger me-auto hidden"><i class="bi bi-trash3"></i><span class="client-access-btn-full">REMOVER ACESSO</span><span class="client-access-btn-short">REMOVER</span></button><button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i><span>CANCELAR</span></button><button id="clientAccessSave" type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i><span class="client-access-btn-full">SALVAR ACESSO</span><span class="client-access-btn-short">SALVAR</span></button></div></form></div></div>`;
+ document.body.appendChild(modal);
+ $('clientAccessForm').addEventListener('submit',saveClientAccess);
+ $('clientAccessDelete').addEventListener('click',deleteClientAccess);
+ $('clientAccessActive').addEventListener('change',syncClientAccessActiveUI);
+ syncClientAccessActiveUI();
+ return modal;
+}
+function syncClientAccessActiveUI(){
+ const input=$('clientAccessActive');
+ const label=input?.closest('.client-access-active');
+ if(!input||!label)return;
+ label.classList.toggle('is-checked',!!input.checked);
+ label.setAttribute('aria-checked',input.checked?'true':'false');
+}
+function clientAccessInitial(name){
+ const value=String(name||'Cliente').trim();
+ return (value.charAt(0)||'C').toLocaleUpperCase('pt-BR');
+}
+async function openClientAccess(clientId){
+ if(!valleRequirePermission('can_edit_client'))return;const c=clienteById(clientId);if(!c)return;
+ valleClientAccessId=clientId;const modal=ensureClientAccessModal();$('clientAccessClientId').value=clientId;$('clientAccessTitle').textContent=c.nome||'Cliente';$('clientAccessInitial').textContent=clientAccessInitial(c.nome);$('clientAccessEmail').value='';$('clientAccessPassword').value='';$('clientAccessActive').checked=true;syncClientAccessActiveUI();$('clientAccessDelete').classList.add('hidden');$('clientAccessPasswordHelp').textContent='Informe a senha inicial do cliente.';$('clientAccessStatus').innerHTML='<div class="alert alert-primary py-2 mb-0"><i class="bi bi-arrow-repeat me-2"></i>VERIFICANDO ACESSO...</div>';
+ if(window.bootstrap?.Modal)bootstrap.Modal.getOrCreateInstance(modal,{backdrop:'static',keyboard:true}).show();else{modal.classList.add('show');modal.style.display='block'}
+ try{const res=await window.ValleCloud.invokeManage('client_access_info',{clientId});const a=res?.account;if(a){$('clientAccessEmail').value=a.email||'';$('clientAccessActive').checked=a.active!==false;syncClientAccessActiveUI();$('clientAccessDelete').classList.remove('hidden');$('clientAccessPasswordHelp').textContent='Deixe a senha vazia para manter a senha atual ou digite uma nova senha para redefinir.';$('clientAccessStatus').innerHTML='<div class="alert alert-success py-2 mb-0"><i class="bi bi-check-circle me-2"></i>ESTE CLIENTE JÁ POSSUI ACESSO.</div>'}else{$('clientAccessStatus').innerHTML='<div class="alert alert-secondary py-2 mb-0"><i class="bi bi-person-plus me-2"></i>CRIE O PRIMEIRO ACESSO DESTE CLIENTE.</div>'}}catch(err){$('clientAccessStatus').innerHTML=`<div class="alert alert-danger py-2 mb-0">${h(err.message||'Não foi possível consultar o acesso.')}</div>`}
+}
+async function saveClientAccess(event){
+ event.preventDefault();const clientId=$('clientAccessClientId').value||valleClientAccessId;const c=clienteById(clientId);if(!c)return;const btn=$('clientAccessSave');btn.disabled=true;
+ try{const res=await window.ValleCloud.invokeManage('client_access_save',{clientId,name:c.nome,email:$('clientAccessEmail').value.trim(),password:$('clientAccessPassword').value,active:$('clientAccessActive').checked});$('clientAccessPassword').value='';$('clientAccessDelete').classList.remove('hidden');$('clientAccessPasswordHelp').textContent='Deixe a senha vazia para manter a senha atual ou digite uma nova senha para redefinir.';$('clientAccessStatus').innerHTML=`<div class="alert alert-success py-2 mb-0"><i class="bi bi-check-circle me-2"></i>${res?.created?'ACESSO CRIADO COM SUCESSO.':'ACESSO ATUALIZADO COM SUCESSO.'}</div>`;toast(res?.created?'ACESSO DO CLIENTE CRIADO':'ACESSO DO CLIENTE ATUALIZADO')}
+ catch(err){$('clientAccessStatus').innerHTML=`<div class="alert alert-danger py-2 mb-0">${h(err.message||'Não foi possível salvar o acesso.')}</div>`}finally{btn.disabled=false}
+}
+async function deleteClientAccess(){
+ const clientId=$('clientAccessClientId').value||valleClientAccessId;if(!clientId)return;const ok=await appConfirm('O CLIENTE NÃO CONSEGUIRÁ MAIS ENTRAR NA ÁREA DO CLIENTE.',{title:'Remover acesso?',icon:'🔐',confirmText:'Remover acesso',cancelText:'Cancelar'});if(!ok)return;const btn=$('clientAccessDelete');btn.disabled=true;
+ try{await window.ValleCloud.invokeManage('client_access_delete',{clientId});$('clientAccessEmail').value='';$('clientAccessPassword').value='';$('clientAccessActive').checked=true;syncClientAccessActiveUI();btn.classList.add('hidden');$('clientAccessPasswordHelp').textContent='Informe a senha inicial do cliente.';$('clientAccessStatus').innerHTML='<div class="alert alert-secondary py-2 mb-0"><i class="bi bi-person-x me-2"></i>ACESSO REMOVIDO. VOCÊ PODE CRIAR OUTRO QUANDO QUISER.</div>';toast('ACESSO DO CLIENTE REMOVIDO')}
+ catch(err){$('clientAccessStatus').innerHTML=`<div class="alert alert-danger py-2 mb-0">${h(err.message||'Não foi possível remover o acesso.')}</div>`}finally{btn.disabled=false}
+}
+window.openClientAccess=openClientAccess;
 
 /**
  * Monta a lista de clientes na tela, aplicando a pesquisa digitada.
@@ -2534,6 +2849,7 @@ function renderClients() {
           <div class="d-flex flex-wrap justify-content-end gap-2 pt-0">
             <button type="button" class="btn btn-primary btn-sm" onclick="useClient('${id}')"><i class="bi bi-plus-circle"></i> USAR</button>
             ${valleHasPermission('can_edit_client') ? `<button type="button" class="btn btn-warning btn-sm" onclick="editClient('${id}')"><i class="bi bi-pencil-square"></i> EDITAR</button>` : ''}
+            ${valleHasPermission('can_edit_client') ? `<button type="button" class="btn btn-outline-primary btn-sm" onclick="openClientAccess('${id}')"><i class="bi bi-person-lock"></i> ACESSO</button>` : ''}
             <button type="button" class="btn btn-success btn-sm" onclick="openWhatsClient('${id}')"><i class="bi bi-whatsapp"></i> WHATSAPP</button>
             <button type="button" class="btn btn-info btn-sm text-white" onclick="callClient('${id}')"><i class="bi bi-telephone-fill"></i> LIGAR</button>
             ${valleHasPermission('can_edit_client') ? `<button type="button" class="btn btn-outline-warning btn-sm" onclick="toggleVipClient('${id}')"><i class="bi ${c.vip ? 'bi-star-fill' : 'bi-star'}"></i> VIP</button>` : ''}
@@ -2545,6 +2861,396 @@ function renderClients() {
 }
 
 
+
+
+/* =========================
+   CREDIÁRIO PROFISSIONAL — CONTRATOS
+   As parcelas continuam sendo vales normais. Esta camada somente agrupa,
+   calcula e gerencia o contrato para manter compatibilidade com todo o app.
+   ========================= */
+function crediarioLegacyCode(parcelas = []) {
+  const saved = parcelas.find(v => String(v.crediarioCodigo || '').trim())?.crediarioCodigo;
+  if (saved) return upper(saved);
+  const minNumero = parcelas.reduce((min, v) => {
+    const n = Number(v.numero || 0);
+    return n > 0 ? Math.min(min, n) : min;
+  }, Number.POSITIVE_INFINITY);
+  return `CRD-${String(Number.isFinite(minNumero) ? minNumero : 0).padStart(6, '0')}`;
+}
+
+function crediarioBaseBalance(v) {
+  if (!v || valeEstaQuitado(v)) return 0;
+  return Math.max(0, originalLoanTotal(v) - Number(v.parcialRecebido || 0));
+}
+
+function crediarioInstallmentState(v) {
+  if (valeEstaQuitado(v)) return { key: 'PAGO', label: 'PAGO', cls: 'success' };
+  const saldo = crediarioBaseBalance(v);
+  const parcial = Number(v.parcialRecebido || 0) > 0 && saldo > 0;
+  const hoje = inputDate(new Date());
+  if (v.dataFinal && v.dataFinal < hoje) return { key: 'ATRASADO', label: parcial ? 'PARCIAL / ATRASADO' : 'ATRASADO', cls: 'danger' };
+  if (v.dataFinal === hoje) return { key: 'HOJE', label: parcial ? 'PARCIAL / HOJE' : 'VENCE HOJE', cls: 'warning' };
+  if (parcial) return { key: 'PARCIAL', label: 'PARCIAL', cls: 'info' };
+  return { key: 'ABERTO', label: 'EM ABERTO', cls: 'primary' };
+}
+
+function buildCrediarioSummary(crediarioId, parcelas = []) {
+  const ordered = [...parcelas].sort((a, b) => Number(a.parcelaNumero || 0) - Number(b.parcelaNumero || 0));
+  const first = ordered[0] || {};
+  const entrada = Math.max(0, Number(first.crediarioEntrada || 0));
+  const financiado = Math.max(0, Number(first.crediarioValorFinanciado || first.crediarioValorPrincipal || ordered.reduce((s, v) => s + originalLoanValue(v), 0)));
+  const valorBruto = Math.max(0, Number(first.crediarioValorBruto || (financiado + entrada)));
+  const totalParcelado = ordered.reduce((s, v) => s + originalLoanTotal(v), 0);
+  const totalContrato = entrada + totalParcelado;
+  const saldoBase = ordered.reduce((s, v) => s + crediarioBaseBalance(v), 0);
+  const encargosAtraso = ordered.reduce((s, v) => s + lateChargeBreakdown(v).total, 0);
+  const saldoAtual = saldoBase + encargosAtraso;
+  const pagoBase = Math.max(0, totalContrato - saldoBase);
+  const progresso = totalContrato > 0 ? Math.max(0, Math.min(100, (pagoBase / totalContrato) * 100)) : 0;
+  const abertas = ordered.filter(v => !valeEstaQuitado(v));
+  const pagas = ordered.length - abertas.length;
+  const atrasadas = abertas.filter(v => v.dataFinal && v.dataFinal < inputDate(new Date())).length;
+  const parciais = abertas.filter(v => Number(v.parcialRecebido || 0) > 0).length;
+  const proxima = [...abertas].sort((a, b) => String(a.dataFinal || '9999').localeCompare(String(b.dataFinal || '9999')))[0] || null;
+  const status = !abertas.length ? 'QUITADO' : atrasadas > 0 ? 'ATRASADO' : 'EM_DIA';
+  const codigo = crediarioLegacyCode(ordered);
+  const nomeCrediario = upper(ordered.find(v => String(v.crediarioNome || '').trim())?.crediarioNome || '') || `CREDIÁRIO ${codigo}`;
+  return {
+    id: crediarioId,
+    codigo,
+    nomeCrediario,
+    cliente: first.cliente || 'CLIENTE', clienteId: first.clienteId || '', telefone: first.telefone || '', cpf: first.cpf || '',
+    parcelas: ordered, quantidade: ordered.length, parcelaTotal: Number(first.parcelaTotal || ordered.length || 0),
+    pagas, abertas: abertas.length, atrasadas, parciais, status, proxima,
+    entrada, financiado, valorBruto, totalParcelado, totalContrato, saldoBase, encargosAtraso, saldoAtual, pagoBase, progresso,
+    juros: Number(first.juros || 0), multaAtrasoPercentual: Number(first.multaAtrasoPercentual || 0),
+    taxaAtrasoDiario: Number(first.taxaAtrasoDiario || 0), tipoTaxaAtrasoDiario: first.tipoTaxaAtrasoDiario || 'percentual',
+    periodicidade: first.periodicidade || 'mensal', criadoEm: first.criadoEm || ''
+  };
+}
+
+function getCrediarioContracts() {
+  const groups = new Map();
+  db.vales.filter(v => v.crediarioId).forEach(v => {
+    if (!groups.has(v.crediarioId)) groups.set(v.crediarioId, []);
+    groups.get(v.crediarioId).push(v);
+  });
+  return [...groups.entries()].map(([id, parcelas]) => buildCrediarioSummary(id, parcelas))
+    .sort((a, b) => {
+      const rank = { ATRASADO: 0, EM_DIA: 1, QUITADO: 2 };
+      const r = (rank[a.status] ?? 9) - (rank[b.status] ?? 9);
+      if (r) return r;
+      return String(a.proxima?.dataFinal || '9999').localeCompare(String(b.proxima?.dataFinal || '9999'));
+    });
+}
+
+function fitCrediarioSummaryValues() {
+  const items = document.querySelectorAll('#crediariosResumo .crediario-summary-fit');
+  if (!items.length) return;
+  const max = window.innerWidth <= 575 ? 15.7 : 18.9;
+  const min = window.innerWidth <= 575 ? 8.6 : 9.6;
+  items.forEach(el => {
+    el.style.fontSize = `${max}px`;
+    el.style.letterSpacing = '-0.01em';
+    let size = max;
+    let tries = 0;
+    while (el.scrollWidth > el.clientWidth + 1 && size > min && tries < 40) {
+      size -= 0.35;
+      el.style.fontSize = `${size}px`;
+      tries += 1;
+    }
+    if (el.scrollWidth > el.clientWidth + 1) {
+      el.style.letterSpacing = '-0.04em';
+      tries = 0;
+      while (el.scrollWidth > el.clientWidth + 1 && size > min && tries < 20) {
+        size -= 0.25;
+        el.style.fontSize = `${size}px`;
+        tries += 1;
+      }
+    }
+  });
+}
+
+function renderCrediarios() {
+  const list = $('crediariosLista');
+  const resumo = $('crediariosResumo');
+  if (!list || !resumo) return;
+  const query = upper($('searchCrediarios')?.value || '');
+  const filtro = $('filtroCrediariosStatus')?.value || 'TODOS';
+  const all = getCrediarioContracts();
+
+  const totalSaldo = all.reduce((s, c) => s + c.saldoAtual, 0);
+  const totalAtraso = all.filter(c => c.status === 'ATRASADO').reduce((s, c) => s + c.saldoAtual, 0);
+  const atrasados = all.filter(c => c.status === 'ATRASADO').length;
+  const quitados = all.filter(c => c.status === 'QUITADO').length;
+  resumo.innerHTML = `
+    <div class="crediario-summary-card"><span><i class="bi bi-files"></i>CONTRATOS</span><strong class="crediario-summary-fit">${all.length}</strong><small>${quitados} quitado${quitados === 1 ? '' : 's'}</small></div>
+    <div class="crediario-summary-card"><span><i class="bi bi-wallet2"></i>SALDO DA CARTEIRA</span><strong class="crediario-summary-fit">${money(totalSaldo)}</strong><small>inclui encargos atuais</small></div>
+    <div class="crediario-summary-card danger"><span><i class="bi bi-exclamation-triangle"></i>EM ATRASO</span><strong class="crediario-summary-fit">${atrasados}</strong><small>${money(totalAtraso)}</small></div>
+    <div class="crediario-summary-card success"><span><i class="bi bi-check2-circle"></i>QUITADOS</span><strong class="crediario-summary-fit">${quitados}</strong><small>${all.length ? Math.round((quitados / all.length) * 100) : 0}% dos contratos</small></div>`;
+  requestAnimationFrame(fitCrediarioSummaryValues);
+
+  const filtered = all.filter(c => {
+    const text = [c.codigo, c.nomeCrediario, c.cliente, c.telefone, c.cpf, c.periodicidade].join(' ').toUpperCase();
+    const queryOk = !query || text.includes(query);
+    const statusOk = filtro === 'TODOS' || c.status === filtro;
+    return queryOk && statusOk;
+  });
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="alert alert-secondary text-center mb-0"><i class="bi bi-credit-card-2-front me-2"></i>NENHUM CREDIÁRIO ENCONTRADO.</div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(c => {
+    const status = c.status === 'QUITADO'
+      ? { cls: 'success', label: 'QUITADO', icon: 'bi-check-circle-fill' }
+      : c.status === 'ATRASADO'
+        ? { cls: 'danger', label: 'ATRASADO', icon: 'bi-exclamation-octagon-fill' }
+        : { cls: 'primary', label: 'EM DIA', icon: 'bi-shield-check' };
+    const parcelaAtual = c.proxima ? `${Number(c.proxima.parcelaNumero || 1)}/${Number(c.proxima.parcelaTotal || c.parcelaTotal || c.quantidade)}` : `${c.quantidade}/${c.quantidade}`;
+    return `<article class="crediario-contract-card ${c.status.toLowerCase()}">
+      <div class="crediario-contract-head">
+        <div class="crediario-contract-ident">
+          <span class="crediario-contract-icon"><i class="bi bi-receipt-cutoff"></i></span>
+          <div><small>${h(c.codigo)}</small><h3 title="${h(c.nomeCrediario)}">${h(c.nomeCrediario)}</h3><p><i class="bi bi-person me-1"></i>${h(c.cliente)} • ${h(String(c.periodicidade).toUpperCase())} • ${c.quantidade} PARCELA${c.quantidade === 1 ? '' : 'S'}</p></div>
+        </div>
+        <span class="badge text-bg-${status.cls}"><i class="bi ${status.icon} me-1"></i>${status.label}</span>
+      </div>
+      <div class="crediario-progress-head"><span>${c.pagas} de ${c.quantidade} parcelas pagas</span><strong>${c.progresso.toFixed(0)}%</strong></div>
+      <div class="progress crediario-progress" role="progressbar" aria-valuenow="${c.progresso.toFixed(0)}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" style="width:${c.progresso.toFixed(2)}%"></div></div>
+      <div class="crediario-contract-stats">
+        <div><span>VALOR BASE</span><strong>${money(c.valorBruto)}</strong></div>
+        <div><span>ENTRADA</span><strong>${money(c.entrada)}</strong></div>
+        <div><span>TOTAL CONTRATO</span><strong>${money(c.totalContrato)}</strong></div>
+        <div class="${c.status === 'ATRASADO' ? 'danger' : ''}"><span>SALDO ATUAL</span><strong>${money(c.saldoAtual)}</strong></div>
+      </div>
+      <div class="crediario-contract-foot">
+        <div>${c.proxima ? `<small>PRÓXIMA PARCELA</small><strong>${parcelaAtual} • ${brDate(c.proxima.dataFinal)} • ${money(loanTotalBalance(c.proxima))}</strong>` : '<small>CONTRATO</small><strong>TODAS AS PARCELAS QUITADAS</strong>'}</div>
+        <button type="button" class="btn btn-primary" onclick="openCrediarioDetail('${c.id}')"><i class="bi bi-eye me-1"></i>VER CONTRATO</button>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+let currentCrediarioDetailId = null;
+
+function ensureCrediarioDetailModal() {
+  let modal = $('crediarioDetailModal');
+  if (modal) return modal;
+  modal = document.createElement('div');
+  modal.id = 'crediarioDetailModal';
+  modal.className = 'modal fade crediario-detail-modal';
+  modal.tabIndex = -1;
+  modal.setAttribute('aria-hidden', 'true');
+  modal.innerHTML = `<div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"><div class="modal-content"><div id="crediarioDetailContent"></div></div></div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('hidden.bs.modal', () => { currentCrediarioDetailId = null; });
+  return modal;
+}
+
+function crediarioDetailRows(c) {
+  const maxRows = 120;
+  const visible = c.parcelas.slice(0, maxRows);
+  const canReceive = valleHasPermission('can_receive_payment');
+  return visible.map(v => {
+    const state = crediarioInstallmentState(v);
+    const encargos = lateChargeBreakdown(v);
+    const isPaid = valeEstaQuitado(v);
+    const saldo = isPaid ? 0 : loanTotalBalance(v);
+    const actionsCount = (isPaid || !canReceive ? 0 : 1) + 1 + (valleHasPermission('can_edit_vale') ? 1 : 0);
+    return `<div class="crediario-installment-detail ${state.key.toLowerCase()}">
+      <div class="crediario-installment-check">${!isPaid && canReceive ? `<label class="crediario-check-control" title="Selecionar parcela ${Number(v.parcelaNumero || 0)}"><input class="crediario-parcela-check" type="checkbox" value="${h(v.id)}" aria-label="Selecionar parcela ${Number(v.parcelaNumero || 0)}" onchange="syncCrediarioVisibleToggle()"><span class="crediario-check-ui" aria-hidden="true"><i class="bi bi-check-lg"></i></span></label>` : '<i class="bi bi-check-circle-fill text-success"></i>'}</div>
+      <div class="crediario-installment-number"><strong>${Number(v.parcelaNumero || 0)}</strong><small>/${Number(v.parcelaTotal || c.quantidade)}</small></div>
+      <div class="crediario-installment-info"><span class="badge text-bg-${state.cls}">${h(state.label)}</span><strong>${brDate(v.dataFinal)}</strong><small>VALE #${String(v.numero || '').padStart(4, '0')}</small></div>
+      <div class="crediario-installment-money crediario-installment-parcela"><small>PARCELA</small><strong>${money(originalLoanTotal(v))}</strong>${encargos.total > 0 ? `<span>+ ${money(encargos.total)} atraso</span>` : ''}</div>
+      <div class="crediario-installment-money crediario-installment-receber"><small>A RECEBER</small><strong>${money(saldo)}</strong></div>
+      <div class="crediario-installment-actions actions-${actionsCount}">
+        ${!isPaid && canReceive ? `<button type="button" class="btn btn-sm btn-success" onclick="openCrediarioInstallmentAction('${v.id}','receive')"><i class="bi bi-cash-coin"></i><span>RECEBER</span></button>` : ''}
+        <button type="button" class="btn btn-sm btn-outline-danger" onclick="downloadLoanPdf('${v.id}')"><i class="bi bi-file-earmark-pdf"></i><span>PDF</span></button>
+        ${valleHasPermission('can_edit_vale') ? `<button type="button" class="btn btn-sm btn-outline-warning" onclick="openCrediarioInstallmentAction('${v.id}','edit')"><i class="bi bi-pencil-square"></i><span>EDITAR</span></button>` : ''}
+      </div>
+    </div>`;
+  }).join('') + (c.parcelas.length > maxRows ? `<div class="alert alert-info mt-3 mb-0"><i class="bi bi-info-circle me-2"></i>EXIBINDO AS PRIMEIRAS ${maxRows} DE ${c.parcelas.length} PARCELAS PARA MANTER A TELA RÁPIDA.</div>` : '');
+}
+
+function formatCrediarioClientName(name) {
+  const raw = String(name || '').trim().replace(/\s+/g, ' ');
+  if (!raw) return '';
+  if (raw.length <= 24) return raw;
+  const parts = raw.split(' ');
+  if (parts.length === 1) return raw;
+
+  const first = parts[0];
+  const second = parts[1] || '';
+  const firstTwo = `${first} ${second}`.trim();
+  if (firstTwo.length <= 24) return firstTwo;
+
+  const initials = parts.slice(1)
+    .map(part => /^(de|da|do|das|dos|e)$/i.test(part) ? '' : `${part.charAt(0)}.`)
+    .filter(Boolean);
+  const compact = `${first} ${initials.join(' ')}`.trim();
+  if (compact.length <= 28) return compact;
+
+  return `${first} ${second ? second.charAt(0) + '.' : ''}`.trim();
+}
+
+function renderCrediarioDetail(crediarioId) {
+  const c = getCrediarioContracts().find(x => x.id === crediarioId);
+  const content = $('crediarioDetailContent');
+  if (!c || !content) return false;
+  const statusClass = c.status === 'QUITADO' ? 'success' : c.status === 'ATRASADO' ? 'danger' : 'primary';
+  const statusLabel = c.status === 'EM_DIA' ? 'EM DIA' : c.status;
+  const clientDisplayName = formatCrediarioClientName(c.cliente);
+  const clientFullName = h(c.cliente);
+  const crediarioDisplayName = c.nomeCrediario || `CREDIÁRIO ${c.codigo}`;
+  content.innerHTML = `
+    <div class="modal-header crediario-detail-header">
+      <div class="crediario-detail-head-grid">
+        <span class="crediario-page-icon"><i class="bi bi-credit-card-2-front-fill"></i></span>
+        <div class="crediario-detail-title-wrap"><small>${h(c.codigo)} • ${h(clientDisplayName)}</small></div>
+        <div class="crediario-detail-head-actions"><span class="badge text-bg-${statusClass}">${h(statusLabel)}</span><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
+        <h2 class="h4 mb-0 crediario-detail-client-name" title="${h(crediarioDisplayName)}">${h(crediarioDisplayName)}</h2>
+      </div>
+    </div>
+    <div class="modal-body p-3 p-md-4">
+      <div class="crediario-detail-summary">
+        <div><span>VALOR BASE</span><strong>${money(c.valorBruto)}</strong></div>
+        <div><span>ENTRADA</span><strong>${money(c.entrada)}</strong></div>
+        <div><span>FINANCIADO</span><strong>${money(c.financiado)}</strong></div>
+        <div><span>TOTAL PARCELADO</span><strong>${money(c.totalParcelado)}</strong></div>
+        <div><span>SALDO BASE</span><strong>${money(c.saldoBase)}</strong></div>
+        <div class="${c.encargosAtraso > 0 ? 'danger' : ''}"><span>ENCARGOS DE ATRASO</span><strong>${money(c.encargosAtraso)}</strong></div>
+      </div>
+      <div class="crediario-detail-progress mt-3">
+        <div><span>PROGRESSO DO CONTRATO</span><strong>${c.pagas}/${c.quantidade} parcelas • ${c.progresso.toFixed(0)}%</strong></div>
+        <div class="progress"><div class="progress-bar" style="width:${c.progresso.toFixed(2)}%"></div></div>
+      </div>
+      <div class="crediario-detail-rules mt-3">
+        <span><i class="bi bi-percent"></i>JUROS DO CONTRATO <strong>${String(c.juros).replace('.', ',')}%</strong></span>
+        <span><i class="bi bi-exclamation-triangle"></i>MULTA <strong>${String(c.multaAtrasoPercentual).replace('.', ',')}%</strong></span>
+        <span><i class="bi bi-calendar-plus"></i>TAXA DIÁRIA <strong>${h(c.tipoTaxaAtrasoDiario === 'reais' ? money(c.taxaAtrasoDiario) + ' / DIA' : String(c.taxaAtrasoDiario).replace('.', ',') + '% / DIA')}</strong></span>
+      </div>
+      <div class="crediario-detail-toolbar mt-4">
+        <div><h3 class="h5 mb-1">PARCELAS</h3><p class="mb-0">Selecione várias parcelas para quitar em uma única operação.</p></div>
+        ${valleHasPermission('can_receive_payment') && c.abertas > 0 ? `<div class="d-flex flex-wrap gap-2"><button id="crediarioSelectVisibleBtn" type="button" class="btn btn-outline-primary btn-sm" onclick="toggleCrediarioVisibleChecks()"><i class="bi bi-check2-square me-1"></i>SELECIONAR VISÍVEIS</button><button type="button" class="btn btn-success btn-sm" onclick="quitarCrediarioSelecionadas('${c.id}')"><i class="bi bi-cash-stack me-1"></i>QUITAR SELECIONADAS</button><button type="button" class="btn btn-outline-success btn-sm" onclick="quitarCrediarioTodasAbertas('${c.id}')"><i class="bi bi-check-all me-1"></i>QUITAR TODAS EM ABERTO</button></div>` : ''}
+      </div>
+      <div class="crediario-installment-detail-list mt-3">${crediarioDetailRows(c)}</div>
+    </div>
+    <div class="modal-footer justify-content-between"><div class="crediario-detail-footer-summary"><strong>SALDO ATUAL: ${money(c.saldoAtual)}</strong>${c.encargosAtraso > 0 ? `<small class="d-block text-danger">Inclui ${money(c.encargosAtraso)} de encargos atuais</small>` : ''}</div><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">FECHAR</button></div>`;
+  applyVallePermissionVisibility(content);
+  return true;
+}
+
+function openCrediarioDetail(crediarioId) {
+  currentCrediarioDetailId = crediarioId;
+  const modal = ensureCrediarioDetailModal();
+  if (!renderCrediarioDetail(crediarioId)) return;
+  if (window.bootstrap?.Modal) bootstrap.Modal.getOrCreateInstance(modal, { backdrop: 'static', keyboard: true }).show();
+  else { modal.classList.add('show'); modal.style.display = 'block'; modal.removeAttribute('aria-hidden'); }
+}
+
+function closeCrediarioDetail() {
+  const modal = $('crediarioDetailModal');
+  if (!modal) return;
+  if (window.bootstrap?.Modal) bootstrap.Modal.getInstance(modal)?.hide();
+  else { modal.classList.remove('show'); modal.style.display = 'none'; }
+}
+
+function openCrediarioInstallmentAction(valeId, action) {
+  const v = db.vales.find(x => x.id === valeId);
+  const isPaidEdit = action === 'edit' && String(v?.status || '').toUpperCase() === 'PAGO';
+
+  // Vale quitado: mantém o modal do crediário aberto atrás e coloca a
+  // confirmação de senha por cima. Ao confirmar, o modal de crediário fecha.
+  if (isPaidEdit) {
+    editLoan(valeId, 'crediarios');
+    return;
+  }
+
+  closeCrediarioDetail();
+  setTimeout(() => {
+    if (action === 'receive') openReceiveModal(valeId);
+    else if (action === 'edit') editLoan(valeId, 'crediarios');
+  }, 120);
+}
+
+function syncCrediarioVisibleToggle() {
+  const checks = [...document.querySelectorAll('#crediarioDetailModal .crediario-parcela-check')];
+  const btn = $('crediarioSelectVisibleBtn');
+  if (!btn) return;
+  const allChecked = checks.length > 0 && checks.every(el => el.checked);
+  btn.classList.toggle('active', allChecked);
+  btn.setAttribute('aria-pressed', allChecked ? 'true' : 'false');
+  btn.innerHTML = allChecked
+    ? '<i class="bi bi-square me-1"></i>DESMARCAR VISÍVEIS'
+    : '<i class="bi bi-check2-square me-1"></i>SELECIONAR VISÍVEIS';
+}
+
+function toggleCrediarioVisibleChecks(forceChecked = null) {
+  const checks = [...document.querySelectorAll('#crediarioDetailModal .crediario-parcela-check')];
+  if (!checks.length) return;
+  const allChecked = checks.every(el => el.checked);
+  const nextChecked = forceChecked === null ? !allChecked : !!forceChecked;
+  checks.forEach(el => { el.checked = nextChecked; });
+  syncCrediarioVisibleToggle();
+}
+
+async function quitarCrediarioParcelas(ids, crediarioId, label = 'parcelas selecionadas') {
+  if (!valleRequirePermission('can_receive_payment')) return false;
+  const unique = [...new Set((ids || []).map(String))];
+  const parcelas = unique.map(id => db.vales.find(v => v.id === id)).filter(v => v?.crediarioId === crediarioId && !valeEstaQuitado(v));
+  if (!parcelas.length) { toast('SELECIONE PELO MENOS UMA PARCELA EM ABERTO'); return false; }
+  const total = parcelas.reduce((s, v) => s + loanTotalBalance(v), 0);
+  const ok = await appConfirm(`Serão quitadas ${parcelas.length} parcela${parcelas.length === 1 ? '' : 's'}, totalizando ${money(total)}. Esta operação será registrada na auditoria.`, {
+    title: `Quitar ${label}?`, icon: '💳', confirmText: 'Confirmar quitação', cancelText: 'Cancelar'
+  });
+  if (!ok) return false;
+
+  const pagoEm = new Date().toISOString();
+  const dataPagamento = brDate(inputDate(new Date()));
+  const contratoCodigo = getCrediarioContracts().find(c => c.id === crediarioId)?.codigo || 'CREDIÁRIO';
+  parcelas.forEach(v => {
+    const anterior = valleAuditClone(v);
+    const valorQuitacao = loanTotalBalance(v);
+    const principalAntes = loanPrincipalBalance(v);
+    const principalPago = Math.min(valorQuitacao, principalAntes);
+    const jurosPago = Math.max(0, valorQuitacao - principalPago);
+    v.status = 'PAGO';
+    v.ultimoRecebimento = 'QUITADO • CREDIÁRIO';
+    v.editadoEm = pagoEm;
+    const linha = `${dataPagamento} - PAGO ${money(valorQuitacao)} | QUITADO ${contratoCodigo} PARCELA ${Number(v.parcelaNumero || 0)}/${Number(v.parcelaTotal || 0)}`;
+    const obs = String(v.observacao || '').trim();
+    v.observacao = obs ? `${obs}\n${linha}` : linha;
+    valleAudit('QUITAR_VALE','vale',v,{
+      old_data: anterior, new_data: v, valor_pago: valorQuitacao,
+      valor_principal_pago: principalPago, valor_juros_pago: jurosPago, data_pagamento: pagoEm,
+      crediario_id: crediarioId, parcela_numero: v.parcelaNumero, parcela_total: v.parcelaTotal,
+      description:`Quitação em lote de ${money(valorQuitacao)} — ${contratoCodigo} parcela ${v.parcelaNumero}/${v.parcelaTotal}.`
+    });
+  });
+  save();
+  renderAll();
+  toast(`${parcelas.length} PARCELA${parcelas.length === 1 ? '' : 'S'} QUITADA${parcelas.length === 1 ? '' : 'S'}`);
+  if ($('crediarioDetailModal')?.classList.contains('show')) renderCrediarioDetail(crediarioId);
+  return true;
+}
+
+async function quitarCrediarioSelecionadas(crediarioId) {
+  const ids = [...document.querySelectorAll('#crediarioDetailModal .crediario-parcela-check:checked')].map(el => el.value);
+  await quitarCrediarioParcelas(ids, crediarioId, 'parcelas selecionadas');
+  renderCrediarioDetail(crediarioId);
+}
+
+async function quitarCrediarioTodasAbertas(crediarioId) {
+  const c = getCrediarioContracts().find(x => x.id === crediarioId);
+  if (!c) return;
+  await quitarCrediarioParcelas(c.parcelas.filter(v => !valeEstaQuitado(v)).map(v => v.id), crediarioId, 'todas as parcelas em aberto');
+  renderCrediarioDetail(crediarioId);
+}
+
+window.renderCrediarios = renderCrediarios;
+window.openCrediarioDetail = openCrediarioDetail;
 
 /**
  * Monta a lista do histórico de vales, com botões de editar, imprimir, PDF, WhatsApp, recebido e excluir.
@@ -2724,6 +3430,9 @@ function renderDashboard() {
     $('configTaxaAtrasoDiario').value = db.settings.tipoTaxaAtrasoDiario === 'reais' ? money(taxaAtraso) : String(taxaAtraso).replace('.', ',') + '%';
   }
   if ($('configTipoTaxaAtrasoDiario') && document.activeElement !== $('configTipoTaxaAtrasoDiario')) $('configTipoTaxaAtrasoDiario').value = db.settings.tipoTaxaAtrasoDiario || 'percentual';
+  if ($('configPixKey') && document.activeElement !== $('configPixKey')) $('configPixKey').value = String(db.settings.pixKey || '');
+  if ($('configPixBeneficiaryName') && document.activeElement !== $('configPixBeneficiaryName')) $('configPixBeneficiaryName').value = String(db.settings.pixBeneficiaryName || '');
+  if ($('configPixCity') && document.activeElement !== $('configPixCity')) $('configPixCity').value = String(db.settings.pixCity || '');
 
   // Atualiza os cards principais do Dashboard.
   if ($('dashCaixa')) $('dashCaixa').textContent = money(valorEmCaixa);
@@ -2801,6 +3510,9 @@ function renderDashboard() {
  */
 function saveDashboardConfig() {
   db.settings.capitalInvestido = moneyNum($('configCapitalInvestido')?.value || '0');
+  db.settings.pixKey = String($('configPixKey')?.value || '').trim();
+  db.settings.pixBeneficiaryName = String($('configPixBeneficiaryName')?.value || '').trim();
+  db.settings.pixCity = String($('configPixCity')?.value || '').trim();
   save();
   renderAll();
   toast('CONFIGURAÇÃO SALVA');
@@ -3123,6 +3835,7 @@ function renderAll() {
   // Renderiza a aba ativa imediatamente e adia telas pesadas que não estão abertas.
   if (active === 'clientes') safeRender(renderClients, 'clientes');
   if (active === 'historico') safeRender(renderHistory, 'histórico');
+  if (active === 'crediarios') safeRender(renderCrediarios, 'crediários');
   if (active === 'lancamentos') safeRender(window.renderLancamentos, 'lançamentos');
   if (active === 'relatorios') safeRender(renderReports, 'relatórios');
   if (active === 'calendario') safeRender(renderCalendario, 'calendário');
@@ -3548,6 +4261,7 @@ function buildPdfPreviewHtml(v) {
 }
 
 window.addEventListener('resize', () => {
+  fitCrediarioSummaryValues();
   const modal = document.getElementById('pdfPreviewOverlay');
   if (modal && modal.classList.contains('show')) updatePdfPreviewFit();
 });
@@ -3703,7 +4417,7 @@ function backupJson() {
     const stamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
     const payload = {
       valleBackup: true,
-      version: globalThis.VALLE_VERSION || '3.6.24',
+      version: globalThis.VALLE_VERSION || '3.6.27',
       createdAt: now.toISOString(),
       data: normalizeDb(db)
     };
@@ -3891,6 +4605,15 @@ function init() {
   if ($('loanParcelas')) $('loanParcelas').oninput = () => calcLoan();
   if ($('loanParcelas')) $('loanParcelas').onblur = () => { $('loanParcelas').value = String(normalizeInstallmentCount($('loanParcelas').value)); calcLoan(); };
   if ($('loanPeriodicidade')) $('loanPeriodicidade').onchange = calcLoan;
+  if ($('loanEntrada')) {
+    $('loanEntrada').onfocus = e => { const n = moneyNum(e.target.value); e.target.value = n ? String(n).replace('.', ',') : ''; setTimeout(() => e.target.select(), 0); };
+    $('loanEntrada').oninput = e => { e.target.value = e.target.value.replace(/[^0-9,\.]/g, ''); calcLoan(); };
+    $('loanEntrada').onblur = e => { e.target.value = money(Math.max(0, moneyNum(e.target.value))); calcLoan(); };
+  }
+  if ($('loanMultaAtraso')) {
+    $('loanMultaAtraso').oninput = e => { e.target.value = e.target.value.replace(/[^0-9,\.]/g, ''); renderCrediarioPreview(); };
+    $('loanMultaAtraso').onblur = e => { e.target.value = String(Math.max(0, taxaNum(e.target.value))).replace('.', ',') + '%'; renderCrediarioPreview(); };
+  }
   if ($('loanTipoTaxaDiaria')) $('loanTipoTaxaDiaria').onchange = () => {
     const tipo = $('loanTipoTaxaDiaria').value === 'reais' ? 'reais' : 'percentual';
     $('loanTaxaDiaria').value = tipo === 'reais' ? money(moneyNum($('loanTaxaDiaria').value)) : String(taxaNum($('loanTaxaDiaria').value)).replace('.', ',') + '%';
@@ -3902,7 +4625,7 @@ function init() {
   };
   $('loanInicio').onchange = () => { const d = new Date($('loanInicio').value + 'T00:00:00'); if (!isNaN(d)) { d.setDate(d.getDate() + 30); $('loanFinal').value = inputDate(d); } calcLoan(); };
   $('loanFinal').onchange = calcLoan;
-  ['loanCliente', 'loanObs', 'cliNome', 'cliObs'].forEach(id => $(id).oninput = e => { const p = e.target.selectionStart; e.target.value = String(e.target.value || '').toUpperCase(); try { e.target.setSelectionRange(p, p); } catch (_) {} });
+  ['loanCliente', 'loanCrediarioNome', 'loanObs', 'cliNome', 'cliObs'].forEach(id => { const field = $(id); if (!field) return; field.oninput = e => { const p = e.target.selectionStart; e.target.value = String(e.target.value || '').toUpperCase(); try { e.target.setSelectionRange(p, p); } catch (_) {} }; });
   $('cliTelefone').oninput = e => e.target.value = phoneMask(e.target.value);
   $('cliCpf').oninput = e => e.target.value = cpfMask(e.target.value);
   if ($('savePrintBtn')) $('savePrintBtn').onclick = savePrint;
@@ -3924,6 +4647,8 @@ function init() {
   }
   $('searchClientes').oninput = renderClients;
   $('searchHistorico').oninput = renderHistory;
+  if ($('searchCrediarios')) $('searchCrediarios').oninput = renderCrediarios;
+  if ($('filtroCrediariosStatus')) $('filtroCrediariosStatus').onchange = renderCrediarios;
   if ($('filtroHistoricoStatus')) $('filtroHistoricoStatus').onchange = renderHistory;
   if ($('filtroHistoricoInicio')) $('filtroHistoricoInicio').onchange = renderHistory;
   if ($('filtroHistoricoFim')) $('filtroHistoricoFim').onchange = renderHistory;
@@ -5179,7 +5904,7 @@ window.preloadValleAllData = async function preloadValleAllData() {
     try { applyVallePermissionVisibility(); } catch (_) {}
 
     window.dispatchEvent(new CustomEvent('valle-data-preloaded', { detail: {
-      version: globalThis.VALLE_VERSION || '3.6.24', online: navigator.onLine !== false,
+      version: globalThis.VALLE_VERSION || '3.6.27', online: navigator.onLine !== false,
       userRole: window.ValleCloud?.profile?.role || null
     }}));
     return true;
@@ -5275,10 +6000,12 @@ if (document.readyState === 'loading') {
     'dashboard',
     'notificacoes',
     'emprestimo',
+    'crediarios',
     'clientes',
     'historico',
     'relatorios',
-    'calendario'
+    'calendario',
+    'lancamentos'
   ];
 
   let startX = 0;
@@ -5289,6 +6016,8 @@ if (document.readyState === 'loading') {
   let lastScrollY = Math.max(0, window.scrollY);
   let scrollTicking = false;
   let screenTransitioning = false;
+  let directionLock = '';
+  const gesture = window.__VALLE_MOBILE_GESTURE || (window.__VALLE_MOBILE_GESTURE = { type:null });
 
   const isMobile = () => window.innerWidth <= MOBILE_MAX;
 
@@ -5390,12 +6119,12 @@ if (document.readyState === 'loading') {
   };
 
   const moveScreen = direction => {
-    if (!isMobile()) return;
+    if (!isMobile() || screenTransitioning) return;
     const current = activeScreenId();
     const currentIndex = screensOrder.indexOf(current);
     if (currentIndex < 0) return;
 
-    // Conforme solicitado: arrastar para a direita volta; para a esquerda avança.
+    // Arrastar para a direita volta; para a esquerda avança.
     const targetIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
     if (targetIndex < 0 || targetIndex >= screensOrder.length) return;
 
@@ -5403,12 +6132,20 @@ if (document.readyState === 'loading') {
     const targetTab = document.querySelector(`.tab[data-screen="${targetId}"]`);
     if (!targetTab) return;
 
-    animateScreenChange(direction, () => targetTab.click());
+    // O swipe usa o mesmo fluxo do clique. A transição leve é aplicada
+    // pelo switchScreen(), sem snapshot nem clonagem pesada da tela.
+    screenTransitioning = true;
+    requestAnimationFrame(() => {
+      targetTab.click();
+      document.body.classList.remove('mobile-nav-hidden');
+      setTimeout(() => { screenTransitioning = false; }, 220);
+    });
   };
 
   const onTouchStart = event => {
     if (!isMobile() || event.touches.length !== 1) return;
     gestureBlocked = isInteractiveTarget(event.target);
+    directionLock = '';
     if (gestureBlocked) return;
     const touch = event.touches[0];
     startX = touch.clientX;
@@ -5417,9 +6154,31 @@ if (document.readyState === 'loading') {
     tracking = true;
   };
 
-  const onTouchEnd = event => {
-    if (!tracking || gestureBlocked || !isMobile() || !event.changedTouches.length) {
+  const onTouchMove = event => {
+    if (!tracking || gestureBlocked || !isMobile() || event.touches.length !== 1) return;
+    if (gesture.type === 'pull') {
+      gestureBlocked = true;
       tracking = false;
+      return;
+    }
+    const touch = event.touches[0];
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    const ax = Math.abs(dx);
+    const ay = Math.abs(dy);
+    if (!directionLock && ax >= 10 && ax > ay * 1.15) {
+      directionLock = 'horizontal';
+      gesture.type = 'swipe';
+    } else if (!directionLock && ay >= 12 && ay > ax * 1.25) {
+      directionLock = 'vertical';
+    }
+  };
+
+  const onTouchEnd = event => {
+    if (!tracking || gestureBlocked || !isMobile() || !event.changedTouches.length || gesture.type === 'pull') {
+      tracking = false;
+      directionLock = '';
+      if (gesture.type === 'swipe') gesture.type = null;
       return;
     }
 
@@ -5429,8 +6188,10 @@ if (document.readyState === 'loading') {
     const elapsed = Date.now() - startTime;
     tracking = false;
 
-    // Só aceita um gesto claramente horizontal e relativamente rápido.
-    if (elapsed > 850 || Math.abs(dx) < SWIPE_MIN || Math.abs(dx) <= Math.abs(dy) * 1.25) return;
+    const horizontal = directionLock === 'horizontal' || (Math.abs(dx) > Math.abs(dy) * 1.35);
+    if (gesture.type === 'swipe') gesture.type = null;
+    directionLock = '';
+    if (!horizontal || elapsed > 850 || Math.abs(dx) < SWIPE_MIN) return;
     moveScreen(dx > 0 ? 'prev' : 'next');
   };
 
@@ -5465,6 +6226,7 @@ if (document.readyState === 'loading') {
   };
 
   document.addEventListener('touchstart', onTouchStart, { passive:true });
+  document.addEventListener('touchmove', onTouchMove, { passive:true });
   document.addEventListener('touchend', onTouchEnd, { passive:true });
   window.addEventListener('scroll', onScroll, { passive:true });
   window.addEventListener('resize', () => {
@@ -5551,3 +6313,220 @@ if (document.readyState === 'loading') {
     if (!document.hidden) setTimeout(() => openPushTarget(), 150);
   });
 })();
+
+
+/* =========================================================
+   VALLE 3.6.81 — Pull to refresh em todas as abas principais
+   Mesmo comportamento da Área do Cliente: só funciona no topo,
+   desloca a tela para baixo e mostra o estado da atualização.
+   ========================================================= */
+async function refreshValleActiveScreenFromCloud() {
+  const cloud = window.ValleCloud;
+  const profile = cloud?.profile;
+
+  try {
+    if (profile && ['service', 'session'].includes(profile.role) && cloud?.loadWorkspaceSnapshot) {
+      try { await cloud.syncPendingWorkspace?.(); } catch (_) {}
+      const snapshot = await cloud.loadWorkspaceSnapshot({ preferCache: false });
+      if (snapshot?.data) {
+        const loaded = window.replaceValleDatabase
+          ? window.replaceValleDatabase(snapshot.data)
+          : normalizeDb(snapshot.data);
+        db = loaded;
+        window.db = loaded;
+        try {
+          localStorage.setItem(LS, JSON.stringify(loaded));
+          const owner = profile.role === 'service' ? profile.session_user_id : profile.id;
+          if (owner) localStorage.setItem('valle_db_owner_session', owner);
+        } catch (_) {}
+      }
+    }
+  } catch (error) {
+    console.warn('Não foi possível atualizar os dados remotos pelo gesto:', error);
+  }
+
+  try { renderAll(); } catch (_) {}
+
+  const active = document.querySelector('.screen.active')?.id || 'dashboard';
+  if (active === 'lancamentos') {
+    try { await Promise.resolve(window.renderLancamentos?.(true)); } catch (_) {}
+    try { await Promise.resolve(window.renderClientPaymentRequests?.(true)); } catch (_) {}
+  }
+
+  return true;
+}
+window.refreshValleActiveScreenFromCloud = refreshValleActiveScreenFromCloud;
+
+function setupValleAppPullRefresh() {
+  const app = document.querySelector('.app');
+  if (!app || app.dataset.pullRefreshReady === '1') return;
+  app.dataset.pullRefreshReady = '1';
+
+  let indicator = document.getElementById('valleAppPullRefresh');
+  if (!indicator) {
+    indicator = document.createElement('div');
+    indicator.id = 'valleAppPullRefresh';
+    indicator.className = 'valle-app-pull-refresh';
+    indicator.setAttribute('aria-live', 'polite');
+    indicator.innerHTML = '<span class="valle-app-pull-refresh-icon"><i class="bi bi-arrow-down"></i></span><strong id="valleAppPullRefreshText">PUXE PARA ATUALIZAR</strong>';
+    document.body.appendChild(indicator);
+  }
+
+  const label = () => document.getElementById('valleAppPullRefreshText');
+  const threshold = 78;
+  const gesture = window.__VALLE_MOBILE_GESTURE || (window.__VALLE_MOBILE_GESTURE = { type:null });
+  let startX = 0;
+  let startY = 0;
+  let distance = 0;
+  let tracking = false;
+  let candidate = false;
+  let blocked = false;
+  let refreshing = false;
+
+  const scrollTop = () => Math.max(
+    0,
+    window.scrollY || 0,
+    document.documentElement?.scrollTop || 0,
+    document.body?.scrollTop || 0
+  );
+
+  const appVisible = () => !app.classList.contains('hidden') && getComputedStyle(app).display !== 'none';
+  const startsInCarousel = target => Boolean(target?.closest(
+    '.tabs, .lancamentos-sections-nav, .carousel, .swiper, [data-no-pull-refresh]'
+  ));
+
+  const setPullOffset = value => {
+    const offset = Math.max(0, Math.round(value || 0));
+    app.style.setProperty('--valle-app-pull-offset', `${offset}px`);
+    app.classList.toggle('valle-app-pull-active', offset > 0);
+  };
+
+  const releaseGesture = () => {
+    if (gesture.type === 'pull') gesture.type = null;
+  };
+
+  const reset = () => {
+    if (!refreshing) {
+      indicator.classList.remove('is-pulling', 'is-ready');
+      indicator.style.removeProperty('--pull-distance');
+    }
+    setPullOffset(0);
+    distance = 0;
+    tracking = false;
+    candidate = false;
+    blocked = false;
+    releaseGesture();
+  };
+
+  const beginPull = () => {
+    if (gesture.type && gesture.type !== 'pull') return false;
+    gesture.type = 'pull';
+    tracking = true;
+    candidate = false;
+    distance = 0;
+    indicator.classList.add('is-pulling');
+    indicator.classList.remove('is-ready');
+    indicator.style.setProperty('--pull-distance', '0px');
+    setPullOffset(0);
+    if (label()) label().textContent = 'PUXE PARA ATUALIZAR';
+    return true;
+  };
+
+  app.addEventListener('touchstart', event => {
+    if (refreshing || !appVisible() || document.querySelector('.modal.show') || event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    startX = touch.clientX;
+    startY = touch.clientY;
+    distance = 0;
+    tracking = false;
+    blocked = startsInCarousel(event.target);
+    candidate = !blocked && scrollTop() <= 1;
+  }, { passive:true });
+
+  app.addEventListener('touchmove', event => {
+    if (refreshing || !appVisible() || document.querySelector('.modal.show') || event.touches.length !== 1) return;
+    if (blocked || gesture.type === 'swipe') return;
+
+    const touch = event.touches[0];
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    const ax = Math.abs(dx);
+    const ay = Math.abs(dy);
+
+    if (!tracking) {
+      if (!candidate || scrollTop() > 1) return;
+      if (ax >= 10 && ax > ay * 1.15) {
+        blocked = true;
+        gesture.type = 'swipe';
+        return;
+      }
+      if (!(dy >= 14 && ay > ax * 1.55)) return;
+      if (!beginPull()) return;
+    }
+
+    if (gesture.type !== 'pull') return;
+    if (scrollTop() > 1) { reset(); return; }
+    if (dy <= 0) {
+      distance = 0;
+      indicator.classList.remove('is-ready');
+      indicator.style.setProperty('--pull-distance', '0px');
+      setPullOffset(0);
+      return;
+    }
+
+    event.preventDefault();
+    distance = Math.min(118, dy * .62);
+    setPullOffset(Math.min(84, distance * .78));
+    indicator.classList.add('is-pulling');
+    indicator.style.setProperty('--pull-distance', `${distance}px`);
+    indicator.classList.toggle('is-ready', distance >= threshold);
+    if (label()) label().textContent = distance >= threshold ? 'SOLTE PARA ATUALIZAR' : 'PUXE PARA ATUALIZAR';
+  }, { passive:false });
+
+  const finish = async () => {
+    if (!tracking || refreshing || gesture.type !== 'pull') {
+      if (!refreshing) reset();
+      return;
+    }
+    const shouldRefresh = distance >= threshold && scrollTop() <= 1;
+    if (!shouldRefresh) { reset(); return; }
+
+    refreshing = true;
+    tracking = false;
+    candidate = false;
+    setPullOffset(54);
+    indicator.classList.remove('is-ready');
+    indicator.classList.add('is-refreshing', 'is-pulling');
+    indicator.style.setProperty('--pull-distance', '58px');
+    if (label()) label().textContent = 'ATUALIZANDO...';
+
+    try {
+      await refreshValleActiveScreenFromCloud();
+      if (label()) label().textContent = 'ATUALIZADO';
+      indicator.classList.add('is-done');
+    } catch (_) {
+      if (label()) label().textContent = 'NÃO FOI POSSÍVEL ATUALIZAR';
+      indicator.classList.add('is-error');
+    } finally {
+      setTimeout(() => {
+        refreshing = false;
+        indicator.classList.remove('is-refreshing', 'is-pulling', 'is-done', 'is-error');
+        indicator.style.removeProperty('--pull-distance');
+        setPullOffset(0);
+        if (label()) label().textContent = 'PUXE PARA ATUALIZAR';
+        distance = 0;
+        blocked = false;
+        releaseGesture();
+      }, 700);
+    }
+  };
+
+  app.addEventListener('touchend', () => { void finish(); }, { passive:true });
+  app.addEventListener('touchcancel', reset, { passive:true });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupValleAppPullRefresh, { once:true });
+} else {
+  setupValleAppPullRefresh();
+}

@@ -14,6 +14,69 @@ Deno.serve(async(req)=>{
   const {data:{user},error:userError}=await callerClient.auth.getUser(); if(userError||!user)return json({error:'Não autorizado.'},401)
   const {data:caller,error:profileError}=await admin.from('profiles').select('*').eq('id',user.id).single(); if(profileError)return json({error:'Perfil não encontrado.'},403)
   const body=await req.json(); const action=body.action
+
+  // Área do Cliente: usuário de sessão ou de serviço pode administrar somente
+  // o acesso dos clientes pertencentes à própria sessão.
+  if(['client_access_info','client_access_save','client_access_delete'].includes(action)){
+   if(!['session','service'].includes(caller.role))return json({error:'Sem permissão para administrar acesso de clientes.'},403)
+   const sessionId=caller.role==='session'?caller.id:caller.session_user_id
+   if(!sessionId)return json({error:'Sessão do usuário não encontrada.'},403)
+   const clientId=String(body.clientId||'').trim()
+   if(!clientId)return json({error:'Cliente não informado.'},400)
+
+   const {data:workspace,error:workspaceError}=await admin.from('session_workspaces').select('data').eq('session_user_id',sessionId).maybeSingle()
+   if(workspaceError)return json({error:workspaceError.message},400)
+   const clients=Array.isArray(workspace?.data?.clientes)?workspace.data.clientes:[]
+   const linkedClient=clients.find((item:any)=>String(item?.id||'')===clientId)
+   if(!linkedClient)return json({error:'Cliente não pertence a esta sessão.'},403)
+
+   const {data:account,error:accountError}=await admin.from('client_accounts').select('*').eq('session_user_id',sessionId).eq('client_id',clientId).maybeSingle()
+   if(accountError)return json({error:accountError.message},400)
+
+   if(action==='client_access_info'){
+    return json({ok:true,account:account?{userId:account.user_id,email:account.email,name:account.name,active:account.active,createdAt:account.created_at}:null})
+   }
+
+   if(action==='client_access_delete'){
+    if(!account)return json({ok:true,deleted:false})
+    const {error:deleteError}=await admin.auth.admin.deleteUser(account.user_id)
+    if(deleteError)return json({error:deleteError.message},400)
+    return json({ok:true,deleted:true})
+   }
+
+   const email=String(body.email||account?.email||'').trim()
+   const password=String(body.password||'')
+   const name=String(linkedClient?.nome||body.name||account?.name||'Cliente').trim()||'Cliente'
+   const active=body.active!==false
+   if(!email)return json({error:'Informe o e-mail do cliente.'},400)
+
+   if(!account){
+    if(password.length<6)return json({error:'A senha inicial deve ter pelo menos 6 caracteres.'},400)
+    const {data:created,error:createError}=await admin.auth.admin.createUser({
+      email,password,email_confirm:true,
+      user_metadata:{name,role:'client',client_id:clientId,session_user_id:sessionId}
+    })
+    if(createError)return json({error:createError.message},400)
+    const {error:insertError}=await admin.from('client_accounts').insert({
+      user_id:created.user.id,session_user_id:sessionId,client_id:clientId,name,email,active,created_by:caller.id
+    })
+    if(insertError){await admin.auth.admin.deleteUser(created.user.id);return json({error:insertError.message},400)}
+    return json({ok:true,created:true,account:{userId:created.user.id,email,name,active}})
+   }
+
+   const authChanges:any={user_metadata:{name,role:'client',client_id:clientId,session_user_id:sessionId}}
+   if(email!==account.email){authChanges.email=email;authChanges.email_confirm=true}
+   if(password){
+    if(password.length<6)return json({error:'A nova senha deve ter pelo menos 6 caracteres.'},400)
+    authChanges.password=password
+   }
+   const {error:authUpdateError}=await admin.auth.admin.updateUserById(account.user_id,authChanges)
+   if(authUpdateError)return json({error:authUpdateError.message},400)
+   const {error:updateAccountError}=await admin.from('client_accounts').update({name,email,active,updated_at:new Date().toISOString()}).eq('user_id',account.user_id)
+   if(updateAccountError)return json({error:updateAccountError.message},400)
+   return json({ok:true,created:false,account:{userId:account.user_id,email,name,active}})
+  }
+
   if(!['admin','session'].includes(caller.role))return json({error:'Sem permissão.'},403)
   if(action==='create'){
    const role=caller.role==='admin'?'session':'service'

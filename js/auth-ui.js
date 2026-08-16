@@ -656,6 +656,406 @@ async function checkAdminMessageForUser(profile){
 }
 function closeSystemUpdateMessage(){el('systemUpdateMessageModal')?.classList.add('hidden')}
 
+
+let clientPortalSnapshot=null;
+function clientPortalMoney(v){return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+function clientPortalDate(v){
+ const s=String(v||'').slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return '—';
+ const [y,m,d]=s.split('-');return `${d}/${m}/${y}`;
+}
+function clientPortalPaid(v){const s=String(v?.status||'').toUpperCase();return s==='PAGO'||s==='QUITADO'}
+function clientPortalOriginalPrincipal(v){
+ const saved=Number(v?.valorOriginal);if(saved>0)return saved;
+ const atual=Number(v?.valor||0),total=Number(v?.total||0),juros=Number(v?.juros||0),totalOriginal=Number(v?.totalOriginal||0);
+ if(atual<=0&&total>0&&juros>0)return total/(juros/100);
+ if(totalOriginal>0&&juros>0)return totalOriginal/(1+(juros/100));
+ return Math.max(0,atual);
+}
+function clientPortalOriginalTotal(v){
+ const principal=clientPortalOriginalPrincipal(v),juros=Number(v?.juros||0),calc=principal+(principal*juros/100);
+ if(calc>0)return calc;const saved=Number(v?.totalOriginal);return saved>0?saved:Math.max(0,Number(v?.total||0));
+}
+function clientPortalDaysLate(date){
+ const s=String(date||'').slice(0,10);if(!s)return 0;const due=new Date(`${s}T12:00:00`);const now=new Date();now.setHours(12,0,0,0);
+ return Math.max(0,Math.floor((now-due)/86400000));
+}
+function clientPortalLateFee(v){
+ if(clientPortalPaid(v)||!v?.dataFinal)return 0;const days=clientPortalDaysLate(v.dataFinal);if(!days)return 0;
+ const baseTotal=Math.max(0,clientPortalOriginalTotal(v)-Number(v.parcialRecebido||0));
+ const multa=baseTotal*(Math.max(0,Number(v.multaAtrasoPercentual||0))/100);
+ const taxa=Math.max(0,Number(v.taxaAtrasoDiario||0));let diaria=0;
+ if(taxa>0){if(v.tipoTaxaAtrasoDiario==='reais')diaria=days*taxa;else diaria=Math.max(0,clientPortalOriginalPrincipal(v)-Number(v.principalRecebido||0))*(taxa/100)*days}
+ return multa+diaria;
+}
+function clientPortalBalance(v){return clientPortalPaid(v)?0:Math.max(0,clientPortalOriginalTotal(v)-Number(v.parcialRecebido||0)+clientPortalLateFee(v))}
+function clientPortalStatus(v){
+ if(clientPortalPaid(v))return {key:'pago',label:'PAGO',cls:'success'};
+ const today=new Date().toISOString().slice(0,10);if(v?.dataFinal&&String(v.dataFinal).slice(0,10)<today)return {key:'atrasado',label:'ATRASADO',cls:'danger'};
+ if(v?.dataFinal&&String(v.dataFinal).slice(0,10)===today)return {key:'hoje',label:'VENCE HOJE',cls:'warning'};
+ return {key:'aberto',label:'EM ABERTO',cls:'primary'};
+}
+function clientPortalEsc(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+function clientPortalPixKey(data){return String(data?.payment?.pix_key||data?.session?.pix_key||'').trim()}
+function clientPortalPixName(data){return String(data?.payment?.pix_name||'').trim()}
+function clientPortalPixCity(data){return String(data?.payment?.pix_city||'').trim()}
+function clientPixAscii(value,maxLen){
+ return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9 .\-\/]/g,' ').replace(/\s+/g,' ').trim().slice(0,maxLen);
+}
+function clientPixField(id,value){const v=String(value??'');return `${id}${String(v.length).padStart(2,'0')}${v}`}
+function clientPixCrc16(payload){
+ let crc=0xFFFF;
+ for(let i=0;i<payload.length;i++){
+   crc^=payload.charCodeAt(i)<<8;
+   for(let bit=0;bit<8;bit++) crc=(crc&0x8000)?((crc<<1)^0x1021):(crc<<1);
+   crc&=0xFFFF;
+ }
+ return crc.toString(16).toUpperCase().padStart(4,'0');
+}
+function clientPortalPixPayload({key,name,city,amount,txid}){
+ const cleanKey=String(key||'').trim();
+ const merchantName=clientPixAscii(name||'VALLE',25)||'VALLE';
+ const merchantCity=clientPixAscii(city||'BRASIL',15)||'BRASIL';
+ const cleanTxid=clientPixAscii(txid||'VALLE',25).replace(/[^A-Z0-9]/g,'')||'***';
+ const merchantAccount=clientPixField('00','br.gov.bcb.pix')+clientPixField('01',cleanKey);
+ const additional=clientPixField('05',cleanTxid);
+ let payload=clientPixField('00','01')+clientPixField('26',merchantAccount)+clientPixField('52','0000')+clientPixField('53','986');
+ const n=Number(amount||0);if(n>0)payload+=clientPixField('54',n.toFixed(2));
+ payload+=clientPixField('58','BR')+clientPixField('59',merchantName)+clientPixField('60',merchantCity)+clientPixField('62',additional)+'6304';
+ return payload+clientPixCrc16(payload);
+}
+function ensureClientPixModal(){
+ let modal=el('clientPixModal');
+ if(modal)return modal;
+ modal=document.createElement('div');
+ modal.className='modal fade';
+ modal.id='clientPixModal';
+ modal.tabIndex=-1;
+ modal.setAttribute('aria-hidden','true');
+ modal.innerHTML=`<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content client-pix-modal"><div class="modal-header"><div><small>PAGAMENTO PIX</small><h2 class="h5 mb-0" id="clientPixTitle">Pagamento</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div><div class="modal-body"><div id="clientPixCopyFeedback" class="client-pix-copy-feedback alert alert-success d-none" role="status" aria-live="polite"><i class="bi bi-check-circle-fill"></i><span>PIX COPIADO COM SUCESSO!</span></div><div class="client-pix-amount"><span>VALOR A PAGAR</span><strong id="clientPixAmount">R$ 0,00</strong></div><div class="client-pix-beneficiary"><span>BENEFICIÁRIO</span><strong id="clientPixBeneficiary">—</strong></div><div class="client-pix-qr-wrap"><div id="clientPixQr" class="client-pix-qr" aria-label="QR Code PIX"></div></div><div class="client-pix-key-box"><span>CHAVE PIX</span><strong id="clientPixKey">—</strong></div><div class="client-pix-message"><label for="clientPixMessage">OBSERVAÇÃO DO PAGAMENTO <small>(OPCIONAL)</small></label><textarea id="clientPixMessage" rows="2" maxlength="180" placeholder="Ex.: paguei pelo banco X"></textarea></div><p class="client-pix-help">Depois de pagar, toque em <strong>JÁ PAGUEI</strong>. O pagamento ficará aguardando conferência; o vale não é quitado automaticamente.</p></div><div class="modal-footer client-pix-footer"><button type="button" class="btn btn-outline-primary" id="clientPixCopyBtn"><i class="bi bi-copy"></i><span>COPIAR PIX</span></button><button type="button" class="btn btn-success" id="clientPixPaidBtn"><i class="bi bi-check2-circle"></i><span>JÁ PAGUEI</span></button></div></div></div>`;
+ document.body.appendChild(modal);
+ modal.addEventListener('show.bs.modal',()=>{
+   requestAnimationFrame(()=>{
+     const backdrops=[...document.querySelectorAll('.modal-backdrop')];
+     const backdrop=backdrops[backdrops.length-1];
+     if(backdrop){
+       backdrop.classList.add('client-pix-backdrop');
+       backdrop.style.zIndex='2147483608';
+     }
+     modal.style.zIndex='2147483609';
+   });
+ });
+ modal.addEventListener('hidden.bs.modal',()=>{
+   modal.style.zIndex='';
+   document.querySelectorAll('.modal-backdrop.client-pix-backdrop').forEach((bd,i,arr)=>{
+     if(i===arr.length-1){bd.style.zIndex='';bd.classList.remove('client-pix-backdrop');}
+   });
+ });
+ el('clientPixCopyBtn').onclick=async()=>{
+   const payload=modal.dataset.pixPayload||el('clientPixKey')?.textContent||'';
+   if(!payload)return;
+   const feedback=el('clientPixCopyFeedback');
+   const showFeedback=(ok,message)=>{
+     if(!feedback)return;
+     clearTimeout(showFeedback.timer);
+     clearTimeout(showFeedback.hideTimer);
+     feedback.classList.remove('d-none','alert-success','alert-danger','is-visible');
+     feedback.classList.add(ok?'alert-success':'alert-danger');
+     feedback.innerHTML=`<i class="bi ${ok?'bi-check-circle-fill':'bi-x-circle-fill'}"></i><span>${message}</span>`;
+     void feedback.offsetWidth;
+     requestAnimationFrame(()=>feedback.classList.add('is-visible'));
+     showFeedback.timer=setTimeout(()=>{
+       feedback.classList.remove('is-visible');
+       showFeedback.hideTimer=setTimeout(()=>feedback.classList.add('d-none'),220);
+     },2400);
+   };
+   try{
+     if(navigator.clipboard?.writeText){
+       await navigator.clipboard.writeText(payload);
+     }else{
+       const area=document.createElement('textarea');
+       area.value=payload;
+       area.setAttribute('readonly','');
+       area.style.position='fixed';area.style.opacity='0';area.style.pointerEvents='none';
+       document.body.appendChild(area);
+       area.focus();area.select();area.setSelectionRange(0,area.value.length);
+       const copied=document.execCommand('copy');
+       area.remove();
+       if(!copied)throw new Error('copy_failed');
+     }
+     showFeedback(true,'PIX COPIADO COM SUCESSO!');
+   }catch(_){
+     showFeedback(false,'NÃO FOI POSSÍVEL COPIAR O PIX');
+   }
+ };
+ el('clientPixPaidBtn').onclick=async()=>{
+   const index=Number(modal.dataset.loanIndex);
+   const data=clientPortalSnapshot||{};const vales=Array.isArray(data?.vales)?data.vales:[];const loan=vales[index];
+   if(!loan)return;
+   const btn=el('clientPixPaidBtn');btn.disabled=true;
+   try{
+     await ValleCloud.createClientPaymentRequest({valeId:loan.id,amount:clientPortalBalance(loan),message:el('clientPixMessage')?.value||''});
+     bootstrap.Modal.getInstance(modal)?.hide();
+     connectionToast('PAGAMENTO INFORMADO. AGUARDANDO CONFERÊNCIA.','success');
+     await loadAndRenderClientPortal(ValleCloud.profile,true);
+   }catch(err){connectionToast(err.message||'NÃO FOI POSSÍVEL INFORMAR O PAGAMENTO','error')}
+   finally{btn.disabled=false}
+ };
+ return modal;
+}
+async function openClientPixPayment(loanIndex){
+ const data=clientPortalSnapshot||{};
+ const vales=Array.isArray(data?.vales)?data.vales:[];
+ const loan=vales[Number(loanIndex)];
+ if(!loan)return;
+ const pixKey=clientPortalPixKey(data);
+ if(!pixKey){connectionToast('A CHAVE PIX AINDA NÃO FOI CONFIGURADA PELA SESSÃO.','error');return}
+ const modal=ensureClientPixModal();modal.dataset.loanIndex=String(loanIndex);
+ const title=`VALE #${String(loan.numero||'').padStart(4,'0')}${loan.crediarioId?` • PARCELA ${Number(loan.parcelaNumero||0)}/${Number(loan.parcelaTotal||0)}`:''}`;
+ const amount=clientPortalBalance(loan);const name=clientPortalPixName(data)||data?.session?.name||'VALLE';const city=clientPortalPixCity(data)||'BRASIL';
+ const txid=`VALLE${String(loan.numero||loan.id||'').replace(/[^A-Za-z0-9]/g,'').slice(0,18)}`;
+ const payload=clientPortalPixPayload({key:pixKey,name,city,amount,txid});
+ el('clientPixTitle').textContent=title;el('clientPixAmount').textContent=clientPortalMoney(amount);el('clientPixKey').textContent=pixKey;el('clientPixBeneficiary').textContent=name;modal.dataset.pixPayload=payload;el('clientPixMessage').value='';
+ const qrBox=el('clientPixQr');
+ if(qrBox){
+   qrBox.innerHTML='';
+   try{
+     if(window.QRCode){
+       new window.QRCode(qrBox,{text:payload,width:200,height:200,correctLevel:window.QRCode.CorrectLevel?.M});
+       const qrImg=qrBox.querySelector('img');if(qrImg)qrImg.alt=`QR Code PIX para ${title}`;
+     }else qrBox.innerHTML=`<div class="client-pix-qr-fallback"><i class="bi bi-qr-code"></i><span>QR Code indisponível</span></div>`;
+   }catch(_){qrBox.innerHTML=`<div class="client-pix-qr-fallback"><i class="bi bi-qr-code"></i><span>QR Code indisponível</span></div>`}
+ }
+ bootstrap.Modal.getOrCreateInstance(modal).show();
+}
+
+function setupClientPortalPullRefresh(portal){
+ if(!portal||portal.dataset.pullRefreshReady==='1')return;
+ portal.dataset.pullRefreshReady='1';
+ const threshold=78;
+ let startY=0,lastY=0,distance=0,tracking=false,refreshing=false;
+ const scrollTop=()=>Math.max(0,window.scrollY||0,document.documentElement?.scrollTop||0,document.body?.scrollTop||0);
+ const indicator=()=>el('clientPortalPullRefresh');
+ const label=()=>el('clientPortalPullRefreshText');
+ const setPullOffset=value=>{
+   const offset=Math.max(0,Math.round(value||0));
+   portal.style.setProperty('--client-pull-offset',`${offset}px`);
+   portal.classList.toggle('is-pull-active',offset>0);
+ };
+ const reset=()=>{
+   const box=indicator();
+   if(box&&!refreshing){box.classList.remove('is-pulling','is-ready');box.style.removeProperty('--pull-distance')}
+   setPullOffset(0);
+   distance=0;tracking=false;
+ };
+ const beginAtTop=y=>{tracking=true;startY=y;distance=0;const box=indicator();if(box){box.classList.add('is-pulling');box.classList.remove('is-ready');box.style.setProperty('--pull-distance','0px')}setPullOffset(0);if(label())label().textContent='PUXE PARA ATUALIZAR'};
+ portal.addEventListener('touchstart',ev=>{
+   if(refreshing||portal.classList.contains('hidden')||document.querySelector('.modal.show'))return;
+   const y=ev.touches?.[0]?.clientY??0;startY=y;lastY=y;distance=0;tracking=scrollTop()<=1;
+   if(tracking)beginAtTop(y);
+ },{passive:true});
+ portal.addEventListener('touchmove',ev=>{
+   if(refreshing||portal.classList.contains('hidden')||document.querySelector('.modal.show'))return;
+   const y=ev.touches?.[0]?.clientY??lastY;
+   const top=scrollTop();
+   if(!tracking&&top<=1&&y>=lastY)beginAtTop(y);
+   lastY=y;
+   if(!tracking)return;
+   if(top>1){reset();return}
+   const dy=y-startY;
+   if(dy<=0){distance=0;const box=indicator();if(box){box.classList.remove('is-ready');box.style.setProperty('--pull-distance','0px')}return}
+   ev.preventDefault();
+   distance=Math.min(118,dy*.62);
+   setPullOffset(Math.min(84,distance*.78));
+   const box=indicator();
+   if(box){box.classList.add('is-pulling');box.style.setProperty('--pull-distance',`${distance}px`);box.classList.toggle('is-ready',distance>=threshold)}
+   if(label())label().textContent=distance>=threshold?'SOLTE PARA ATUALIZAR':'PUXE PARA ATUALIZAR';
+ },{passive:false});
+ const finish=async()=>{
+   if(!tracking||refreshing)return;
+   const shouldRefresh=distance>=threshold&&scrollTop()<=1;
+   if(!shouldRefresh){reset();return}
+   refreshing=true;tracking=false;
+   const box=indicator();
+   setPullOffset(54);
+   if(box){box.classList.remove('is-ready');box.classList.add('is-refreshing','is-pulling');box.style.setProperty('--pull-distance','58px')}
+   if(label())label().textContent='ATUALIZANDO...';
+   try{await loadAndRenderClientPortal(ValleCloud.profile,true)}finally{
+     if(label())label().textContent='ATUALIZADO';
+     if(box)box.classList.add('is-done');
+     setTimeout(()=>{refreshing=false;if(box){box.classList.remove('is-refreshing','is-pulling','is-done');box.style.removeProperty('--pull-distance')}setPullOffset(0);if(label())label().textContent='PUXE PARA ATUALIZAR';distance=0},650);
+   }
+ };
+ portal.addEventListener('touchend',()=>{void finish()},{passive:true});
+ portal.addEventListener('touchcancel',reset,{passive:true});
+}
+
+function ensureClientPortal(){
+ let portal=el('clientPortal');if(portal)return portal;
+ portal=document.createElement('section');portal.id='clientPortal';portal.className='client-portal hidden';
+ portal.innerHTML=`<header class="client-portal-top"><div class="client-portal-top-inner"><div class="client-portal-brand"><span class="client-portal-logo-shell"><img src="icons/icon-valle.png" alt="VALLE"></span><div class="client-portal-brand-copy"><strong>VALLE</strong><small><i class="bi bi-person-badge"></i> ÁREA DO CLIENTE</small></div></div><div class="client-portal-user"><div class="client-portal-user-copy"><small>MINHA CONTA</small><strong id="clientPortalUserName">Cliente</strong><span id="clientPortalUserEmail"></span></div><button id="clientPortalLogout" type="button" class="btn client-portal-logout" aria-label="Sair da Área do Cliente" title="Sair"><i class="bi bi-box-arrow-right"></i><span>SAIR</span></button></div></div></header><div id="clientPortalPullRefresh" class="client-pull-refresh" aria-live="polite"><span class="client-pull-refresh-icon"><i class="bi bi-arrow-down"></i></span><strong id="clientPortalPullRefreshText">PUXE PARA ATUALIZAR</strong></div><main class="client-portal-main"><section class="client-portal-hero"><div><small>MINHA CONTA</small><h1 id="clientPortalGreeting"><span class="client-greeting-hello">Olá</span><strong id="clientPortalGreetingName" class="client-greeting-name">Cliente</strong></h1><p>Acompanhe seus vales, crediários, parcelas e vencimentos.</p></div></section><div id="clientPortalMessage"></div><section id="clientPortalSummary" class="client-portal-summary"></section><section class="client-portal-section"><div class="client-portal-section-head"><div><small>CONTRATOS</small><h2>Meus crediários</h2></div></div><div id="clientPortalCrediarios" class="client-portal-contracts"></div></section><section class="client-portal-section"><div class="client-portal-section-head"><div><small>LANÇAMENTOS</small><h2>Meus vales</h2></div></div><div id="clientPortalVales" class="client-portal-vales"></div></section><section class="client-portal-section"><div class="client-portal-section-head"><div><small>PAGAMENTOS</small><h2>Pagamentos informados</h2></div></div><div id="clientPortalPaymentHistory" class="client-portal-payment-history"></div></section></main>`;
+ document.body.appendChild(portal);
+ el('clientPortalLogout').onclick=async()=>{document.body.classList.remove('client-portal-active');await ValleCloud.signOut();portal.classList.add('hidden');el('authGate').classList.remove('hidden');document.documentElement.classList.add('valle-auth-active');document.body.classList.add('valle-auth-active')};
+ setupClientPortalPullRefresh(portal);
+ return portal;
+}
+function clientPortalCrediarioName(items=[]){
+ const explicit=items.find(v=>String(v?.crediarioNome||v?.crediario_nome||'').trim());
+ if(explicit)return String(explicit.crediarioNome||explicit.crediario_nome||'').trim().toUpperCase();
+ const code=items?.[0]?.crediarioCodigo||'CREDIÁRIO';
+ return `CREDIÁRIO ${code}`.trim();
+}
+function clientPortalPaymentRequestMap(data){
+ const map=new Map();
+ const requests=Array.isArray(data?.payment_requests)?data.payment_requests:[];
+ requests.forEach(r=>{
+   const key=String(r?.vale_id||'');
+   if(!key)return;
+   const current=map.get(key);
+   const currentTime=current?.created_at?new Date(current.created_at).getTime():0;
+   const nextTime=r?.created_at?new Date(r.created_at).getTime():0;
+   if(!current||nextTime>=currentTime)map.set(key,r);
+ });
+ return map;
+}
+function clientPortalContractFilterState(v,request){
+ if(clientPortalPaid(v))return 'paid';
+ const status=String(request?.status||'').toLowerCase();
+ if(status==='confirmed')return 'paid';
+ if(status==='pending')return 'informed';
+ return 'to_pay';
+}
+function ensureClientCrediarioLaunchModal(){
+ let modal=el('clientCrediarioLaunchModal');
+ if(modal)return modal;
+ modal=document.createElement('div');
+ modal.className='modal fade client-crediario-launch-modal';
+ modal.id='clientCrediarioLaunchModal';
+ modal.tabIndex=-1;
+ modal.setAttribute('aria-hidden','true');
+ modal.innerHTML=`<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div class="client-contract-modal-title"><small id="clientCrediarioLaunchCode">CREDIÁRIO</small><h2 class="h5 mb-0" id="clientCrediarioLaunchTitle">Lançamentos</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div><div class="modal-body"><div id="clientCrediarioLaunchFilters" class="client-contract-filter-bar" role="tablist" aria-label="Filtrar lançamentos"><button type="button" class="client-contract-filter" data-client-contract-filter="paid"><i class="bi bi-check-circle-fill"></i><span>PAGOS</span><em id="clientCrediarioPaidCount">0</em></button><button type="button" class="client-contract-filter active" data-client-contract-filter="to_pay"><i class="bi bi-wallet2"></i><span>A PAGAR</span><em id="clientCrediarioToPayCount">0</em></button><button type="button" class="client-contract-filter" data-client-contract-filter="informed"><i class="bi bi-hourglass-split"></i><span>INFORMADOS</span><em id="clientCrediarioInformedCount">0</em></button></div><div id="clientCrediarioLaunchSummary" class="client-contract-launch-summary"></div><div id="clientCrediarioLaunchList" class="client-contract-launch-list"></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">FECHAR</button></div></div></div>`;
+ document.body.appendChild(modal);
+ modal.querySelectorAll('[data-client-contract-filter]').forEach(btn=>btn.onclick=()=>{
+   modal.dataset.filter=btn.dataset.clientContractFilter||'to_pay';
+   renderClientCrediarioLaunchModal();
+ });
+ modal.addEventListener('show.bs.modal',()=>{
+   requestAnimationFrame(()=>{
+     const backdrops=[...document.querySelectorAll('.modal-backdrop')];
+     const backdrop=backdrops[backdrops.length-1];
+     if(backdrop){backdrop.classList.add('client-contract-backdrop');backdrop.style.zIndex='2147483508'}
+     modal.style.zIndex='2147483509';
+   });
+ });
+ modal.addEventListener('hidden.bs.modal',()=>{
+   modal.style.zIndex='';
+   document.querySelectorAll('.modal-backdrop.client-contract-backdrop').forEach((bd,i,arr)=>{if(i===arr.length-1){bd.style.zIndex='';bd.classList.remove('client-contract-backdrop')}});
+ });
+ return modal;
+}
+function renderClientCrediarioLaunchModal(){
+ const modal=ensureClientCrediarioLaunchModal();
+ const data=clientPortalSnapshot||{};
+ const vales=Array.isArray(data?.vales)?data.vales:[];
+ const id=String(modal.dataset.crediarioId||'');
+ const filter=modal.dataset.filter||'to_pay';
+ const items=vales.filter(v=>String(v?.crediarioId||'')===id).sort((a,b)=>Number(a.parcelaNumero||0)-Number(b.parcelaNumero||0));
+ if(!items.length)return;
+ const reqMap=clientPortalPaymentRequestMap(data);
+ const nome=clientPortalCrediarioName(items);
+ const code=items[0]?.crediarioCodigo||'CREDIÁRIO';
+ const buckets={paid:[],to_pay:[],informed:[]};
+ items.forEach(v=>{
+   const req=reqMap.get(String(v.id||''));
+   const state=clientPortalContractFilterState(v,req);
+   buckets[state].push(v);
+   const reqStatus=String(req?.status||'').toLowerCase();
+   if(reqStatus==='rejected'&&!clientPortalPaid(v))buckets.informed.push(v);
+ });
+ el('clientCrediarioLaunchTitle').textContent=nome;
+ el('clientCrediarioLaunchCode').textContent=code;
+ el('clientCrediarioPaidCount').textContent=buckets.paid.length;
+ el('clientCrediarioToPayCount').textContent=buckets.to_pay.length;
+ el('clientCrediarioInformedCount').textContent=buckets.informed.length;
+ modal.querySelectorAll('[data-client-contract-filter]').forEach(btn=>btn.classList.toggle('active',btn.dataset.clientContractFilter===filter));
+ const visible=buckets[filter]||[];
+ const sum=visible.reduce((s,v)=>s+(filter==='paid'?clientPortalOriginalTotal(v):clientPortalBalance(v)),0);
+ const labels={paid:['PAGOS','Parcelas pagas ou com pagamento confirmado'],to_pay:['A PAGAR','Saldo das parcelas em aberto'],informed:['INFORMADOS','Pagamentos aguardando conferência ou recusados']};
+ const meta=labels[filter]||labels.to_pay;
+ el('clientCrediarioLaunchSummary').innerHTML=`<div><span>${meta[0]}</span><strong>${visible.length}</strong></div><div><span>${meta[1]}</span><strong>${clientPortalMoney(sum)}</strong></div>`;
+ const list=el('clientCrediarioLaunchList');
+ if(!visible.length){
+   list.innerHTML=`<div class="client-contract-launch-empty"><i class="bi ${filter==='paid'?'bi-check-circle':filter==='informed'?'bi-hourglass-split':'bi-wallet2'}"></i><strong>NENHUM LANÇAMENTO</strong><span>Não existem lançamentos nesta situação.</span></div>`;
+   return;
+ }
+ list.innerHTML=visible.map(v=>{
+   const req=reqMap.get(String(v.id||''));
+   const reqStatus=String(req?.status||'').toLowerCase();
+   const originalIndex=vales.indexOf(v);
+   const lateFee=clientPortalLateFee(v);
+   let badge='';
+   let action='';
+   if(filter==='paid')badge=`<span class="badge text-bg-success"><i class="bi bi-check-circle-fill"></i> ${reqStatus==='confirmed'&&!clientPortalPaid(v)?'CONFIRMADO':'PAGO'}</span>`;
+   else if(filter==='informed'){
+     const informedMeta=reqStatus==='confirmed'
+       ? {cls:'success',label:'CONFIRMADO',icon:'bi-check-circle-fill'}
+       : reqStatus==='rejected'
+         ? {cls:'danger',label:'RECUSADO',icon:'bi-x-circle-fill'}
+         : {cls:'warning',label:'INFORMADO',icon:'bi-hourglass-split'};
+     badge=`<span class="badge text-bg-${informedMeta.cls}"><i class="bi ${informedMeta.icon}"></i> ${informedMeta.label}</span>`;
+   } else {
+     const st=clientPortalStatus(v);
+     badge=`<span class="badge text-bg-${st.cls}">${st.label}</span>`;
+     action=`<button type="button" class="btn btn-success client-contract-launch-pay" data-client-contract-pay="${originalIndex}"><i class="bi bi-qr-code-scan"></i><span>PAGAR</span></button>`;
+   }
+   return `<article class="client-contract-launch-item ${filter}"><div class="client-contract-launch-head"><div><small>PARCELA ${Number(v.parcelaNumero||0)}/${Number(v.parcelaTotal||items.length)} • VALE #${String(v.numero||'').padStart(4,'0')}</small><strong>${clientPortalDate(v.dataFinal)}</strong></div>${badge}</div><div class="client-contract-launch-values"><div><span>VALOR</span><strong>${clientPortalMoney(clientPortalOriginalTotal(v))}</strong></div><div><span>${filter==='paid'?'PAGO':'A PAGAR'}</span><strong>${clientPortalMoney(filter==='paid'?clientPortalOriginalTotal(v):clientPortalBalance(v))}</strong>${lateFee>0&&filter!=='paid'?`<small>+ ${clientPortalMoney(lateFee)} atraso</small>`:''}</div></div>${req?.created_at&&filter==='informed'?`<div class="client-contract-launch-informed ${reqStatus==='rejected'?'is-rejected':''}"><i class="bi ${reqStatus==='rejected'?'bi-x-circle-fill':'bi-clock-history'}"></i><div><span>${reqStatus==='rejected'?'Recusado':'Informado'} em ${new Date(req.created_at).toLocaleString('pt-BR')}</span>${reqStatus==='rejected'&&req?.review_note?`<small>Motivo: ${clientPortalEsc(req.review_note)}</small>`:''}</div></div>`:''}${action?`<div class="client-contract-launch-actions">${action}</div>`:''}</article>`;
+ }).join('');
+ list.querySelectorAll('[data-client-contract-pay]').forEach(btn=>btn.onclick=()=>openClientPixPayment(btn.dataset.clientContractPay));
+}
+function openClientCrediarioLaunchModal(crediarioId){
+ const modal=ensureClientCrediarioLaunchModal();
+ modal.dataset.crediarioId=String(crediarioId||'');
+ modal.dataset.filter='to_pay';
+ renderClientCrediarioLaunchModal();
+ bootstrap.Modal.getOrCreateInstance(modal,{backdrop:true,keyboard:true}).show();
+}
+
+function renderClientPortal(data,profile){
+ clientPortalSnapshot=data;const portal=ensureClientPortal();const cliente=data?.cliente||{};const vales=Array.isArray(data?.vales)?data.vales:[];
+ el('clientPortalUserName').textContent=cliente.nome||profile?.name||'Cliente';el('clientPortalUserEmail').textContent=profile?.email||data?.account?.email||'';
+ el('clientPortalGreetingName').textContent=String(cliente.nome||profile?.name||'Cliente').toUpperCase();
+ const open=vales.filter(v=>!clientPortalPaid(v));const paid=vales.filter(clientPortalPaid);const overdue=open.filter(v=>clientPortalStatus(v).key==='atrasado');
+ const balance=open.reduce((s,v)=>s+clientPortalBalance(v),0);const late=overdue.reduce((s,v)=>s+clientPortalLateFee(v),0);
+ const next=[...open].filter(v=>v.dataFinal).sort((a,b)=>String(a.dataFinal).localeCompare(String(b.dataFinal)))[0];
+ el('clientPortalSummary').innerHTML=`<article><span><i class="bi bi-wallet2"></i>SALDO ATUAL</span><strong>${clientPortalMoney(balance)}</strong><small>${open.length} em aberto</small></article><article class="${overdue.length?'danger':''}"><span><i class="bi bi-exclamation-triangle"></i>EM ATRASO</span><strong>${overdue.length}</strong><small>${late>0?clientPortalMoney(late)+' em encargos':'Nenhum atraso'}</small></article><article class="success"><span><i class="bi bi-check-circle"></i>QUITADOS</span><strong>${paid.length}</strong><small>vales/parcelas pagos</small></article><article><span><i class="bi bi-calendar-event"></i>PRÓXIMO VENCIMENTO</span><strong>${next?clientPortalDate(next.dataFinal):'—'}</strong><small>${next?clientPortalMoney(clientPortalBalance(next)):'Nada em aberto'}</small></article>`;
+ const groups=new Map();vales.filter(v=>v.crediarioId).forEach(v=>{if(!groups.has(v.crediarioId))groups.set(v.crediarioId,[]);groups.get(v.crediarioId).push(v)});
+ const contracts=[...groups.entries()].map(([id,items])=>{items.sort((a,b)=>Number(a.parcelaNumero||0)-Number(b.parcelaNumero||0));const first=items[0]||{};const qtd=Number(first.parcelaTotal||items.length);const pg=items.filter(clientPortalPaid).length;const atras=items.filter(v=>clientPortalStatus(v).key==='atrasado').length;const saldo=items.reduce((s,v)=>s+clientPortalBalance(v),0);const pct=qtd?Math.min(100,(pg/qtd)*100):0;const nomeCrediario=clientPortalCrediarioName(items);return {id,items,first,qtd,pg,atras,saldo,pct,nomeCrediario}});
+ el('clientPortalCrediarios').innerHTML=contracts.length?contracts.map(c=>`<article class="client-portal-contract client-portal-contract-clickable ${c.atras?'is-late':''}" data-client-crediario="${clientPortalEsc(c.id)}" role="button" tabindex="0" aria-label="Abrir lançamentos do crediário ${clientPortalEsc(c.nomeCrediario)}"><div class="client-portal-contract-head"><div><small>${clientPortalEsc(c.first.crediarioCodigo||'CREDIÁRIO')}</small><h3 title="${clientPortalEsc(c.nomeCrediario)}">${clientPortalEsc(c.nomeCrediario)}</h3></div><span class="badge text-bg-${c.saldo<=0?'success':c.atras?'danger':'primary'}">${c.saldo<=0?'QUITADO':c.atras?'ATRASADO':'EM DIA'}</span></div><div class="client-portal-progress-copy"><span>${c.pg}/${c.qtd} parcelas pagas</span><strong>${c.pct.toFixed(0)}%</strong></div><div class="progress"><div class="progress-bar" style="width:${c.pct}%"></div></div><div class="client-portal-contract-stats"><div><span>SALDO</span><strong>${clientPortalMoney(c.saldo)}</strong></div><div><span>PARCELAS</span><strong>${c.qtd}</strong></div><div><span>ATRASADAS</span><strong>${c.atras}</strong></div></div><div class="client-portal-contract-open"><i class="bi bi-eye"></i><span>VER LANÇAMENTOS</span></div></article>`).join(''):'<div class="client-portal-empty"><i class="bi bi-credit-card"></i><strong>NENHUM CREDIÁRIO</strong><span>Você não possui contratos de crediário.</span></div>';
+ el('clientPortalCrediarios').querySelectorAll('[data-client-crediario]').forEach(card=>{
+   const open=()=>openClientCrediarioLaunchModal(card.dataset.clientCrediario);
+   card.onclick=open;
+   card.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();open()}};
+ });
+ const paymentRequests=Array.isArray(data?.payment_requests)?data.payment_requests:[];
+ const requestByVale=clientPortalPaymentRequestMap({payment_requests:paymentRequests});
+ const valesById=new Map(vales.map(v=>[String(v?.id||''),v]));
+ const paymentRequestsVales=paymentRequests.filter(r=>{const vale=valesById.get(String(r?.vale_id||''));return Boolean(vale&&!vale?.crediarioId)});
+ const orderedVales=[...vales].filter(v=>!v?.crediarioId).sort((a,b)=>String(b.dataFinal||'').localeCompare(String(a.dataFinal||'')));
+ el('clientPortalVales').innerHTML=orderedVales.length?orderedVales.map(v=>{const st=clientPortalStatus(v),lateFee=clientPortalLateFee(v);const originalIndex=vales.indexOf(v);const req=requestByVale.get(String(v.id||''));const reqStatus=String(req?.status||'').toLowerCase();let payButton='';if(!clientPortalPaid(v)){if(reqStatus==='pending')payButton='<button type="button" class="btn btn-outline-warning client-portal-pay-btn" disabled><i class="bi bi-hourglass-split"></i><span>PAGAMENTO INFORMADO</span></button>';else if(reqStatus==='confirmed')payButton='<button type="button" class="btn btn-outline-success client-portal-pay-btn" disabled><i class="bi bi-check-circle"></i><span>PAGAMENTO CONFIRMADO</span></button>';else payButton=`<button type="button" class="btn btn-success client-portal-pay-btn" data-client-pay-loan="${originalIndex}"><i class="bi bi-qr-code-scan"></i><span>PAGAR</span></button>`}return `<article class="client-portal-vale ${st.key}"><div class="client-portal-vale-main"><div><small>VALE #${String(v.numero||'').padStart(4,'0')}${v.crediarioId?` • PARCELA ${Number(v.parcelaNumero||0)}/${Number(v.parcelaTotal||0)}`:''}</small><strong>${clientPortalDate(v.dataFinal)}</strong></div><span class="badge text-bg-${st.cls}">${st.label}</span></div><div class="client-portal-vale-values"><div><span>VALOR</span><strong>${clientPortalMoney(clientPortalOriginalTotal(v))}</strong></div><div><span>A PAGAR</span><strong>${clientPortalMoney(clientPortalBalance(v))}</strong>${lateFee>0?`<small>+ ${clientPortalMoney(lateFee)} atraso</small>`:''}</div></div>${payButton?`<div class="client-portal-vale-actions">${payButton}</div>`:''}</article>`}).join(''):'<div class="client-portal-empty"><i class="bi bi-receipt"></i><strong>NENHUM VALE</strong><span>Não há vales avulsos vinculados à sua conta.</span></div>';
+ el('clientPortalVales').querySelectorAll('[data-client-pay-loan]').forEach(btn=>btn.onclick=()=>openClientPixPayment(btn.dataset.clientPayLoan));
+ const reqMeta={pending:{label:'AGUARDANDO CONFERÊNCIA',cls:'warning',icon:'bi-hourglass-split'},confirmed:{label:'CONFIRMADO',cls:'success',icon:'bi-check-circle-fill'},rejected:{label:'NÃO CONFIRMADO',cls:'danger',icon:'bi-x-circle-fill'}};
+ el('clientPortalPaymentHistory').innerHTML=paymentRequestsVales.length?paymentRequestsVales.map(r=>{const meta=reqMeta[String(r.status||'pending').toLowerCase()]||reqMeta.pending;return `<article class="client-portal-payment-item"><div><small>VALE #${String(r.vale_numero||'').padStart(4,'0')}</small><strong>${clientPortalMoney(r.amount)}</strong><span>${new Date(r.created_at).toLocaleString('pt-BR')}</span>${r.client_message?`<em>${clientPortalEsc(r.client_message)}</em>`:''}${r.review_note?`<em>Retorno: ${clientPortalEsc(r.review_note)}</em>`:''}</div><span class="badge text-bg-${meta.cls}"><i class="bi ${meta.icon}"></i> ${meta.label}</span></article>`}).join(''):'<div class="client-portal-empty"><i class="bi bi-clock-history"></i><strong>NENHUM PAGAMENTO INFORMADO</strong><span>Os pagamentos informados dos crediários ficam no modal de cada crediário.</span></div>';
+ portal.classList.remove('hidden');
+}
+async function loadAndRenderClientPortal(profile,manual=false){
+ const portal=ensureClientPortal();const message=el('clientPortalMessage');
+ if(message)message.innerHTML='<div class="alert alert-primary"><i class="bi bi-arrow-repeat me-2"></i>CARREGANDO SEUS DADOS...</div>';
+ try{const data=await ValleCloud.loadClientPortal();if(message)message.innerHTML='';renderClientPortal(data,profile)}catch(err){if(message)message.innerHTML=`<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>${clientPortalEsc(err.message||'Não foi possível carregar sua conta.')}</div>`;if(manual)console.warn(err)}
+}
+async function showClientPortal(profile){
+ const app=document.querySelector('.app'),panel=el('managementPanel'),portal=ensureClientPortal();app?.classList.add('hidden');panel?.classList.add('hidden');portal.classList.remove('hidden');document.body.classList.add('client-portal-active');await loadAndRenderClientPortal(profile);
+}
+
 async function showRole(profile,options={}){
  const app=document.querySelector('.app'); const gate=el('authGate'); const panel=el('managementPanel');
  gate.classList.add('hidden');
@@ -663,7 +1063,9 @@ async function showRole(profile,options={}){
  document.body.classList.remove('valle-auth-active');
  updateSyncBadge();
  await activateProfileTheme(profile);
- if(profile.role==='service'){
+ if(profile.role==='client'){
+   await showClientPortal(profile);
+ } else if(profile.role==='service'){
    hideServiceSettingsTab();
    panel.classList.add('hidden'); app.classList.remove('hidden');
    setupDashboardUserMenu(profile);
@@ -725,7 +1127,7 @@ async function showRole(profile,options={}){
  if(!options.background && profile.role==='session'){
    window.setTimeout(()=>checkAdminMessageForUser(profile),350);
  }
- if(!options.background && ValleCloud.isOnline()){
+ if(!options.background && ValleCloud.isOnline() && profile.role!=='client'){
    window.setTimeout(()=>showRole(profile,{background:true}).catch(err=>console.warn('Atualização em segundo plano não concluída:',err)),1200);
  }
 }
@@ -805,6 +1207,12 @@ function applyPermissions(p){
   document.getElementById(screen)?.classList.toggle('permission-hidden',denied);
   if(denied&&document.querySelector('.screen.active')?.id===screen)setTimeout(()=>window.switchScreen?.('dashboard'),0);
  });
+ // A tela de Crediários reutiliza a permissão de Histórico para não exigir
+ // alteração de schema/permissões no Supabase desta versão.
+ const crediariosDenied=p.can_view_history===false;
+ document.querySelectorAll('[data-screen="crediarios"]').forEach(x=>x.classList.toggle('permission-hidden',crediariosDenied));
+ document.getElementById('crediarios')?.classList.toggle('permission-hidden',crediariosDenied);
+ if(crediariosDenied&&document.querySelector('.screen.active')?.id==='crediarios')setTimeout(()=>window.switchScreen?.('dashboard'),0);
  if(p.can_view_transactions===false){
   try{const sid=window.ValleCloud?.profile?.session_user_id; if(sid)localStorage.removeItem(`valle_offline_v1_audit_logs_${sid}`)}catch(_){}
  }
@@ -813,7 +1221,7 @@ function applyPermissions(p){
 }
 
 function auditActionMeta(action){
- const map={CRIAR_CLIENTE:['success','bi-person-plus','Cliente criado'],ATUALIZAR_CLIENTE:['primary','bi-pencil-square','Cliente atualizado'],EXCLUIR_CLIENTE:['danger','bi-person-x','Cliente excluído'],CRIAR_VALE:['success','bi-file-earmark-plus','Vale criado'],ATUALIZAR_VALE:['primary','bi-pencil-square','Vale atualizado'],EXCLUIR_VALE:['danger','bi-trash','Vale excluído'],QUITAR_VALE:['success','bi-check-circle','Vale quitado'],PAGAMENTO_PARCIAL:['warning','bi-pie-chart','Pagamento parcial'],PAGAMENTO_JUROS:['info','bi-cash-coin','Pagamento de juros'],NAO_PAGOU:['secondary','bi-clock-history','Não pagou'],LISTA_NEGRA:['danger','bi-shield-exclamation','Lista negra']};
+ const map={CRIAR_CLIENTE:['success','bi-person-plus','Cliente criado'],ATUALIZAR_CLIENTE:['primary','bi-pencil-square','Cliente atualizado'],EXCLUIR_CLIENTE:['danger','bi-person-x','Cliente excluído'],CRIAR_VALE:['success','bi-file-earmark-plus','Vale criado'],ATUALIZAR_VALE:['primary','bi-pencil-square','Vale atualizado'],EXCLUIR_VALE:['danger','bi-trash','Vale excluído'],QUITAR_VALE:['success','bi-check-circle','Vale quitado'],PAGAMENTO_PARCIAL:['warning','bi-pie-chart','Pagamento parcial'],PAGAMENTO_JUROS:['info','bi-cash-coin','Pagamento de juros'],NAO_PAGOU:['secondary','bi-clock-history','Não pagou'],LISTA_NEGRA:['danger','bi-shield-exclamation','Lista negra'],PAGAMENTO_ENTRADA:['success','bi-cash-coin','Entrada de crediário'],REABRIR_VALE:['info','bi-unlock-fill','Vale reaberto']};
  return map[action]||['secondary','bi-activity',String(action||'Ação').replaceAll('_',' ')];
 }
 function auditFormatValue(v){if(v===null||v===undefined||v==='')return '—';if(typeof v==='boolean')return v?'Sim':'Não';if(typeof v==='number')return new Intl.NumberFormat('pt-BR',{maximumFractionDigits:2}).format(v);return String(v)}

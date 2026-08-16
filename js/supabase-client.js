@@ -78,28 +78,45 @@
       return profile;
     }
     try {
-      const profileRequest = c.from('profiles').select('*').eq('id', userId).single();
-      const { data, error } = cached
+      const profileRequest = c.from('profiles').select('*').eq('id', userId).maybeSingle();
+      const res = cached
         ? await withTimeout(profileRequest, 1800, 'Usando o perfil salvo neste aparelho.')
         : await profileRequest;
-      if (error) throw error;
-      profile = data;
-      safeSet(profileCacheKey(userId), data);
-      sessionProfile = null;
-      if (data.role === 'service' && data.session_user_id) {
-        const cachedSession = safeGet(sessionProfileCacheKey(data.session_user_id));
-        const sessionRequest = c.from('profiles').select('*').eq('id', data.session_user_id).single();
-        const res = cachedSession
-          ? await withTimeout(sessionRequest, 1400, 'Usando a sessão salva neste aparelho.')
-          : await sessionRequest;
-        if (res.error) throw res.error;
-        sessionProfile = res.data;
-        safeSet(sessionProfileCacheKey(data.session_user_id), res.data);
-      } else if (data.role === 'session') {
-        sessionProfile = data;
-        safeSet(sessionProfileCacheKey(data.id), data);
+      if (res.error) throw res.error;
+
+      if (res.data) {
+        const data=res.data;
+        profile = data;
+        safeSet(profileCacheKey(userId), data);
+        sessionProfile = null;
+        if (data.role === 'service' && data.session_user_id) {
+          const cachedSession = safeGet(sessionProfileCacheKey(data.session_user_id));
+          const sessionRequest = c.from('profiles').select('*').eq('id', data.session_user_id).single();
+          const sessionRes = cachedSession
+            ? await withTimeout(sessionRequest, 1400, 'Usando a sessão salva neste aparelho.')
+            : await sessionRequest;
+          if (sessionRes.error) throw sessionRes.error;
+          sessionProfile = sessionRes.data;
+          safeSet(sessionProfileCacheKey(data.session_user_id), sessionRes.data);
+        } else if (data.role === 'session') {
+          sessionProfile = data;
+          safeSet(sessionProfileCacheKey(data.id), data);
+        }
+        return data;
       }
-      return data;
+
+      // Cliente não ocupa a hierarquia profiles/admin/session/service.
+      // Sua conta fica isolada em client_accounts para impedir acesso ao workspace completo.
+      const clientRes=await c.from('client_accounts')
+        .select('user_id,session_user_id,client_id,name,email,active,created_at,updated_at')
+        .eq('user_id',userId).maybeSingle();
+      if(clientRes.error)throw clientRes.error;
+      if(!clientRes.data)throw new Error('Perfil não encontrado.');
+      const a=clientRes.data;
+      profile={id:a.user_id,name:a.name,email:a.email,role:'client',session_user_id:a.session_user_id,client_id:a.client_id,active:a.active,user_theme:'auto'};
+      sessionProfile=null;
+      safeSet(profileCacheKey(userId),profile);
+      return profile;
     } catch (err) {
       if (!cached) throw err;
       profile = cached;
@@ -649,13 +666,59 @@
     return getPermissions(profile.id, options);
   }
 
+  async function loadClientPortal(){
+    if(!profile || profile.role!=='client') throw new Error('Este usuário não é um cliente.');
+    if(!isOnline()) throw new Error('A Área do Cliente precisa de conexão com a internet para mostrar dados atualizados.');
+    const {data,error}=await getClient().rpc('get_my_client_portal');
+    if(error)throw new Error(error.message||'Não foi possível carregar sua Área do Cliente.');
+    if(!data)throw new Error('Nenhum dado foi encontrado para este cliente.');
+    return data;
+  }
+
+  async function createClientPaymentRequest(payload={}){
+    if(!profile || profile.role!=='client') throw new Error('Este usuário não é um cliente.');
+    if(!isOnline()) throw new Error('É necessário estar conectado para informar o pagamento.');
+    const {data,error}=await getClient().rpc('create_client_payment_request',{
+      p_vale_id:String(payload.valeId||''),
+      p_amount:Number(payload.amount||0),
+      p_client_message:String(payload.message||'')
+    });
+    if(error) throw new Error(error.message||'Não foi possível informar o pagamento.');
+    return data;
+  }
+
+  async function listClientPaymentRequests(limit=80){
+    if(!profile || !['service','session'].includes(profile.role)) return [];
+    if(!isOnline()) return [];
+    const sessionId=profile.role==='session'?profile.id:profile.session_user_id;
+    const {data,error}=await getClient().from('client_payment_requests')
+      .select('*')
+      .eq('session_user_id',sessionId)
+      .order('created_at',{ascending:false})
+      .limit(Math.max(1,Math.min(200,Number(limit)||80)));
+    if(error) throw new Error(error.message||'Não foi possível carregar os pagamentos informados.');
+    return data||[];
+  }
+
+  async function updateClientPaymentRequestStatus(requestId,status,reviewNote=''){
+    if(!profile || !['service','session'].includes(profile.role)) throw new Error('Sem permissão para conferir pagamentos.');
+    if(!isOnline()) throw new Error('É necessário estar conectado.');
+    const normalized=String(status||'').toLowerCase();
+    if(!['confirmed','rejected','pending'].includes(normalized)) throw new Error('Status inválido.');
+    const payload={status:normalized,review_note:String(reviewNote||''),reviewed_by:profile.id,reviewed_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+    const {data,error}=await getClient().from('client_payment_requests').update(payload).eq('id',requestId).select('*').single();
+    if(error) throw new Error(error.message||'Não foi possível atualizar o pagamento informado.');
+    try{await recordAudit(normalized==='confirmed'?'CONFIRMAR_PAGAMENTO_PIX_CLIENTE':'RECUSAR_PAGAMENTO_PIX_CLIENTE','PAGAMENTO_CLIENTE',String(requestId),{module:'PORTAL_CLIENTE',title:normalized==='confirmed'?'Pagamento PIX informado confirmado':'Pagamento PIX informado não confirmado',description:String(reviewNote||''),client_name:data?.client_name||'',vale_number:data?.vale_numero||'',new_data:data});}catch(_){ }
+    return data;
+  }
+
   installOnlineHandlers();
   window.ValleCloud = {
     configured, getClient, signIn, signOut, verifyCurrentPassword, restoreSession, loadProfile,
     get profile(){return profile}, get sessionProfile(){return sessionProfile},
     accessState, setMyTheme, loadWorkspace, loadWorkspaceSnapshot, saveWorkspace, saveWorkspaceStrict, queueWorkspace, flushWorkspace,
     syncPendingWorkspace, invokeManage, createAdminMessage, listAdminMessages, deactivateAdminMessage, deleteAdminMessage, getUnreadAdminMessage, markAdminMessageSeen,
-    listManagedUsers, getPermissions, savePermissions, loadMyPermissions, recordAudit, listAuditLogs, deleteAuditLog, getCurrentSessionId:currentSessionId,
+    listManagedUsers, getPermissions, savePermissions, loadMyPermissions, loadClientPortal, createClientPaymentRequest, listClientPaymentRequests, updateClientPaymentRequestStatus, recordAudit, listAuditLogs, deleteAuditLog, getCurrentSessionId:currentSessionId,
     normalizePhone, isOnline,
     get syncState(){return syncState},
     get lastSyncError(){return lastSyncError},
