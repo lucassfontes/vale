@@ -641,20 +641,47 @@ async function submitAdminMessage(event){
  }catch(err){status.textContent=String(err.message||'Não foi possível enviar a mensagem.').toUpperCase();status.className='admin-message-status error'}
  finally{submit.disabled=false}
 }
+let adminMessageCheckRunning=false;
+let adminMessageWatchInstalled=false;
 async function checkAdminMessageForUser(profile){
- // A mensagem administrativa aparece somente no painel do usuário de sessão.
- if(!profile||profile.role!=='session'||!ValleCloud.isOnline())return;
+ // A mensagem administrativa aparece para o usuário de sessão e para os usuários de serviço vinculados a ela.
+ if(!profile||!['session','service'].includes(profile.role)||!ValleCloud.isOnline()||adminMessageCheckRunning)return;
+ const modal=el('systemUpdateMessageModal');
+ if(!modal||!modal.classList.contains('hidden'))return;
+ adminMessageCheckRunning=true;
  try{
   const item=await ValleCloud.getUnreadAdminMessage();if(!item)return;
-  const modal=el('systemUpdateMessageModal');if(!modal)return;
   el('systemUpdateMessageTitle').textContent=item.title||'ATUALIZAÇÃO DO SISTEMA';
   el('systemUpdateMessageText').textContent=item.message||'';
   el('systemUpdateMessageDate').textContent=formatAdminMessageDate(item.published_at||item.created_at);
-  modal.dataset.messageId=String(item.id);modal.classList.remove('hidden');
-  await ValleCloud.markAdminMessageSeen(item.id);
+  modal.dataset.messageId=String(item.id);
+  modal.classList.remove('hidden');
  }catch(err){console.warn('Mensagem do administrador indisponível:',err)}
+ finally{adminMessageCheckRunning=false}
 }
-function closeSystemUpdateMessage(){el('systemUpdateMessageModal')?.classList.add('hidden')}
+async function closeSystemUpdateMessage(){
+ const modal=el('systemUpdateMessageModal');if(!modal)return;
+ const messageId=String(modal.dataset.messageId||'');
+ modal.classList.add('hidden');
+ delete modal.dataset.messageId;
+ if(messageId){
+  try{await ValleCloud.markAdminMessageSeen(messageId)}
+  catch(err){console.warn('Não foi possível registrar a leitura da MSG ADM:',err)}
+ }
+}
+function installAdminMessageWatcher(){
+ if(adminMessageWatchInstalled)return;
+ adminMessageWatchInstalled=true;
+ const check=()=>{
+  const profile=ValleCloud.profile;
+  if(['session','service'].includes(profile?.role)&&ValleCloud.isOnline())void checkAdminMessageForUser(profile);
+ };
+ setInterval(check,5000);
+ window.addEventListener('focus',check,{passive:true});
+ window.addEventListener('online',()=>setTimeout(check,400),{passive:true});
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')check()});
+ setTimeout(check,600);
+}
 
 
 let clientPortalSnapshot=null;
@@ -1124,7 +1151,7 @@ async function showRole(profile,options={}){
    await renderUsers({preferCache:!options.background,background:!!options.background});
    if(profile.role==='session') await loadSharedWorkspaceForSession(profile,{preferCache:!options.background});
  }
- if(!options.background && profile.role==='session'){
+ if(!options.background && ['session','service'].includes(profile.role)){
    window.setTimeout(()=>checkAdminMessageForUser(profile),350);
  }
  if(!options.background && ValleCloud.isOnline() && profile.role!=='client'){
@@ -1472,6 +1499,7 @@ async function boot(){
  };
  el('logoutBtn').onclick=async()=>{await ValleCloud.signOut();location.reload()};el('newManagedUserBtn').onclick=openNew;el('closeUserModal').onclick=closeModal;el('cancelUserModal').onclick=closeModal;el('userForm').onsubmit=saveManaged;
  el('adminMessageBtn').onclick=openAdminMessageComposer;el('adminMessageForm').onsubmit=submitAdminMessage;el('systemUpdateMessageClose').onclick=closeSystemUpdateMessage;
+ installAdminMessageWatcher();
  document.addEventListener('click',async event=>{
   if(event.target.closest('[data-admin-message-close]'))closeAdminMessageComposer();
   const use=event.target.closest('[data-admin-message-use]');

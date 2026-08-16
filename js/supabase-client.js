@@ -401,10 +401,32 @@
     const message=String(payload.message||'').trim();
     if (!message) throw new Error('Digite a mensagem da atualização.');
     const targetSessionId=String(payload.targetSessionId||'').trim()||null;
-    const item={admin_user_id:profile.id,target_session_user_id:targetSessionId,title,message,active:true,published_at:new Date().toISOString()};
-    const {data,error}=await getClient().from('admin_messages').insert(item).select('*').single();
-    if(error) throw error;
-    return data;
+    const publishedAt=new Date().toISOString();
+    const c=getClient();
+    let result=await c.from('admin_messages').insert({
+      admin_user_id:profile.id,
+      target_session_user_id:targetSessionId,
+      title,
+      message,
+      active:true,
+      published_at:publishedAt
+    }).select('*').single();
+
+    // Compatibilidade com bancos que ainda possuem a estrutura antiga da MSG ADM,
+    // sem a coluna target_session_user_id. Mensagem para TODAS AS SESSÕES continua
+    // funcionando; mensagem direcionada exige a atualização SQL incluída no projeto.
+    if(result.error && /target_session_user_id|column .* does not exist/i.test(String(result.error.message||''))){
+      if(targetSessionId) throw new Error('O banco ainda não está atualizado para enviar MSG ADM a uma sessão específica. Execute o SQL MSG_ADM_CORRECAO_COMPLETA_3.6.91.sql.');
+      result=await c.from('admin_messages').insert({
+        admin_user_id:profile.id,title,message,active:true,published_at:publishedAt
+      }).select('*').single();
+    }
+    if(result.error){
+      if(/relation .*admin_messages.* does not exist/i.test(String(result.error.message||'')))
+        throw new Error('A estrutura da MSG ADM ainda não existe no Supabase. Execute o SQL MSG_ADM_CORRECAO_COMPLETA_3.6.91.sql.');
+      throw result.error;
+    }
+    return result.data;
   }
 
   async function listAdminMessages(limit=20){
@@ -441,29 +463,79 @@
   }
 
   async function getUnreadAdminMessage(){
-    // Somente o usuário de sessão recebe mensagens administrativas.
-    if (!profile || profile.role !== 'session') return null;
+    if (!profile || !['session','service'].includes(profile.role)) return null;
     if (!isOnline()) return null;
-    const {data,error}=await getClient()
-      .from('admin_messages')
-      .select('id,title,message,target_session_user_id,created_at,published_at,admin_message_reads(user_id)')
+    const recipientSessionId = profile.role === 'session' ? profile.id : profile.session_user_id;
+    if (!recipientSessionId) return null;
+
+    const c=getClient();
+    const now=new Date().toISOString();
+    let messagesResult=await c.from('admin_messages')
+      .select('id,title,message,target_session_user_id,created_at,published_at')
       .eq('active',true)
-      .lte('published_at',new Date().toISOString())
+      .lte('published_at',now)
       .order('published_at',{ascending:false})
-      .limit(20);
-    if(error) throw error;
-    return (data||[]).find(item=>{
-      if(safeGet(localAdminMessageSeenKey(item.id),false)) return false;
-      return !Array.isArray(item.admin_message_reads)||item.admin_message_reads.length===0;
-    })||null;
+      .limit(30);
+
+    let supportsTarget=true;
+    if(messagesResult.error && /target_session_user_id|column .* does not exist/i.test(String(messagesResult.error.message||''))){
+      supportsTarget=false;
+      messagesResult=await c.from('admin_messages')
+        .select('id,title,message,created_at,published_at')
+        .eq('active',true)
+        .lte('published_at',now)
+        .order('published_at',{ascending:false})
+        .limit(30);
+    }
+    if(messagesResult.error) throw messagesResult.error;
+
+    const eligible=(messagesResult.data||[]).filter(item=>{
+      if(!supportsTarget) return true;
+      const target=String(item?.target_session_user_id||'');
+      return !target || target===String(recipientSessionId||'');
+    });
+    if(!eligible.length) return null;
+
+    // O cache local é usado SEMPRE como proteção. Assim, se a tabela
+    // admin_message_reads estiver ausente ou com RLS antigo, a MSG ADM
+    // continua aparecendo uma única vez neste aparelho em vez de falhar.
+    const seen=new Set();
+    eligible.forEach(item=>{
+      if(safeGet(localAdminMessageSeenKey(item.id),false)) seen.add(String(item.id));
+    });
+
+    const ids=eligible.map(item=>item.id).filter(id=>id!==null&&id!==undefined);
+    try{
+      const readsResult=await c.from('admin_message_reads')
+        .select('message_id')
+        .eq('user_id',profile.id)
+        .in('message_id',ids);
+      if(!readsResult.error){
+        (readsResult.data||[]).forEach(row=>seen.add(String(row.message_id)));
+      }else{
+        console.warn('MSG ADM: controle remoto de leitura indisponível; usando controle local.', readsResult.error);
+      }
+    }catch(err){
+      console.warn('MSG ADM: falha ao consultar leituras; usando controle local.',err);
+    }
+
+    return eligible.find(item=>!seen.has(String(item.id)))||null;
   }
 
   async function markAdminMessageSeen(messageId){
-    if (!profile || profile.role !== 'session' || !messageId) return false;
+    if (!profile || !['session','service'].includes(profile.role) || !messageId) return false;
+    // Grava primeiro localmente para nunca reapresentar a mensagem por causa
+    // de uma falha de rede/RLS no momento em que o usuário fecha o aviso.
     safeSet(localAdminMessageSeenKey(messageId),true);
     if (!isOnline()) return true;
-    const {error}=await getClient().from('admin_message_reads').upsert({message_id:messageId,user_id:profile.id,seen_at:new Date().toISOString()},{onConflict:'message_id,user_id'});
-    if(error) throw error;
+    try{
+      const {error}=await getClient().from('admin_message_reads').upsert({
+        message_id:messageId,user_id:profile.id,seen_at:new Date().toISOString()
+      },{onConflict:'message_id,user_id'});
+      if(error) console.warn('MSG ADM: leitura salva apenas localmente.',error);
+    }catch(err){
+      console.warn('MSG ADM: leitura salva apenas localmente.',err);
+    }
     return true;
   }
 

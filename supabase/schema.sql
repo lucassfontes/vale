@@ -361,7 +361,7 @@ using (user_id = auth.uid())
 with check (user_id = auth.uid());
 
 comment on table public.admin_messages is 'Mensagens globais de atualização enviadas pelo administrador.';
-comment on table public.admin_message_reads is 'Controle para cada mensagem aparecer apenas uma vez por usuário.';
+comment on table public.admin_message_reads is 'Controle para cada MSG ADM aparecer apenas uma vez por usuário de sessão ou de serviço.';
 
 
 -- VALLE v60 — mensagens direcionadas por sessão

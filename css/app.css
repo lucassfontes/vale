@@ -33508,3 +33508,20 @@ body.dark .lancamentos-section-badge{
 @media(max-width:780px){
   .screen.active{view-transition-name:none !important;}
 }
+
+
+/* =========================================================
+   VALLE 3.6.90 — MSG ADM sempre acima da interface
+   ========================================================= */
+#adminMessageModal.admin-message-modal,
+#systemUpdateMessageModal.admin-message-modal{
+  z-index:2147483645 !important;
+}
+#adminMessageModal .admin-message-backdrop,
+#systemUpdateMessageModal .admin-message-backdrop{
+  z-index:0 !important;
+}
+#adminMessageModal .admin-message-card,
+#systemUpdateMessageModal .admin-message-card{
+  z-index:1 !important;
+}
