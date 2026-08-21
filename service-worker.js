@@ -6,7 +6,7 @@ const APP_SHELL = [
   './vendor/bootstrap/bootstrap.min.css', './vendor/bootstrap/bootstrap.bundle.min.js',
   './vendor/bootstrap-icons/bootstrap-icons.min.css', './css/app.css',
   './js/version.js', './js/app.js', './js/lancamentos.js', './js/client-payments.js', './js/auth-ui.js', './js/bootstrap-enhance.js',
-  './js/supabase-config.js', './js/supabase-client.js',
+  './js/supabase-config.js', './js/operation-feedback.js', './js/supabase-client.js',
   './js/pdf.js', './js/whatsapp.js', './js/clientes.js', './js/historico.js',
   './js/dashboard.js', './js/backup.js', './js/storage.js', './js/util.js', './js/push-notifications.js',
   './icons/icon-valle.png', './icons/dashboard-icon.png', './icons/favicon-48x48.png', './icons/favicon-32x32.png', './icons/favicon-16x16.png',
@@ -68,21 +68,21 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Arquivos locais estáticos: abre imediatamente pelo cache e atualiza em
-  // segundo plano. A troca de versão do Service Worker continua garantindo
-  // que CSS, JavaScript e imagens novos substituam os antigos.
+  // v3.6.97 — arquivos do aplicativo usam INTERNET PRIMEIRO. Isso evita que
+  // outro celular continue executando app.js/auth-ui.js antigos depois de uma
+  // atualização publicada. O cache fica apenas como fallback offline.
   if (sameOrigin) {
     event.respondWith((async () => {
-      const cached = await caches.match(request, { ignoreSearch: true });
-      const network = fetch(request, { cache: 'no-cache' }).then(async response => {
-        if (response && response.ok) {
-          const cache = await caches.open(CACHE);
-          await cache.put(request, response.clone());
-        }
+      const cache = await caches.open(CACHE);
+      try {
+        const response = await fetch(request, { cache: 'no-store' });
+        if (response && response.ok) await cache.put(request, response.clone());
         return response;
-      }).catch(() => null);
-      return cached || (await network) ||
-             new Response('', { status: 504, statusText: 'Offline' });
+      } catch (_) {
+        return (await cache.match(request)) ||
+               (await caches.match(request)) ||
+               new Response('', { status: 504, statusText: 'Offline' });
+      }
     })());
     return;
   }

@@ -1,7 +1,7 @@
 /* VERSÃO DO SISTEMA — controlada em js/version.js */
 const versao = document.getElementById("versao_sytem");
 if (versao) {
-  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.92'}`;
+  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.97'}`;
 }
 /**
  * ARQUIVO PRINCIPAL DO VALLE
@@ -429,6 +429,14 @@ function toast(msg, type = 'info') {
   const lower = texto.toLowerCase();
   let kind = type || 'info';
 
+  // v3.6.93: mensagens de sucesso de gravação não aparecem antes do Supabase confirmar.
+  // O texto é guardado para o feedback central e exibido somente após o commit remoto.
+  const sucessoDeGravacao = lower.includes('com sucesso') || lower.includes('salvo') || lower.includes('atualizado') || lower.includes('registrado') || lower.includes('adicionado') || lower.includes('quitado') || lower.includes('criado') || lower.includes('excluído') || lower.includes('alterações salvas');
+  if (window.ValleOperationUI?.isHandlingFeedback?.() && (kind === 'success' || sucessoDeGravacao) && kind !== 'error' && kind !== 'warn') {
+    window.ValleOperationUI.setSuccessMessage(texto);
+    return;
+  }
+
   if (kind === 'info') {
     if (lower.includes('com sucesso') || lower.includes('salvo') || lower.includes('atualizado') || lower.includes('registrado') || lower.includes('restaurado') || lower.includes('adicionado') || lower.includes('quitado') || lower.includes('criado') || lower.includes('excluído')) {
       kind = 'success';
@@ -437,6 +445,10 @@ function toast(msg, type = 'info') {
     } else if (lower.includes('digite') || lower.includes('informe') || lower.includes('atenção') || lower.includes('cadastre') || lower.includes('já existe') || lower.includes('nenhuma alteração')) {
       kind = 'warn';
     }
+  }
+
+  if (window.ValleOperationUI?.state === 'error' && (kind === 'error' || lower.includes('erro') || lower.includes('não foi possível') || lower.includes('falha'))) {
+    return;
   }
 
   const styles = {
@@ -929,8 +941,8 @@ function valleAudit(action,type,record,extra={}){
     const key=String(action||'').toUpperCase(); const meta=names[key]||[String(type||'SISTEMA').toUpperCase(),'Ação registrada'];
     const before=extra.old_data||null,after=extra.new_data||record||null,changes=extra.changes||valleAuditDiff(before,after);
     const user=window.ValleCloud?.profile?.name||'Usuário'; const target=record?.numero?`Vale #${record.numero}`:(record?.nome||record?.cliente||record?.id||'registro');
-    window.ValleCloud?.recordAudit?.(key,type,record?.id||'',{module:meta[0],title:extra.title||meta[1],description:extra.description||`${user}: ${meta[1]} — ${target}.`,client_name:record?.cliente||record?.nome||'',vale_number:record?.numero||null,old_data:before,new_data:after,changes,...extra});
-  }catch(e){console.warn(e)}
+    return window.ValleCloud?.recordAudit?.(key,type,record?.id||'',{module:meta[0],title:extra.title||meta[1],description:extra.description||`${user}: ${meta[1]} — ${target}.`,client_name:record?.cliente||record?.nome||'',vale_number:record?.numero||null,old_data:before,new_data:after,changes,...extra}) || Promise.resolve(false);
+  }catch(e){console.warn(e);return Promise.resolve(false)}
 }
 
 
@@ -1916,7 +1928,7 @@ function togglePaid(id) {
  * A ação fica registrada na Auditoria e também aparece em Lançamentos,
  * incluindo usuário, data/hora e o saldo que voltou a ficar em aberto.
  */
-function reabrirValeQuitado(id) {
+async function reabrirValeQuitado(id) {
   if (!valleRequirePermission('can_receive_payment')) return false;
   const v = db.vales.find(x => x.id === id);
   if (!v) {
@@ -1947,7 +1959,7 @@ function reabrirValeQuitado(id) {
   v.observacao = obsAtual ? `${obsAtual}
 ${linhaReabertura}` : linhaReabertura;
 
-  valleAudit('REABRIR_VALE', 'vale', v, {
+  const reaberturaAuditPromise = valleAudit('REABRIR_VALE', 'vale', v, {
     old_data: anterior,
     new_data: valleAuditClone(v),
     valor_lancamento: saldoReaberto,
@@ -1959,11 +1971,29 @@ ${linhaReabertura}` : linhaReabertura;
     description: `${assinatura.userName || 'Usuário'} reabriu o Vale #${v.numero || v.id}. Saldo reaberto: ${money(saldoReaberto)}.`
   });
 
+  // Primeiro confirma/tenta enviar o lançamento de REABERTURA. Assim, quando
+  // o workspace PAGO -> ABERTO chegar ao outro aparelho, o lançamento já está
+  // disponível para a leitura remota da aba Lançamentos.
+  try { await Promise.resolve(reaberturaAuditPromise); } catch (_) {}
+
   save();
   renderAll();
   try { window.renderLancamentos?.(true); } catch (_) {}
-  toast('VALE REABERTO COM SUCESSO');
-  return true;
+
+  // v3.6.96: não confirma visualmente a reabertura antes da gravação que o
+  // outro aparelho precisa enxergar ter sido concluída no Supabase.
+  try {
+    if (window.__valleLastSavePromise) {
+      const confirmed = await window.__valleLastSavePromise;
+      if (confirmed === false) throw new Error('A reabertura não foi confirmada no banco.');
+    }
+    toast('VALE REABERTO COM SUCESSO');
+    return true;
+  } catch (error) {
+    console.error('Falha ao confirmar reabertura do vale no banco:', error);
+    toast('NÃO FOI POSSÍVEL CONFIRMAR A REABERTURA NO BANCO');
+    return false;
+  }
 }
 window.reabrirValeQuitado = reabrirValeQuitado;
 

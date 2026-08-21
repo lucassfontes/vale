@@ -102,3 +102,9 @@ O modelo atual usa um documento JSON compartilhado por sessão. Quando dois apar
 ## VALLE 3.6.43 — PIX na Área do Cliente
 
 Depois da configuração inicial, execute também `supabase/PAGAMENTOS_PIX_V3643.sql` no SQL Editor. Esse arquivo cria o histórico de pagamentos informados pelo cliente e atualiza a função do Portal do Cliente para retornar a configuração PIX da sessão.
+
+
+## Obrigatório a partir da versão 3.6.93 — fila de gravações
+
+Antes de usar a versão 3.6.93, execute no SQL Editor do Supabase o arquivo `supabase/FILA_BANCO_V93.sql`.
+Ele cria a função transacional que coloca as gravações da mesma sessão em fila e devolve ao aplicativo somente o estado realmente confirmado pelo banco. Sem essa atualização, a versão 3.6.93 bloqueia a gravação e mostra erro em vez de informar um sucesso falso.

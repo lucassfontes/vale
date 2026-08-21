@@ -636,16 +636,18 @@ async function submitAdminMessage(event){
  status.textContent='ENVIANDO...';status.className='admin-message-status';submit.disabled=true;
  try{
   await ValleCloud.createAdminMessage({title:el('adminMessageTitle').value,message:el('adminMessageText').value,targetSessionId:el('adminMessageSession').value||null});
-  status.textContent='MENSAGEM ENVIADA COM SUCESSO.';status.className='admin-message-status success';
+  status.textContent='';status.className='admin-message-status';
   el('adminMessageText').value='';await renderAdminMessageHistory();
  }catch(err){status.textContent=String(err.message||'Não foi possível enviar a mensagem.').toUpperCase();status.className='admin-message-status error'}
  finally{submit.disabled=false}
 }
 let adminMessageCheckRunning=false;
 let adminMessageWatchInstalled=false;
+let adminMessageRealtimeInstalled=false;
 async function checkAdminMessageForUser(profile){
  // A mensagem administrativa aparece para o usuário de sessão e para os usuários de serviço vinculados a ela.
  if(!profile||!['session','service'].includes(profile.role)||!ValleCloud.isOnline()||adminMessageCheckRunning)return;
+ installAdminMessageRealtime();
  const modal=el('systemUpdateMessageModal');
  if(!modal||!modal.classList.contains('hidden'))return;
  adminMessageCheckRunning=true;
@@ -669,17 +671,27 @@ async function closeSystemUpdateMessage(){
   catch(err){console.warn('Não foi possível registrar a leitura da MSG ADM:',err)}
  }
 }
+function installAdminMessageRealtime(){
+ const profile=ValleCloud.profile;
+ if(adminMessageRealtimeInstalled||!['session','service'].includes(profile?.role))return;
+ const channel=ValleCloud.subscribeAdminMessageChanges?.(()=>{ void checkAdminMessageForUser(ValleCloud.profile); });
+ if(channel)adminMessageRealtimeInstalled=true;
+}
 function installAdminMessageWatcher(){
  if(adminMessageWatchInstalled)return;
  adminMessageWatchInstalled=true;
  const check=()=>{
   const profile=ValleCloud.profile;
-  if(['session','service'].includes(profile?.role)&&ValleCloud.isOnline())void checkAdminMessageForUser(profile);
+  if(['session','service'].includes(profile?.role)&&ValleCloud.isOnline()){
+   installAdminMessageRealtime();
+   void checkAdminMessageForUser(profile);
+  }
  };
- setInterval(check,5000);
- window.addEventListener('focus',check,{passive:true});
+ // Sem polling: verifica no início/retorno da conexão e depois reage aos eventos
+ // reais de INSERT/UPDATE publicados por admin_messages.
  window.addEventListener('online',()=>setTimeout(check,400),{passive:true});
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')check()});
+ window.addEventListener('valle-app-ready',check,{once:true});
  setTimeout(check,600);
 }
 
@@ -1149,7 +1161,10 @@ async function showRole(profile,options={}){
    }
    managementHeadActions?.classList.toggle('management-head-actions-single',!isAdminPanel);
    await renderUsers({preferCache:!options.background,background:!!options.background});
-   if(profile.role==='session') await loadSharedWorkspaceForSession(profile,{preferCache:!options.background});
+   if(profile.role==='session'){
+     await loadSharedWorkspaceForSession(profile,{preferCache:!options.background});
+     installContinuousCloudSync();
+   }
  }
  if(!options.background && ['session','service'].includes(profile.role)){
    window.setTimeout(()=>checkAdminMessageForUser(profile),350);
@@ -1162,62 +1177,162 @@ async function showRole(profile,options={}){
 let saveHooked=false;
 let continuousSyncInstalled=false;
 let lastAppliedWorkspaceAt=null;
+let workspaceSyncInFlight=false;
+let workspaceRealtimeWarningShown=false;
+let pendingRealtimeWorkspaceRow=null;
 function currentValleDatabase(){
  return window.getValleDatabase ? window.getValleDatabase() : window.db;
 }
 function installSaveHook(){
  if(saveHooked || typeof window.save!=='function') return;
  const original=window.save;
+ window.__valleLocalSave=original;
+ const withLocalFinancialSettings=(confirmed)=>{
+   const copy=JSON.parse(JSON.stringify(confirmed||{}));
+   const local=currentValleDatabase()||{};
+   copy.settings={...(copy.settings||{})};
+   ['percentualJuros50','percentualJuros','taxaAtrasoDiario','tipoTaxaAtrasoDiario'].forEach(key=>{
+     if(local?.settings&&Object.prototype.hasOwnProperty.call(local.settings,key))copy.settings[key]=local.settings[key];
+   });
+   return copy;
+ };
  window.save=function(){
    const r=original.apply(this,arguments);
-   try{ValleCloud.queueWorkspace(currentValleDatabase())}catch(_){}
+   try{
+     window.__valleLastSavePromise=ValleCloud.queueWorkspace(currentValleDatabase());
+   }catch(err){
+     window.__valleLastSavePromise=Promise.resolve(false);
+     window.ValleOperationUI?.fail?.(err.message||'Não foi possível iniciar a gravação.');
+   }
    return r;
  };
+ window.addEventListener('valle-workspace-confirmed',ev=>{
+   const confirmed=ev.detail?.data;
+   if(!confirmed)return;
+   try{
+     const safeConfirmed=withLocalFinancialSettings(confirmed);
+     const applied=window.replaceValleDatabase?window.replaceValleDatabase(safeConfirmed):safeConfirmed;
+     window.db=applied;
+     original.call(window);
+     if(ev.detail?.updated_at)lastAppliedWorkspaceAt=ev.detail.updated_at;
+     if(window.renderAll)window.renderAll();
+   }catch(error){console.error('Falha ao aplicar o estado confirmado pelo banco:',error)}
+ });
+ window.addEventListener('valle-workspace-write-failed',ev=>{
+   const confirmed=ev.detail?.confirmed;
+   if(!confirmed)return;
+   try{
+     const safeConfirmed=withLocalFinancialSettings(confirmed);
+     const restored=window.replaceValleDatabase?window.replaceValleDatabase(safeConfirmed):safeConfirmed;
+     window.db=restored;
+     original.call(window);
+     if(window.renderAll)window.renderAll();
+   }catch(error){console.error('Falha ao restaurar o último estado confirmado:',error)}
+ });
  saveHooked=true;
 }
+async function syncSharedWorkspaceFromCloud(realtimeRow=null){
+ const role=ValleCloud.profile?.role;
+ if(!['session','service'].includes(role)||!ValleCloud.isOnline())return false;
+ if(workspaceSyncInFlight){
+   if(realtimeRow?.data)pendingRealtimeWorkspaceRow=realtimeRow;
+   return false;
+ }
+ workspaceSyncInFlight=true;
+ try{
+   // v3.6.97: quando o Supabase Realtime entrega a linha alterada, usa o
+   // próprio payload do Postgres. Uma consulta direta só é feita ao voltar
+   // de offline/segundo plano para reconciliar eventos que possam ter sido perdidos.
+   const snapshot=(realtimeRow?.data && typeof realtimeRow.data==='object')
+     ? {data:realtimeRow.data,updated_at:realtimeRow.updated_at||null,updated_by:realtimeRow.updated_by||null}
+     : await ValleCloud.loadWorkspaceSnapshot({forceFresh:true});
+   if(!snapshot?.data)return false;
+
+   const current=currentValleDatabase()||{};
+   const remoteSignature=ValleCloud.workspaceSignature?.(snapshot.data)||'';
+   const localSignature=ValleCloud.workspaceSignature?.(current)||'';
+   const contentChanged=!!remoteSignature && remoteSignature!==localSignature;
+
+   // Sem mudança real no conteúdo do banco, não redesenha a interface.
+   if(!contentChanged){
+     if(snapshot.updated_at)lastAppliedWorkspaceAt=snapshot.updated_at;
+     return false;
+   }
+
+   const loaded=window.replaceValleDatabase?window.replaceValleDatabase(snapshot.data):snapshot.data;
+   window.db=loaded;
+   if(snapshot.updated_at)lastAppliedWorkspaceAt=snapshot.updated_at;
+
+   if(role==='service'){
+     // Mantém as configurações financeiras individuais já carregadas neste aparelho.
+     const permissions=await ValleCloud.loadMyPermissions({preferCache:true});
+     applyServiceFinancialSettings(permissions);
+     applyPermissions(permissions);
+   }
+
+   try{
+     const owner=role==='session'?ValleCloud.profile.id:(ValleCloud.profile.session_user_id||'');
+     localStorage.setItem('emprestimos_pro_v2',JSON.stringify(loaded));
+     localStorage.setItem('valle_db_owner_session',owner);
+   }catch(_){}
+
+   if(window.renderAll)renderAll();
+   try{window.dispatchEvent(new CustomEvent('valle-workspace-remote-applied',{detail:{updated_at:snapshot.updated_at||null}}))}catch(_){}
+   return true;
+ }catch(e){
+   console.warn('Não foi possível reconciliar os dados compartilhados da sessão:',e);
+   return false;
+ }finally{
+   workspaceSyncInFlight=false;
+   if(pendingRealtimeWorkspaceRow){
+     const pending=pendingRealtimeWorkspaceRow;
+     pendingRealtimeWorkspaceRow=null;
+     queueMicrotask(()=>{ void syncSharedWorkspaceFromCloud(pending); });
+   }
+ }
+}
+
 function installContinuousCloudSync(){
  if(continuousSyncInstalled) return;
  continuousSyncInstalled=true;
  window.addEventListener('valle-cloud-sync',ev=>{
    if(ev.detail?.state==='synced'&&ev.detail?.lastSyncedAt)lastAppliedWorkspaceAt=ev.detail.lastSyncedAt;
  });
- // Atualiza periodicamente a tela com mudanças feitas por outro usuário de
- // serviço da mesma sessão. Não envia o banco às cegas, evitando sobrescrever
- // alterações mais novas de outro dispositivo.
- // Revalida as permissões do usuário de serviço sem exigir novo login.
- // Assim, a aba Lançamentos é bloqueada ou liberada poucos segundos após
- // a alteração feita pelo usuário de sessão.
- setInterval(async()=>{
-   if(ValleCloud.profile?.role!=='service'||!ValleCloud.isOnline())return;
-   try{
-     const permissions=await ValleCloud.loadMyPermissions();
-     applyServiceFinancialSettings(permissions);
-     applyPermissions(permissions);
-   }catch(e){console.warn('Não foi possível atualizar as permissões do usuário:',e)}
- },15000);
 
- setInterval(async()=>{
-   if(ValleCloud.profile?.role!=='service'||!ValleCloud.isOnline())return;
+ // v3.6.97: sem polling. O workspace só é aplicado quando o Postgres publica
+ // INSERT/UPDATE/DELETE em session_workspaces.
+ try{
+   ValleCloud.subscribeWorkspaceChanges?.(
+     row=>{ if(row?.data) void syncSharedWorkspaceFromCloud(row); },
+     status=>{
+       if((status==='CHANNEL_ERROR'||status==='TIMED_OUT')&&!workspaceRealtimeWarningShown){
+         workspaceRealtimeWarningShown=true;
+         connectionToast('SINCRONIZAÇÃO EM TEMPO REAL INDISPONÍVEL. EXECUTE O SQL V97 NO SUPABASE.','warn');
+       }
+     }
+   );
+ }catch(e){console.warn('Realtime do workspace indisponível.',e)}
+
+ // Permissões também passam a ser orientadas a evento do banco.
+ if(ValleCloud.profile?.role==='service'){
    try{
-     const snapshot=await ValleCloud.loadWorkspaceSnapshot();
-     if(!snapshot?.data||!snapshot.updated_at)return;
-     if(lastAppliedWorkspaceAt && snapshot.updated_at<=lastAppliedWorkspaceAt)return;
-     lastAppliedWorkspaceAt=snapshot.updated_at;
-     if(snapshot.updated_by===ValleCloud.profile.id)return;
-     const loaded=window.replaceValleDatabase?window.replaceValleDatabase(snapshot.data):snapshot.data;
-     window.db=loaded;
-     applyServiceFinancialSettings(await ValleCloud.loadMyPermissions());
-     try{
-       localStorage.setItem('emprestimos_pro_v2',JSON.stringify(loaded));
-       localStorage.setItem('valle_db_owner_session',ValleCloud.profile.session_user_id||'');
-     }catch(_){}
-     if(window.renderAll)renderAll();
-   }catch(e){console.warn('Não foi possível atualizar os dados compartilhados da sessão:',e)}
- },10000);
+     ValleCloud.subscribePermissionChanges?.(row=>{
+       if(!row||String(row.service_user_id||'')!==String(ValleCloud.profile?.id||''))return;
+       applyServiceFinancialSettings(row);
+       applyPermissions(row);
+     });
+   }catch(e){console.warn('Realtime das permissões indisponível.',e)}
+ }
+
+ // Em celulares o WebSocket pode ser suspenso quando o app vai para segundo
+ // plano. Ao voltar/recuperar internet, faz UMA reconciliação. A tela só é
+ // redesenhada se a assinatura do conteúdo remoto for diferente da local.
+ const reconcile=()=>{ if(ValleCloud.isOnline()) void syncSharedWorkspaceFromCloud(); };
+ window.addEventListener('online',()=>setTimeout(reconcile,250),{passive:true});
+ window.addEventListener('focus',reconcile,{passive:true});
  document.addEventListener('visibilitychange',()=>{
-   if(document.visibilityState==='hidden' && ValleCloud.profile?.role==='service'){
-     ValleCloud.flushWorkspace(currentValleDatabase());
-   }
+   if(document.visibilityState==='visible')reconcile();
+   else if(ValleCloud.profile?.role==='service') ValleCloud.flushWorkspace(currentValleDatabase());
  });
  window.addEventListener('pagehide',()=>{
    if(ValleCloud.profile?.role==='service') ValleCloud.flushWorkspace(currentValleDatabase());
@@ -1485,8 +1600,8 @@ async function boot(){
  }
  updateSyncBadge({state:ValleCloud.syncState,online:ValleCloud.isOnline()});
  window.addEventListener('valle-cloud-sync',e=>updateSyncBadge(e.detail||{}));
- window.addEventListener('online',()=>{updateSyncBadge({state:'syncing',online:true});connectionToast('Internet conectada. Sincronizando alterações com o Supabase.','success')});
- window.addEventListener('offline',()=>{updateSyncBadge({state:'offline',online:false});connectionToast('Internet desconectada. As alterações serão salvas neste aparelho.','warn')});
+ window.addEventListener('online',()=>{updateSyncBadge({state:'syncing',online:true});connectionToast('Internet conectada.','success')});
+ window.addEventListener('offline',()=>{updateSyncBadge({state:'offline',online:false});connectionToast('Internet desconectada. Alterações no banco ficam bloqueadas até a conexão voltar.','warn')});
  el('loginForm').onsubmit=async e=>{
   e.preventDefault();setMsg('Entrando...',false);el('authWhatsapp').classList.add('hidden');
   try{

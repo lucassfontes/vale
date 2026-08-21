@@ -3,7 +3,7 @@
 
   const ACTIONS = new Set(['CRIAR_VALE','REABRIR_VALE','QUITAR_VALE','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS','PAGAMENTO_ENTRADA']);
   const PAYMENT_ACTIONS = new Set(['QUITAR_VALE','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS']);
-  const state = { entries: [], loading: false, loadedAt: 0, bound: false };
+  const state = { entries: [], loading: false, loadedAt: 0, bound: false, realtimeInstalled:false };
 
   const el = id => document.getElementById(id);
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -225,6 +225,36 @@
       || vales.find(v => item.vale && String(v.numero || '') === String(item.vale));
   }
 
+  /*
+   * v3.6.94 — o card NOVO VALE representa o estado atual do próprio vale.
+   * A auditoria CRIAR_VALE continua preservando quem criou e quando criou,
+   * mas os campos editáveis exibidos em Lançamentos (cliente, número, valor e
+   * observação) acompanham o registro atual do Histórico. Pagamentos antigos
+   * permanecem imutáveis, pois representam valores realmente recebidos.
+   */
+  function syncCreatedValeEntriesWithWorkspace(entries=state.entries){
+    const vales = currentDatabase()?.vales || [];
+    if (!Array.isArray(entries) || !Array.isArray(vales) || !vales.length) return entries;
+
+    const byId = new Map(vales.map(v => [String(v.id || ''), v]).filter(([id]) => id));
+    const byNumber = new Map(vales.map(v => [String(v.numero || ''), v]).filter(([numero]) => numero));
+
+    entries.forEach(item => {
+      if (String(item?.action || '').toUpperCase() !== 'CRIAR_VALE') return;
+      const vale = byId.get(String(item.valeId || '')) || byNumber.get(String(item.vale || ''));
+      if (!vale) return;
+
+      item.valeId = String(vale.id || item.valeId || '');
+      item.vale = String(vale.numero || item.vale || '');
+      item.client = String(vale.cliente || item.client || 'SEM CLIENTE');
+      item.amount = numberValue(vale.valor ?? vale.valorOriginal ?? item.amount);
+      item.originalPrincipal = numberValue(vale.valorOriginal ?? vale.valor ?? item.originalPrincipal);
+      item.observation = String(vale.observacao ?? '').trim();
+    });
+
+    return entries;
+  }
+
   function actionAccess(item){
     const profile = window.ValleCloud?.profile || {};
     const permissions = window.VALLE_PERMISSIONS || {};
@@ -294,6 +324,10 @@
   function draw(){
     const list = el('lancamentosLista');
     if (!list) return;
+    // Reaplica os dados atuais do vale antes de filtrar/somar/renderizar.
+    // Assim uma edição aparece imediatamente em Lançamentos, mesmo quando os
+    // logs de auditoria já estavam carregados em memória.
+    syncCreatedValeEntriesWithWorkspace();
     const entries = filteredEntries();
     renderSummary(entries);
     const info = el('lancamentosResultInfo');
@@ -314,11 +348,45 @@
     if (info) info.textContent = 'LANÇAMENTOS INDISPONÍVEIS';
   }
 
+  function applyRealtimeAudit(row,payload){
+    const eventType=String(payload?.eventType||'').toUpperCase();
+    const sid=activeSessionId();
+    if(!row||String(row.session_user_id||'')!==sid)return;
+
+    if(eventType==='DELETE'){
+      const id=String(row.id||'');
+      const signature=String(row.signature||'');
+      state.entries=state.entries.filter(item=>String(item.id||'')!==id && (!signature || String(item.signature||'')!==signature));
+      state.loadedAt=Date.now();
+      fillUsers();
+      if(document.querySelector('.screen.active')?.id==='lancamentos')draw();
+      return;
+    }
+
+    const action=String(row.action||'').toUpperCase();
+    if(!ACTIONS.has(action))return;
+    const normalized=normalizeLog(row);
+    state.entries=enrichPaymentBreakdown([
+      normalized,
+      ...state.entries.filter(item=>String(item.signature||'')!==String(normalized.signature||'') && String(item.id||'')!==String(normalized.id||''))
+    ]);
+    state.loadedAt=Date.now();
+    fillUsers();
+    if(document.querySelector('.screen.active')?.id==='lancamentos')draw();
+  }
+
+  function installAuditRealtime(){
+    if(state.realtimeInstalled)return;
+    const channel=window.ValleCloud?.subscribeAuditChanges?.((row,payload)=>applyRealtimeAudit(row,payload));
+    if(channel)state.realtimeInstalled=true;
+  }
+
   async function load(force=false){
     const list = el('lancamentosLista');
     if (!list || state.loading) return;
     const profile = window.ValleCloud?.profile;
     if (!profile) return;
+    installAuditRealtime();
     if (!force && state.entries.length && Date.now() - state.loadedAt < 5000) { draw(); return; }
     state.loading = true;
     list.innerHTML = '<div class="lancamentos-loading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> CARREGANDO LANÇAMENTOS...</div>';
@@ -418,6 +486,15 @@
       fillUsers();
       if(document.querySelector('.screen.active')?.id==='lancamentos')draw();
     });
+
+    // v3.6.97: sem consulta a cada 4 segundos. INSERT/UPDATE/DELETE de
+    // audit_logs chegam pelo Supabase Realtime. Se o celular ficou suspenso e
+    // perdeu o evento, a reconciliação do workspace só dispara este recarregamento
+    // quando detecta que o conteúdo do banco realmente mudou.
+    window.addEventListener('valle-workspace-remote-applied',()=>{
+      if(document.querySelector('.screen.active')?.id==='lancamentos')void load(true);
+    });
+    window.addEventListener('valle-app-ready',installAuditRealtime,{once:true});
   }
 
   window.renderLancamentos = function(force=false){ bind(); return load(force); };

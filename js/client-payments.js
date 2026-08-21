@@ -12,6 +12,7 @@
   let loading=false;
   let pendingReceiveRequest=null;
   let currentLancamentosSection='movimentacao';
+  let realtimeInstalled=false;
 
   function setLancamentosSection(section='movimentacao'){
     currentLancamentosSection = section === 'pix' ? 'pix' : 'movimentacao';
@@ -127,10 +128,22 @@
       btn.disabled=true;try{await ValleCloud.updateClientPaymentRequestStatus(req.id,'rejected','Pagamento não localizado ou não confirmado.');notify('PEDIDO MARCADO COMO NÃO CONFIRMADO','success');await load(true)}catch(e){notify(e.message||'ERRO AO ATUALIZAR','error')}finally{btn.disabled=false}
     });
   }
+  function installClientPaymentsRealtime(){
+    if(realtimeInstalled)return;
+    const p=window.ValleCloud?.profile;
+    if(!p||p.role!=='service')return;
+    const channel=window.ValleCloud?.subscribeClientPaymentChanges?.(()=>{
+      // Só consulta/redesenha quando o Postgres informa uma mudança real.
+      void load(true);
+    });
+    if(channel)realtimeInstalled=true;
+  }
+
   async function load(force=false){
     const card=el('clientPaymentRequestsCard');if(!card)return;
     const pixBtn=el('lancamentosPixSectionBtn');
     const p=window.ValleCloud?.profile;if(!p||p.role!=='service'){card.classList.add('hidden');el('lancamentosPixPanel')?.classList.add('hidden');if(pixBtn) pixBtn.classList.add('hidden');updateLancamentosPendingBadge(0);setLancamentosSection('movimentacao');return}
+    installClientPaymentsRealtime();
     card.classList.remove('hidden');if(pixBtn) pixBtn.classList.remove('hidden');if(loading&&!force)return;loading=true;
     const list=el('clientPaymentRequestsList');if(list&&force)list.innerHTML='<div class="client-payment-request-empty"><span class="spinner-border spinner-border-sm"></span> ATUALIZANDO...</div>';
     try{const rows=await ValleCloud.listClientPaymentRequests(80);draw(rows)}catch(e){updateLancamentosPendingBadge(0);if(list)list.innerHTML=`<div class="client-payment-request-empty danger"><i class="bi bi-exclamation-triangle"></i><strong>NÃO FOI POSSÍVEL CARREGAR</strong><span>${esc(e.message||'Erro')}</span></div>`}finally{loading=false}
@@ -140,7 +153,7 @@
     document.querySelectorAll('[data-screen="lancamentos"],.tab[data-screen="lancamentos"]').forEach(btn=>btn.addEventListener('click',()=>{ setLancamentosSection('movimentacao'); setTimeout(()=>load(false),120); }));
     setLancamentosSection('movimentacao');
     setTimeout(()=>load(false),900);
-    setInterval(()=>{if(document.querySelector('.screen.active')?.id==='lancamentos')load(false)},30000);
+    window.addEventListener('valle-app-ready',installClientPaymentsRealtime,{once:true});
   }
   window.renderClientPaymentRequests=load;
   document.addEventListener('DOMContentLoaded',bind);
