@@ -33525,3 +33525,99 @@ body.dark .lancamentos-section-badge{
 #systemUpdateMessageModal .admin-message-card{
   z-index:1 !important;
 }
+
+
+/* =========================================================
+   VALLE 3.6.98 — MSG ADM bloqueante + rolagem somente da mensagem
+   ========================================================= */
+html.valle-system-message-open,
+body.valle-system-message-open{
+  overflow:hidden !important;
+  overscroll-behavior:none !important;
+}
+body.valle-system-message-open{
+  position:fixed !important;
+  top:calc(-1 * var(--valle-system-message-scroll-y, 0px)) !important;
+  left:0 !important;
+  right:0 !important;
+  width:100% !important;
+}
+#systemUpdateMessageModal.admin-message-modal{
+  position:fixed !important;
+  inset:0 !important;
+  z-index:2147483647 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)) !important;
+  overflow:hidden !important;
+  pointer-events:auto !important;
+  overscroll-behavior:none !important;
+  isolation:isolate !important;
+}
+#systemUpdateMessageModal.admin-message-modal.hidden{
+  display:none !important;
+}
+#systemUpdateMessageModal .admin-message-backdrop{
+  position:fixed !important;
+  inset:0 !important;
+  z-index:0 !important;
+  background:rgba(2,6,23,.78) !important;
+  -webkit-backdrop-filter:blur(9px) !important;
+  backdrop-filter:blur(9px) !important;
+  pointer-events:auto !important;
+  touch-action:none !important;
+}
+#systemUpdateMessageModal .system-update-message-card{
+  position:relative !important;
+  z-index:1 !important;
+  width:min(92vw,430px) !important;
+  max-width:430px !important;
+  max-height:min(760px,calc(100dvh - max(24px,env(safe-area-inset-top)) - max(24px,env(safe-area-inset-bottom)))) !important;
+  display:flex !important;
+  flex-direction:column !important;
+  overflow:hidden !important;
+  touch-action:auto !important;
+  overscroll-behavior:contain !important;
+}
+#systemUpdateMessageModal .system-update-message-header,
+#systemUpdateMessageModal .system-update-message-meta,
+#systemUpdateMessageModal .system-update-message-footer{
+  flex:0 0 auto !important;
+}
+#systemUpdateMessageModal .system-update-message-body{
+  flex:1 1 auto !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+  display:flex !important;
+  flex-direction:column !important;
+}
+#systemUpdateMessageText.system-update-message-text{
+  flex:1 1 auto !important;
+  min-height:0 !important;
+  max-height:min(52dvh,460px) !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  overscroll-behavior:contain !important;
+  -webkit-overflow-scrolling:touch !important;
+  touch-action:pan-y !important;
+  scrollbar-gutter:stable !important;
+  padding-right:5px !important;
+}
+#systemUpdateMessageText.system-update-message-text::-webkit-scrollbar{width:5px}
+#systemUpdateMessageText.system-update-message-text::-webkit-scrollbar-thumb{
+  background:color-mix(in srgb,var(--muted) 48%,transparent) !important;
+  border-radius:999px !important;
+}
+@media(max-width:520px){
+  #systemUpdateMessageModal.admin-message-modal{
+    padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left)) !important;
+  }
+  #systemUpdateMessageModal .system-update-message-card{
+    width:100% !important;
+    max-height:calc(100dvh - max(20px,env(safe-area-inset-top)) - max(20px,env(safe-area-inset-bottom))) !important;
+  }
+  #systemUpdateMessageText.system-update-message-text{
+    max-height:48dvh !important;
+  }
+}

@@ -68,7 +68,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // v3.6.97 — arquivos do aplicativo usam INTERNET PRIMEIRO. Isso evita que
+  // v3.6.98 — arquivos do aplicativo usam INTERNET PRIMEIRO. Isso evita que
   // outro celular continue executando app.js/auth-ui.js antigos depois de uma
   // atualização publicada. O cache fica apenas como fallback offline.
   if (sameOrigin) {

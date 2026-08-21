@@ -153,6 +153,12 @@ function inject(){
  </div>`);
  const userModalNode=el('userModal');
  if(userModalNode&&userModalNode.parentElement!==document.body)document.body.appendChild(userModalNode);
+ // v3.6.98: os modais de MSG ADM ficam diretamente no body para garantir
+ // que nenhuma camada da interface possa ficar acima deles ou receber foco/clique.
+ ['adminMessageModal','systemUpdateMessageModal'].forEach(id=>{
+  const node=el(id);
+  if(node&&node.parentElement!==document.body)document.body.appendChild(node);
+ });
  syncUserModalViewport();
  if(!window.__valleUserModalViewportBound){
   window.__valleUserModalViewportBound=true;
@@ -644,6 +650,55 @@ async function submitAdminMessage(event){
 let adminMessageCheckRunning=false;
 let adminMessageWatchInstalled=false;
 let adminMessageRealtimeInstalled=false;
+let systemUpdateMessageLastFocus=null;
+let systemUpdateMessageScrollY=0;
+function lockSystemUpdateMessageBackground(modal){
+ if(!modal||document.body.classList.contains('valle-system-message-open'))return;
+ systemUpdateMessageLastFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
+ systemUpdateMessageScrollY=Math.max(0,window.scrollY||window.pageYOffset||0);
+ document.documentElement.classList.add('valle-system-message-open');
+ document.body.classList.add('valle-system-message-open');
+ document.body.style.setProperty('--valle-system-message-scroll-y',`${systemUpdateMessageScrollY}px`);
+ // Como o modal está diretamente no body, os demais filhos podem ficar inert.
+ // Isso bloqueia clique, toque e navegação por teclado no fundo.
+ Array.from(document.body.children).forEach(node=>{
+  if(node===modal)return;
+  if(node.hasAttribute('inert'))node.dataset.valleHadInert='1';
+  else node.dataset.valleMessageInert='1';
+  node.inert=true;
+ });
+ requestAnimationFrame(()=>{
+  const focusTarget=el('systemUpdateMessageClose')||modal.querySelector('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])');
+  focusTarget?.focus?.({preventScroll:true});
+ });
+}
+function unlockSystemUpdateMessageBackground(modal){
+ document.documentElement.classList.remove('valle-system-message-open');
+ document.body.classList.remove('valle-system-message-open');
+ document.body.style.removeProperty('--valle-system-message-scroll-y');
+ Array.from(document.body.children).forEach(node=>{
+  if(node===modal)return;
+  if(node.dataset.valleMessageInert==='1'){
+   node.inert=false;
+   delete node.dataset.valleMessageInert;
+  }
+  delete node.dataset.valleHadInert;
+ });
+ window.scrollTo({top:systemUpdateMessageScrollY,left:0,behavior:'auto'});
+ const restore=systemUpdateMessageLastFocus;
+ systemUpdateMessageLastFocus=null;
+ requestAnimationFrame(()=>restore?.focus?.({preventScroll:true}));
+}
+function trapSystemUpdateMessageFocus(event){
+ const modal=el('systemUpdateMessageModal');
+ if(!modal||modal.classList.contains('hidden')||event.key!=='Tab')return;
+ const focusable=Array.from(modal.querySelectorAll('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'))
+  .filter(node=>node.offsetParent!==null);
+ if(!focusable.length){event.preventDefault();modal.focus?.();return}
+ const first=focusable[0],last=focusable[focusable.length-1];
+ if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
+ else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
+}
 async function checkAdminMessageForUser(profile){
  // A mensagem administrativa aparece para o usuário de sessão e para os usuários de serviço vinculados a ela.
  if(!profile||!['session','service'].includes(profile.role)||!ValleCloud.isOnline()||adminMessageCheckRunning)return;
@@ -658,6 +713,9 @@ async function checkAdminMessageForUser(profile){
   el('systemUpdateMessageDate').textContent=formatAdminMessageDate(item.published_at||item.created_at);
   modal.dataset.messageId=String(item.id);
   modal.classList.remove('hidden');
+  lockSystemUpdateMessageBackground(modal);
+  const textBox=el('systemUpdateMessageText');
+  if(textBox)textBox.scrollTop=0;
  }catch(err){console.warn('Mensagem do administrador indisponível:',err)}
  finally{adminMessageCheckRunning=false}
 }
@@ -665,6 +723,7 @@ async function closeSystemUpdateMessage(){
  const modal=el('systemUpdateMessageModal');if(!modal)return;
  const messageId=String(modal.dataset.messageId||'');
  modal.classList.add('hidden');
+ unlockSystemUpdateMessageBackground(modal);
  delete modal.dataset.messageId;
  if(messageId){
   try{await ValleCloud.markAdminMessageSeen(messageId)}
@@ -680,6 +739,7 @@ function installAdminMessageRealtime(){
 function installAdminMessageWatcher(){
  if(adminMessageWatchInstalled)return;
  adminMessageWatchInstalled=true;
+ document.addEventListener('keydown',trapSystemUpdateMessageFocus,true);
  const check=()=>{
   const profile=ValleCloud.profile;
   if(['session','service'].includes(profile?.role)&&ValleCloud.isOnline()){
