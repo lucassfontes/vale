@@ -1,7 +1,7 @@
 /* VERSÃO DO SISTEMA — controlada em js/version.js */
 const versao = document.getElementById("versao_sytem");
 if (versao) {
-  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.98'}`;
+  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.99'}`;
 }
 /**
  * ARQUIVO PRINCIPAL DO VALLE
