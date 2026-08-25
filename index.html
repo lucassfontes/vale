@@ -9,27 +9,21 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="VALLE">
+  <meta name="apple-mobile-web-app-title" content="VALLE">
   <title>VALLE</title>
   <script>
     /* Define o tema do aplicativo antes da primeira pintura.
        Durante o loading, a área inferior permanece escura e estável. */
     (function () {
-      var theme = null;
+      var savedTheme = null;
       try {
-        theme = localStorage.getItem('valle_theme_active') || localStorage.getItem('valle_theme_guest');
-        if (theme !== 'dark' && theme !== 'light') {
-          for (var i = 0; i < localStorage.length; i++) {
-            var key = localStorage.key(i) || '';
-            if (key.indexOf('valle_theme_user_') === 0) {
-              var saved = localStorage.getItem(key);
-              if (saved === 'dark' || saved === 'light') { theme = saved; break; }
-            }
-          }
-        }
+        var storedTheme = localStorage.getItem('valle_theme_mode');
+        if (storedTheme === 'auto' || storedTheme === 'light' || storedTheme === 'dark') savedTheme = storedTheme;
       } catch (_) {}
-      if (theme !== 'dark' && theme !== 'light') {
-        theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      }
+      var systemTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      var theme = savedTheme === 'dark' ? 'dark' : (savedTheme === 'light' ? 'light' : systemTheme);
+      window.VALLE_THEME_MODE = savedTheme || 'auto';
       window.VALLE_PRELOAD_THEME = theme;
       window.VALLE_ACTIVE_THEME = theme;
       // Durante o loading, não permita que o tema do sistema altere o fundo/área inferior.
@@ -273,7 +267,7 @@
       .valle-loading-progress span { width: 100%; }
     }
   </style>
-  <link rel="manifest" href="manifest.json?v=98">
+  <link rel="manifest" href="manifest.json?v=3.6.102">
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
@@ -990,13 +984,11 @@
 
         <div class="card form-card backup-card">
           <h2>📂 Backup</h2>
-          <p class="backup-help">O backup automático é salvo sozinho neste navegador quando você altera clientes, vales
-            ou configurações.</p>
-          <p class="backup-status" id="autoBackupInfo">Último backup automático: verificando...</p>
+          <p class="backup-help">O VALLE não armazena backup automático no navegador. Os dados operacionais são gravados somente no banco online.</p>
+          <p class="backup-status" id="autoBackupInfo">Backup automático local desativado — sistema 100% online.</p>
           <div class="actions backup-actions">
             <button class="btn primary backup-action-btn" id="backupJsonBtn" type="button"><i class="bi bi-folder2-open" aria-hidden="true"></i><span>Baixar backup JSON</span></button>
             <label class="btn light filebtn backup-action-btn" for="restoreInput"><i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i><span>Restaurar JSON</span><input id="restoreInput" type="file" accept="application/json,.json" hidden></label>
-            <button class="btn success backup-action-btn" id="restoreAutoBtn" type="button"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i><span>Restaurar automático</span></button>
             <button class="btn danger backup-action-btn" id="wipeBtn" type="button"><i class="bi bi-trash3" aria-hidden="true"></i><span>Apagar tudo</span></button>
           </div>
         </div>
@@ -1269,14 +1261,14 @@
   </script>
   <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="js/version.js?v=3.6.99"></script>
+  <script src="js/version.js?v=3.6.102"></script>
   <script src="js/supabase-config.js?v=34"></script>
-  <script src="js/operation-feedback.js?v=3.6.99"></script>
-  <script src="js/supabase-client.js?v=3.6.99"></script>
-  <script src="js/app.js?v=3.6.99"></script>
-  <script src="js/lancamentos.js?v=3.6.99"></script>
-  <script src="js/client-payments.js?v=3.6.99"></script>
-  <script src="js/auth-ui.js?v=3.6.99"></script>
+  <script src="js/operation-feedback.js?v=3.6.102"></script>
+  <script src="js/supabase-client.js?v=3.6.102"></script>
+  <script src="js/app.js?v=3.6.102"></script>
+  <script src="js/lancamentos.js?v=3.6.102"></script>
+  <script src="js/client-payments.js?v=3.6.102"></script>
+  <script src="js/auth-ui.js?v=3.6.102"></script>
   <script src="js/bootstrap-enhance.js?v=53"></script>
   <script src="js/push-notifications.js?v=34"></script>
   <script>
@@ -1295,7 +1287,7 @@
       window.addEventListener('load', async function () {
         try {
           const registro = await navigator.serviceWorker.register(
-            'service-worker.js?v=3.6.99',
+            'service-worker.js?v=3.6.102',
             { updateViaCache: 'none' }
           );
 

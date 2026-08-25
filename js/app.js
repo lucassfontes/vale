@@ -1,13 +1,13 @@
 /* VERSÃO DO SISTEMA — controlada em js/version.js */
 const versao = document.getElementById("versao_sytem");
 if (versao) {
-  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.99'}`;
+  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.102'}`;
 }
 /**
  * ARQUIVO PRINCIPAL DO VALLE
  * ------------------------------------------------
  * Este arquivo controla todo o funcionamento do sistema:
- * - banco de dados local usando localStorage;
+ * - banco de dados online via Supabase;
  * - cadastro, edição e exclusão de clientes;
  * - cadastro, edição, impressão e envio de VALLES;
  * - cálculo do dashboard financeiro;
@@ -15,15 +15,13 @@ if (versao) {
  * - backup/restauração;
  * - modo escuro e navegação entre abas.
  *
- * ATENÇÃO: o sistema funciona 100% no navegador.
- * Os dados ficam salvos no localStorage do aparelho/navegador.
+ * ATENÇÃO: o sistema opera 100% online. O navegador mantém somente o login do Supabase e a preferência de tema.
  */
 
-// Chave principal onde todo o banco do sistema é salvo no localStorage.
+// Chaves legadas mantidas apenas por compatibilidade de código; não são gravadas no navegador.
 const LS = 'emprestimos_pro_v2';
 
-// Configurações financeiras salvas também em chaves separadas no localStorage,
-// para você poder alterar direto pelo console se quiser.
+// Chaves legadas de configuração; a persistência local foi removida.
 const LS_CAPITAL_INVESTIDO = 'capitalInvestido';
 const LS_PERCENTUAL_JUROS_50 = 'percentualJuros50';
 const LS_TAXA_ATRASO_DIARIO = 'taxaAtrasoDiario';
@@ -83,14 +81,17 @@ function valeEstaQuitado(v) {
 }
 
 async function valleRequireFreshPermission(permission) {
+  if (!window.ValleCloud?.isOnline?.()) {
+    toast('CONECTE-SE À INTERNET PARA REALIZAR ESTA OPERAÇÃO');
+    return false;
+  }
   if (!valleIsServiceUser()) return true;
   try {
-    if (window.ValleCloud?.isOnline?.()) {
-      const fresh = await window.ValleCloud.loadMyPermissions({ preferCache: false });
-      if (fresh && typeof fresh === 'object') window.VALLE_PERMISSIONS = fresh;
-    }
-  } catch (_) {
-    // Sem internet, usa a última permissão salva no aparelho.
+    const fresh = await window.ValleCloud.loadMyPermissions();
+    if (fresh && typeof fresh === 'object') window.VALLE_PERMISSIONS = fresh;
+  } catch (error) {
+    toast(error?.message || 'NÃO FOI POSSÍVEL CONFIRMAR AS PERMISSÕES NO BANCO');
+    return false;
   }
   return valleRequirePermission(permission);
 }
@@ -197,14 +198,11 @@ function seed() {
 }
 
 /**
- * Carrega os dados salvos no localStorage e normaliza a estrutura para evitar erros com versões antigas.
+ * Inicializa a estrutura em memória; os dados reais são carregados do Supabase após o login.
  */
 function load() {
-  try {
-    return normalizeDb(JSON.parse(localStorage.getItem(LS)) || seed(), true);
-  } catch (e) {
-    return seed();
-  }
+  // Dados da sessão são carregados do Supabase após restaurar o login.
+  return normalizeDb(seed());
 }
 
 /**
@@ -222,30 +220,11 @@ function normalizeDb(obj, usarChavesSeparadas = false) {
     obj.settings.percentualJuros50 = obj.settings.percentualJuros;
   }
 
-  // Prioridade:
-  // 1) valores separados do localStorage, se existirem;
-  // 2) valores dentro do backup/db.settings;
-  // 3) padrão do sistema.
-  const capitalLS = usarChavesSeparadas ? localStorage.getItem(LS_CAPITAL_INVESTIDO) : null;
-  const juros50LS = usarChavesSeparadas ? localStorage.getItem(LS_PERCENTUAL_JUROS_50) : null;
-  const taxaAtrasoLS = usarChavesSeparadas ? localStorage.getItem(LS_TAXA_ATRASO_DIARIO) : null;
-  const tipoTaxaAtrasoLS = usarChavesSeparadas ? localStorage.getItem(LS_TIPO_TAXA_ATRASO_DIARIO) : null;
-
-  obj.settings.capitalInvestido = capitalLS !== null
-    ? Number(capitalLS || 0)
-    : Number(obj.settings.capitalInvestido || 0);
-
-  obj.settings.percentualJuros50 = juros50LS !== null
-    ? Number(juros50LS || 50)
-    : Number(obj.settings.percentualJuros50 || 50);
-
-  obj.settings.taxaAtrasoDiario = taxaAtrasoLS !== null
-    ? Number(taxaAtrasoLS || 0)
-    : Number(obj.settings.taxaAtrasoDiario || 0);
-
-  obj.settings.tipoTaxaAtrasoDiario = (tipoTaxaAtrasoLS || obj.settings.tipoTaxaAtrasoDiario || 'percentual') === 'reais'
-    ? 'reais'
-    : 'percentual';
+  // Configurações vêm exclusivamente do objeto recebido do banco online.
+  obj.settings.capitalInvestido = Number(obj.settings.capitalInvestido || 0);
+  obj.settings.percentualJuros50 = Number(obj.settings.percentualJuros50 || 50);
+  obj.settings.taxaAtrasoDiario = Number(obj.settings.taxaAtrasoDiario || 0);
+  obj.settings.tipoTaxaAtrasoDiario = (obj.settings.tipoTaxaAtrasoDiario || 'percentual') === 'reais' ? 'reais' : 'percentual';
 
   // Evita valor inválido.
   if (Number.isNaN(obj.settings.capitalInvestido)) obj.settings.capitalInvestido = 0;
@@ -339,45 +318,21 @@ window.replaceValleDatabase = function (obj) {
 };
 
 /**
- * Salva o banco principal no localStorage e também salva capital investido e percentual de juros em chaves separadas.
+ * Atualiza somente o banco em memória. A persistência é feita pelo ValleCloud/Supabase.
  */
 function save() {
   db = normalizeDb(db);
   window.db = db;
-  localStorage.setItem(LS, JSON.stringify(db));
-  localStorage.setItem(LS_CAPITAL_INVESTIDO, String(Number(db.settings.capitalInvestido || 0)));
-  localStorage.setItem(LS_PERCENTUAL_JUROS_50, String(Number(db.settings.percentualJuros50 || 50)));
-  localStorage.setItem(LS_TAXA_ATRASO_DIARIO, String(Number(db.settings.taxaAtrasoDiario || 0)));
-  localStorage.setItem(LS_TIPO_TAXA_ATRASO_DIARIO, String(db.settings.tipoTaxaAtrasoDiario || 'percentual'));
-  saveAutoBackup();
-  updateAutoBackupInfo();
 }
 
 function saveAutoBackup() {
-  try {
-    // Só grava backup automático quando existem dados úteis.
-    // Assim, APAGAR TUDO não sobrescreve o último backup bom com um banco vazio.
-    const temDados = Array.isArray(db.clientes) && db.clientes.length || Array.isArray(db.vales) && db.vales.length;
-    if (!temDados) return;
-    localStorage.setItem('emprestimos_auto_backup_v3', JSON.stringify({criadoEm:new Date().toISOString(), db}));
-  } catch (_) {}
+  // Backup automático local removido para manter o VALLE 100% online.
+  return false;
 }
 
 function updateAutoBackupInfo() {
-  try {
-    const el = $('autoBackupInfo');
-    if (!el) return;
-    const raw = localStorage.getItem('emprestimos_auto_backup_v3');
-    if (!raw) { el.textContent = 'Último backup automático: nenhum encontrado neste navegador.'; return; }
-    const obj = JSON.parse(raw);
-    const d = obj && obj.criadoEm ? new Date(obj.criadoEm) : null;
-    el.textContent = d && !isNaN(d)
-      ? `Último backup automático: ${d.toLocaleDateString('pt-BR')} às ${d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`
-      : 'Último backup automático: encontrado, mas sem data.';
-  } catch (_) {
-    const el = $('autoBackupInfo');
-    if (el) el.textContent = 'Último backup automático: inválido.';
-  }
+  const el = $('autoBackupInfo');
+  if (el) el.textContent = 'Backup automático local desativado — dados salvos somente no banco online.';
 }
 
 
@@ -682,12 +637,6 @@ function lateFeeLabel(v = null) {
 function applyTheme() {
   const validModes = ['auto', 'light', 'dark'];
   let mode = validModes.includes(window.VALLE_THEME_MODE) ? window.VALLE_THEME_MODE : null;
-  if (!mode) {
-    try {
-      const saved = localStorage.getItem('valle_theme_active') || localStorage.getItem('valle_theme_guest');
-      if (validModes.includes(saved)) mode = saved;
-    } catch (_) {}
-  }
   if (!mode) mode = validModes.includes(db?.settings?.theme) ? db.settings.theme : 'auto';
 
   const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
@@ -695,7 +644,6 @@ function applyTheme() {
   window.VALLE_THEME_MODE = mode;
   window.VALLE_ACTIVE_THEME = theme;
   window.VALLE_PENDING_THEME = theme;
-  try { localStorage.setItem('valle_theme_active', mode); } catch (_) {}
 
   const loadingActive = document.documentElement.classList.contains('valle-loading-active');
   const isDark = theme === 'dark';
@@ -1397,7 +1345,7 @@ function ensureClientByLoan(v) {
 }
 
 /**
- * Salva um vale novo ou atualiza um vale em edição. Também atualiza cliente, histórico e localStorage.
+ * Salva um vale novo ou atualiza um vale em edição. A persistência é confirmada no Supabase.
  */
 function saveLoan() {
   const requiredPermission = editLoanId ? 'can_edit_vale' : 'can_create_vale';
@@ -1823,8 +1771,8 @@ async function deleteClient(id) {
   if (!ok) return;
   const removido=db.clientes.find(c=>c.id===id);
   // Se existir um login do Portal do Cliente, remove a conta antes de apagar o cadastro.
-  // A exclusão do cliente continua funcionando offline; falha de rede não bloqueia o fluxo local.
-  try{if(window.ValleCloud?.isOnline?.())await window.ValleCloud.invokeManage('client_access_delete',{clientId:id})}catch(err){console.warn('Não foi possível remover o acesso do cliente:',err)}
+  if(!window.ValleCloud?.isOnline?.()){toast('CONECTE-SE À INTERNET PARA EXCLUIR O CLIENTE');return;}
+  try{await window.ValleCloud.invokeManage('client_access_delete',{clientId:id})}catch(err){toast(err?.message||'NÃO FOI POSSÍVEL REMOVER O ACESSO DO CLIENTE');return;}
   db.clientes = db.clientes.filter(c => c.id !== id);
   if(removido)valleAudit('EXCLUIR_CLIENTE','cliente',removido,{old_data:removido});
   save(); renderAll();
@@ -3892,20 +3840,7 @@ function pdfEscape(s) { return String(s || '').normalize('NFD').replace(/[\u0300
 
 /** Retorna o usuário autenticado e o instante exato em que o PDF foi gerado. */
 function pdfGeneratedByInfo() {
-  const profile = window.ValleCloud?.profile || null;
-  let cachedProfile = null;
-
-  // Fallback para a sessão já salva localmente pelo próprio ValleCloud.
-  if (!profile) {
-    try {
-      const authKey = Object.keys(localStorage).find(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
-      const authData = authKey ? JSON.parse(localStorage.getItem(authKey) || '{}') : null;
-      const userId = authData?.user?.id || authData?.currentSession?.user?.id || '';
-      if (userId) cachedProfile = JSON.parse(localStorage.getItem(`profile_${userId}`) || 'null');
-    } catch (_) {}
-  }
-
-  const source = profile || cachedProfile || window.usuarioLogado || window.currentUser || {};
+  const source = window.ValleCloud?.profile || window.usuarioLogado || window.currentUser || {};
   const nome = String(
     source.name || source.nome || source.full_name || source.user_name ||
     source.email || 'USUARIO NAO IDENTIFICADO'
@@ -4472,6 +4407,10 @@ async function applyRestoredDatabase(restored, successMessage) {
   const previous = normalizeDb(JSON.parse(JSON.stringify(db)));
   const cloudProfile = window.ValleCloud?.profile;
   const sharedSession = cloudProfile && ['session','service'].includes(cloudProfile.role);
+  if (sharedSession && !window.ValleCloud?.isOnline?.()) {
+    toast('CONECTE-SE À INTERNET PARA ALTERAR OS DADOS DA SESSÃO');
+    return false;
+  }
 
   try {
     db = normalizeDb(restored);
@@ -4494,7 +4433,7 @@ async function applyRestoredDatabase(restored, successMessage) {
   } catch (error) {
     db = previous;
     window.db = db;
-    save();
+    try { window.__valleLocalSave ? window.__valleLocalSave() : null; } catch (_) {}
     renderAll();
     updateAutoBackupInfo();
     console.error('Falha ao aplicar backup:', error);
@@ -4541,7 +4480,7 @@ async function wipe() {
     toast('CONECTE-SE À INTERNET PARA APAGAR OS DADOS DA SESSÃO');
     return;
   }
-  const ok = await appConfirm('Esta ação apaga clientes, vales e configurações da sessão. O backup automático local não será apagado.', {
+  const ok = await appConfirm('Esta ação apaga clientes, vales e configurações da sessão. Os dados serão removidos do banco online.', {
     title: 'Apagar todos os dados?', icon: '⚠️', confirmText: 'Apagar tudo', cancelText: 'Cancelar'
   });
   if (!ok) return;
@@ -5033,19 +4972,7 @@ renderNotifications = function(){
     : `<div class="empty-state">${emptyMsg}</div>`;
 };
 async function restoreAutoBackup() {
-  const raw = localStorage.getItem('emprestimos_auto_backup_v3');
-  if (!raw) { toast('NENHUM BACKUP AUTOMÁTICO ENCONTRADO'); return; }
-  let payload;
-  try { payload = JSON.parse(raw); } catch(e) { toast('BACKUP AUTOMÁTICO INVÁLIDO'); return; }
-  if (!payload || !payload.db) { toast('BACKUP AUTOMÁTICO INVÁLIDO'); return; }
-  let restored;
-  try { restored = normalizeDb(payload.db); } catch (_) { toast('BACKUP AUTOMÁTICO INVÁLIDO'); return; }
-  const dataTxt = payload.criadoEm ? new Date(payload.criadoEm).toLocaleString('pt-BR') : 'sem data';
-  const ok = await appConfirm(`Restaurar o último backup automático deste aparelho?\n\nData do backup: ${dataTxt}\nClientes: ${restored.clientes?.length || 0}\nVales: ${restored.vales?.length || 0}`, {
-    title:'Restaurar backup automático?', icon:'♻️', confirmText:'Restaurar', cancelText:'Cancelar'
-  });
-  if (!ok) return;
-  await applyRestoredDatabase(restored, 'BACKUP AUTOMÁTICO RESTAURADO');
+  toast('BACKUP AUTOMÁTICO LOCAL FOI REMOVIDO. USE O BACKUP JSON MANUAL.');
 }
 
 /* =========================================================
@@ -5913,7 +5840,7 @@ window.preloadValleAllData = async function preloadValleAllData() {
     try { applyVallePermissionVisibility(); } catch (_) {}
 
     // Lançamentos dependem da auditoria remota e por isso são aguardados.
-    // Se a rede estiver indisponível, o módulo usa o cache/local disponível.
+    // Sem internet, a consulta falha: não existe cache/local de lançamentos nesta versão.
     try {
       if (typeof window.renderLancamentos === 'function') {
         await window.renderLancamentos(true);
@@ -6356,7 +6283,6 @@ async function refreshValleActiveScreenFromCloud() {
 
   try {
     if (profile && ['service', 'session'].includes(profile.role) && cloud?.loadWorkspaceSnapshot) {
-      try { await cloud.syncPendingWorkspace?.(); } catch (_) {}
       const snapshot = await cloud.loadWorkspaceSnapshot({ preferCache: false });
       if (snapshot?.data) {
         const loaded = window.replaceValleDatabase
@@ -6364,11 +6290,6 @@ async function refreshValleActiveScreenFromCloud() {
           : normalizeDb(snapshot.data);
         db = loaded;
         window.db = loaded;
-        try {
-          localStorage.setItem(LS, JSON.stringify(loaded));
-          const owner = profile.role === 'service' ? profile.session_user_id : profile.id;
-          if (owner) localStorage.setItem('valle_db_owner_session', owner);
-        } catch (_) {}
       }
     }
   } catch (error) {

@@ -487,7 +487,7 @@
       if(document.querySelector('.screen.active')?.id==='lancamentos')draw();
     });
 
-    // v3.6.97: sem consulta a cada 4 segundos. INSERT/UPDATE/DELETE de
+    // v3.6.102: sem consulta a cada 4 segundos. INSERT/UPDATE/DELETE de
     // audit_logs chegam pelo Supabase Realtime. Se o celular ficou suspenso e
     // perdeu o evento, a reconciliação do workspace só dispara este recarregamento
     // quando detecta que o conteúdo do banco realmente mudou.

@@ -150,10 +150,9 @@
   }
   function bind(){
     document.querySelectorAll('[data-lancamentos-section]').forEach(btn=>btn.addEventListener('click',()=>setLancamentosSection(btn.dataset.lancamentosSection||'movimentacao')));
-    document.querySelectorAll('[data-screen="lancamentos"],.tab[data-screen="lancamentos"]').forEach(btn=>btn.addEventListener('click',()=>{ setLancamentosSection('movimentacao'); setTimeout(()=>load(false),120); }));
+    document.querySelectorAll('[data-screen="lancamentos"],.tab[data-screen="lancamentos"]').forEach(btn=>btn.addEventListener('click',()=>{ setLancamentosSection('movimentacao'); queueMicrotask(()=>{void load(false)}); }));
     setLancamentosSection('movimentacao');
-    setTimeout(()=>load(false),900);
-    window.addEventListener('valle-app-ready',installClientPaymentsRealtime,{once:true});
+    window.addEventListener('valle-app-ready',()=>{installClientPaymentsRealtime();void load(true)},{once:true});
   }
   window.renderClientPaymentRequests=load;
   document.addEventListener('DOMContentLoaded',bind);

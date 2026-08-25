@@ -1,10 +1,25 @@
 {
+  "id": "./",
   "name": "VALLE",
   "short_name": "VALLE",
-  "start_url": "./?valle_v=3.6.28",
+  "description": "Sistema VALLE para gestão de vales, clientes e lançamentos.",
+  "lang": "pt-BR",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "any",
   "background_color": "#070b18",
   "theme_color": "#070b18",
+  "categories": [
+    "finance",
+    "business",
+    "productivity"
+  ],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "icons/android-chrome-192x192.png",
@@ -21,12 +36,14 @@
     {
       "src": "icons/apple-touch-icon.png",
       "sizes": "180x180",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icons/icon-valle.png",
       "sizes": "384x384",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

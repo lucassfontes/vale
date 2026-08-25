@@ -1,41 +1,18 @@
-/** VALLE PWA — atualização automática no celular + suporte offline */
+/** VALLE PWA v3.6.102 — 100% online. Service Worker mantido somente para Web Push/atualização. */
 importScripts('./js/version.js');
-const CACHE = `valle-auto-update-${globalThis.VALLE_VERSION || '3.6.28'}`;
-const APP_SHELL = [
-  './', './index.html', './manifest.json', './favicon.ico',
-  './vendor/bootstrap/bootstrap.min.css', './vendor/bootstrap/bootstrap.bundle.min.js',
-  './vendor/bootstrap-icons/bootstrap-icons.min.css', './css/app.css',
-  './js/version.js', './js/app.js', './js/lancamentos.js', './js/client-payments.js', './js/auth-ui.js', './js/bootstrap-enhance.js',
-  './js/supabase-config.js', './js/operation-feedback.js', './js/supabase-client.js',
-  './js/pdf.js', './js/whatsapp.js', './js/clientes.js', './js/historico.js',
-  './js/dashboard.js', './js/backup.js', './js/storage.js', './js/util.js', './js/push-notifications.js',
-  './icons/icon-valle.png', './icons/dashboard-icon.png', './icons/favicon-48x48.png', './icons/favicon-32x32.png', './icons/favicon-16x16.png',
-  './icons/android-chrome-192x192.png', './icons/android-chrome-512x512.png',
-  './icons/apple-touch-icon.png'
-];
 
-self.addEventListener('install', event => {
+self.addEventListener('install', () => {
+  // Não pré-carrega nem armazena arquivos do aplicativo.
   self.skipWaiting();
-  event.waitUntil((async () => {
-    const cache = await caches.open(CACHE);
-    await Promise.all(APP_SHELL.map(async url => {
-      try {
-        // Ignora o cache HTTP para gravar no PWA a versão publicada mais recente.
-        const response = await fetch(url, { cache: 'reload' });
-        if (response.ok || response.type === 'opaque') {
-          await cache.put(url, response);
-        }
-      } catch (_) {
-        // Um arquivo opcional não deve impedir a instalação do restante do app.
-      }
-    }));
-  })());
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)));
+    // Remove qualquer cache criado por versões antigas com suporte offline.
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(key => caches.delete(key)));
+    } catch (_) {}
     await self.clients.claim();
   })());
 });
@@ -44,63 +21,8 @@ self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
-self.addEventListener('fetch', event => {
-  const request = event.request;
-  if (request.method !== 'GET') return;
-
-  const url = new URL(request.url);
-  const sameOrigin = url.origin === self.location.origin;
-
-  // HTML/navegação: internet primeiro, cache apenas quando estiver offline.
-  if (request.mode === 'navigate') {
-    event.respondWith((async () => {
-      try {
-        const response = await fetch(request, { cache: 'no-store' });
-        const cache = await caches.open(CACHE);
-        await cache.put('./index.html', response.clone());
-        return response;
-      } catch (_) {
-        return (await caches.match(request)) ||
-               (await caches.match('./index.html')) ||
-               new Response('Aplicativo indisponível offline.', { status: 503 });
-      }
-    })());
-    return;
-  }
-
-  // v3.6.98 — arquivos do aplicativo usam INTERNET PRIMEIRO. Isso evita que
-  // outro celular continue executando app.js/auth-ui.js antigos depois de uma
-  // atualização publicada. O cache fica apenas como fallback offline.
-  if (sameOrigin) {
-    event.respondWith((async () => {
-      const cache = await caches.open(CACHE);
-      try {
-        const response = await fetch(request, { cache: 'no-store' });
-        if (response && response.ok) await cache.put(request, response.clone());
-        return response;
-      } catch (_) {
-        return (await cache.match(request)) ||
-               (await caches.match(request)) ||
-               new Response('', { status: 504, statusText: 'Offline' });
-      }
-    })());
-    return;
-  }
-
-  // Recursos externos: cache primeiro e atualização em segundo plano.
-  event.respondWith((async () => {
-    const cached = await caches.match(request);
-    const network = fetch(request).then(async response => {
-      if (response && (response.ok || response.type === 'opaque')) {
-        const cache = await caches.open(CACHE);
-        await cache.put(request, response.clone());
-      }
-      return response;
-    }).catch(() => null);
-    return cached || (await network) || new Response('', { status: 504, statusText: 'Offline' });
-  })());
-});
-
+// Não intercepta fetch. Todo HTML, JS, CSS, API e mídia usa a rede diretamente.
+// Sem conexão, o navegador não recebe fallback offline do VALLE.
 
 // Recebe mensagens Web Push mesmo quando o VALLE está fechado.
 self.addEventListener('push', event => {

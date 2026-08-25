@@ -68,7 +68,7 @@ function inject(){
  </section>
  <section id="managementPanel" class="management-panel hidden">
    <header class="management-top"><div><img src="icons/icon-valle.png"><div><h1>VALLE</h1><p id="managementSubtitle"></p></div></div><div class="management-top-actions"><div class="management-user-menu"><button type="button" class="management-user-trigger" id="managementUserTrigger" aria-expanded="false"><span class="management-trigger-avatar">U</span><span class="management-trigger-copy"><strong id="managementUserName">Usuário</strong><small id="managementUserPanelLabel">Painel</small></span><span class="dashboard-user-chevron" aria-hidden="true">⌄</span></button><div class="management-user-dropdown hidden" id="managementUserDropdown"><div class="dashboard-user-info"><strong id="managementUserDropdownName">Usuário</strong><small id="managementUserDropdownEmail"></small></div>${themePickerMarkup('management','valle-theme-picker--embedded')}<button type="button" id="logoutBtn" class="user-logout-menu-btn">↪ Sair</button></div></div></div></header>
-   <main class="management-content"><section id="usersPanel" class="management-card"><div class="management-head"><div><h2 id="managementTitle">Usuários</h2><p id="managementHelp"></p></div><div class="management-head-actions"><button id="adminMessageBtn" class="btn admin-message-btn hidden" type="button"><i class="bi bi-megaphone-fill"></i> MSG ADM</button><button id="newManagedUserBtn" class="btn primary">NOVO USUÁRIO</button></div></div><div id="managedUsers"></div></section><section id="auditPanel" class="management-card hidden"><div class="management-head"><div><h2>Auditoria dos usuários de serviço</h2><p>Histórico permanente de criações, edições, exclusões, pagamentos e quitações.</p></div><button id="refreshAuditBtn" class="btn btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> ATUALIZAR</button></div><div class="audit-filters"><div class="audit-search"><i class="bi bi-search"></i><input id="auditSearch" type="search" placeholder="Buscar usuário, cliente, vale ou ação..."></div><select id="auditUserFilter"><option value="">Todos os usuários</option></select><select id="auditModuleFilter"><option value="">Todos os módulos</option><option>CLIENTES</option><option>VALES</option><option>PAGAMENTOS</option><option>USUARIOS</option><option>SISTEMA</option></select><select id="auditActionFilter"><option value="">Todas as ações</option></select><input id="auditDateFrom" type="date" title="Data inicial"><input id="auditDateTo" type="date" title="Data final"><button id="clearAuditFilters" class="btn audit-clear-btn" type="button"><i class="bi bi-eraser"></i><span>LIMPAR</span></button></div><div id="auditSummary" class="audit-summary"></div><div id="auditLogs"></div><div class="text-center mt-3"><button id="loadMoreAudit" class="btn btn-outline-primary hidden">CARREGAR MAIS</button></div></section></main>
+   <main class="management-content"><section id="usersPanel" class="management-card"><div class="management-head"><div><h2 id="managementTitle">Usuários</h2><p id="managementHelp"></p></div><div class="management-head-actions"><button id="adminMessageBtn" class="btn admin-message-btn hidden" type="button"><i class="bi bi-megaphone-fill"></i> MSG ADM</button><button id="newManagedUserBtn" class="btn primary">NOVO USUÁRIO</button></div></div><div id="managedUsers"></div></section><section id="auditPanel" class="management-card hidden"><div class="management-head"><div><h2>Auditoria dos usuários de serviço</h2><p>Histórico permanente de criações, edições, exclusões, pagamentos e quitações.</p></div><span class="badge text-bg-success"><i class="bi bi-broadcast-pin"></i> TEMPO REAL</span></div><div class="audit-filters"><div class="audit-search"><i class="bi bi-search"></i><input id="auditSearch" type="search" placeholder="Buscar usuário, cliente, vale ou ação..."></div><select id="auditUserFilter"><option value="">Todos os usuários</option></select><select id="auditModuleFilter"><option value="">Todos os módulos</option><option>CLIENTES</option><option>VALES</option><option>PAGAMENTOS</option><option>USUARIOS</option><option>SISTEMA</option></select><select id="auditActionFilter"><option value="">Todas as ações</option></select><input id="auditDateFrom" type="date" title="Data inicial"><input id="auditDateTo" type="date" title="Data final"><button id="clearAuditFilters" class="btn audit-clear-btn" type="button"><i class="bi bi-eraser"></i><span>LIMPAR</span></button></div><div id="auditSummary" class="audit-summary"></div><div id="auditLogs"></div><div class="text-center mt-3"><button id="loadMoreAudit" class="btn btn-outline-primary hidden">CARREGAR MAIS</button></div></section></main>
  </section>
  <div id="userModal" class="user-modal hidden" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
    <div class="user-modal-card">
@@ -177,16 +177,21 @@ function syncUserModalViewport(){
 
 
 const THEME_MODES=['auto','light','dark'];
+const THEME_STORAGE_KEY='valle_theme_mode';
 const systemThemeMedia=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):null;
 function normalizeThemeMode(theme){return THEME_MODES.includes(theme)?theme:'auto'}
 function resolveThemeMode(theme){const mode=normalizeThemeMode(theme);return mode==='auto'?(systemThemeMedia?.matches?'dark':'light'):mode}
-function themeStorageKey(profile){
- return profile?.id ? `valle_theme_user_${profile.id}` : 'valle_theme_guest';
-}
+function themeStorageKey(profile){ return THEME_STORAGE_KEY; }
 function readStoredTheme(profile){
- let value=null;
- try{value=localStorage.getItem(themeStorageKey(profile))}catch(_){}
- return THEME_MODES.includes(value)?value:null;
+ try{
+  const value=localStorage.getItem(themeStorageKey(profile));
+  return THEME_MODES.includes(value)?value:null;
+ }catch(_){return null}
+}
+function writeStoredTheme(theme,profile=null){
+ const mode=normalizeThemeMode(theme);
+ try{localStorage.setItem(themeStorageKey(profile),mode)}catch(_){}
+ return mode;
 }
 function themeModeLabel(mode){return mode==='light'?'LIGHT':(mode==='dark'?'DARK':'AUTO')}
 function themeModeIcon(mode,resolvedTheme){return mode==='light'?'bi bi-sun-fill':(mode==='dark'?'bi bi-moon-stars-fill':'bi bi-circle-half')}
@@ -260,15 +265,18 @@ function applyUserTheme(theme,profile=null){
  const mode=normalizeThemeMode(theme);
  const resolved=resolveThemeMode(mode);
  window.VALLE_THEME_MODE=mode;
- try{localStorage.setItem(themeStorageKey(profile),mode);localStorage.setItem('valle_theme_active',mode)}catch(_){}
  applyResolvedTheme(resolved);
  return mode;
 }
 async function persistUserTheme(theme){
  const profile=ValleCloud.profile;
  const mode=applyUserTheme(theme,profile);
- if(profile){
-  try{await ValleCloud.setMyTheme(mode)}catch(err){console.error('Não foi possível salvar o tema do usuário:',err)}
+ // O tema é uma das duas únicas preferências persistidas neste aparelho.
+ writeStoredTheme(mode,profile);
+ // Mantém a sincronização remota quando houver perfil/conexão, sem depender dela
+ // para lembrar o tema localmente.
+ if(profile && navigator.onLine!==false){
+  try{await ValleCloud.setMyTheme(mode)}catch(err){console.warn('Tema salvo no aparelho; não foi possível sincronizar com o perfil agora.',err)}
  }
  return mode;
 }
@@ -278,9 +286,11 @@ async function toggleUserTheme(){
  return persistUserTheme(next);
 }
 async function activateProfileTheme(profile){
- let theme=readStoredTheme(profile);
- if(!theme&&THEME_MODES.includes(profile?.user_theme))theme=profile.user_theme;
- return applyUserTheme(theme||'auto',profile);
+ const localTheme=readStoredTheme(profile);
+ const profileTheme=THEME_MODES.includes(profile?.user_theme)?profile.user_theme:'auto';
+ const theme=localTheme||profileTheme;
+ writeStoredTheme(theme,profile);
+ return applyUserTheme(theme,profile);
 }
 function handleSystemThemeChange(){
  if(normalizeThemeMode(window.VALLE_THEME_MODE)==='auto') applyResolvedTheme(resolveThemeMode('auto'));
@@ -541,7 +551,7 @@ function mountSessionSettings(){
  const title=section.querySelector('.config-card h2');
  if(title) title.textContent='⚙️ Configurações da sessão';
  const help=section.querySelector('.backup-help');
- if(help) help.textContent='As configurações e dados desta sessão são compartilhados com os usuários vinculados. O backup automático fica salvo somente neste aparelho/navegador.';
+ if(help) help.textContent='As configurações e dados desta sessão são compartilhados online com os usuários vinculados. Não há armazenamento offline no aparelho.';
  setupSessionPanelTabs();
 }
 function hideServiceSettingsTab(){
@@ -561,7 +571,6 @@ async function loadSharedWorkspaceForSession(profile,options={}){
    await ValleCloud.saveWorkspace(current);
  }
  window.db=current;
- try{localStorage.setItem('emprestimos_pro_v2',JSON.stringify(current));localStorage.setItem('valle_db_owner_session',profile.id)}catch(_){}
  if(window.renderAll)renderAll();
  mountSessionSettings();
 }
@@ -578,7 +587,6 @@ function applyServiceFinancialSettings(settings){
   current.settings.taxaAtrasoDiario=window.VALLE_SERVICE_FINANCIAL_SETTINGS.late_fee_value;
   current.settings.tipoTaxaAtrasoDiario=window.VALLE_SERVICE_FINANCIAL_SETTINGS.late_fee_type;
   window.db=current;
-  try{localStorage.setItem('percentualJuros50',String(current.settings.percentualJuros50));}catch(_){}
  }
 }
 
@@ -734,6 +742,10 @@ function installAdminMessageRealtime(){
  const profile=ValleCloud.profile;
  if(adminMessageRealtimeInstalled||!['session','service'].includes(profile?.role))return;
  const channel=ValleCloud.subscribeAdminMessageChanges?.(()=>{ void checkAdminMessageForUser(ValleCloud.profile); });
+ ValleCloud.subscribeAdminMessageReadChanges?.(row=>{
+  const modal=el('systemUpdateMessageModal');
+  if(row&&modal&&!modal.classList.contains('hidden')&&String(modal.dataset.messageId||'')===String(row.message_id||''))void closeSystemUpdateMessage();
+ });
  if(channel)adminMessageRealtimeInstalled=true;
 }
 function installAdminMessageWatcher(){
@@ -757,6 +769,9 @@ function installAdminMessageWatcher(){
 
 
 let clientPortalSnapshot=null;
+let clientPortalRealtimeInstalledFor='';
+let clientPortalRealtimeRefreshRunning=false;
+let clientPortalRealtimeRefreshPending=false;
 function clientPortalMoney(v){return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
 function clientPortalDate(v){
  const s=String(v||'').slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return '—';
@@ -1146,13 +1161,125 @@ function renderClientPortal(data,profile){
  el('clientPortalPaymentHistory').innerHTML=paymentRequestsVales.length?paymentRequestsVales.map(r=>{const meta=reqMeta[String(r.status||'pending').toLowerCase()]||reqMeta.pending;return `<article class="client-portal-payment-item"><div><small>VALE #${String(r.vale_numero||'').padStart(4,'0')}</small><strong>${clientPortalMoney(r.amount)}</strong><span>${new Date(r.created_at).toLocaleString('pt-BR')}</span>${r.client_message?`<em>${clientPortalEsc(r.client_message)}</em>`:''}${r.review_note?`<em>Retorno: ${clientPortalEsc(r.review_note)}</em>`:''}</div><span class="badge text-bg-${meta.cls}"><i class="bi ${meta.icon}"></i> ${meta.label}</span></article>`}).join(''):'<div class="client-portal-empty"><i class="bi bi-clock-history"></i><strong>NENHUM PAGAMENTO INFORMADO</strong><span>Os pagamentos informados dos crediários ficam no modal de cada crediário.</span></div>';
  portal.classList.remove('hidden');
 }
-async function loadAndRenderClientPortal(profile,manual=false){
+async function loadAndRenderClientPortal(profile,manual=false,background=false){
  const portal=ensureClientPortal();const message=el('clientPortalMessage');
- if(message)message.innerHTML='<div class="alert alert-primary"><i class="bi bi-arrow-repeat me-2"></i>CARREGANDO SEUS DADOS...</div>';
- try{const data=await ValleCloud.loadClientPortal();if(message)message.innerHTML='';renderClientPortal(data,profile)}catch(err){if(message)message.innerHTML=`<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>${clientPortalEsc(err.message||'Não foi possível carregar sua conta.')}</div>`;if(manual)console.warn(err)}
+ if(message&&!background)message.innerHTML='<div class="alert alert-primary"><i class="bi bi-arrow-repeat me-2"></i>CARREGANDO SEUS DADOS...</div>';
+ try{
+  const data=await ValleCloud.loadClientPortal();
+  if(message)message.innerHTML='';
+  renderClientPortal(data,ValleCloud.profile||profile);
+  return true;
+ }catch(err){
+  if(message)message.innerHTML=`<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>${clientPortalEsc(err.message||'Não foi possível carregar sua conta.')}</div>`;
+  if(manual)console.warn(err);
+  return false;
+ }
+}
+async function refreshClientPortalFromRealtime(source='database'){
+ if(ValleCloud.profile?.role!=='client'||!ValleCloud.isOnline())return;
+ if(clientPortalRealtimeRefreshRunning){clientPortalRealtimeRefreshPending=true;return}
+ clientPortalRealtimeRefreshRunning=true;
+ try{await loadAndRenderClientPortal(ValleCloud.profile,true,true)}finally{
+  clientPortalRealtimeRefreshRunning=false;
+  if(clientPortalRealtimeRefreshPending){clientPortalRealtimeRefreshPending=false;queueMicrotask(()=>{void refreshClientPortalFromRealtime(source)})}
+ }
+}
+function installClientPortalRealtime(profile){
+ if(!profile||profile.role!=='client')return;
+ const key=String(profile.id||'');
+ if(!key||clientPortalRealtimeInstalledFor===key)return;
+ const channel=ValleCloud.subscribeClientPortalChanges?.((_row,_payload,source)=>{
+  const state=ValleCloud.accessState?.();
+  if(state&&!state.allowed)connectionToast(String(state.reason||'ACESSO BLOQUEADO').toUpperCase(),'error');
+  void refreshClientPortalFromRealtime(source||'database');
+ },status=>{
+  if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')connectionToast('TEMPO REAL DA ÁREA DO CLIENTE INDISPONÍVEL. EXECUTE O SQL REALTIME_TOTAL_V102 NO SUPABASE.','warn');
+ });
+ if(channel)clientPortalRealtimeInstalledFor=key;
 }
 async function showClientPortal(profile){
- const app=document.querySelector('.app'),panel=el('managementPanel'),portal=ensureClientPortal();app?.classList.add('hidden');panel?.classList.add('hidden');portal.classList.remove('hidden');document.body.classList.add('client-portal-active');await loadAndRenderClientPortal(profile);
+ const app=document.querySelector('.app'),panel=el('managementPanel'),portal=ensureClientPortal();app?.classList.add('hidden');panel?.classList.add('hidden');portal.classList.remove('hidden');document.body.classList.add('client-portal-active');await loadAndRenderClientPortal(profile);installClientPortalRealtime(profile);
+}
+
+let baseRealtimeInstalledFor='';
+let realtimeUsersRefreshRunning=false;
+let realtimeUsersRefreshPending=false;
+let realtimeAuditRefreshRunning=false;
+let realtimeAuditRefreshPending=false;
+let realtimeAccessClosing=false;
+let realtimeGlobalWarningShown=false;
+
+async function refreshManagedUsersFromRealtime(){
+ if(!['admin','session'].includes(ValleCloud.profile?.role))return;
+ if(realtimeUsersRefreshRunning){realtimeUsersRefreshPending=true;return}
+ realtimeUsersRefreshRunning=true;
+ try{await renderUsers({background:true})}finally{
+  realtimeUsersRefreshRunning=false;
+  if(realtimeUsersRefreshPending){realtimeUsersRefreshPending=false;queueMicrotask(()=>{void refreshManagedUsersFromRealtime()})}
+ }
+}
+async function refreshManagementAuditFromRealtime(){
+ if(ValleCloud.profile?.role!=='session')return;
+ if(realtimeAuditRefreshRunning){realtimeAuditRefreshPending=true;return}
+ realtimeAuditRefreshRunning=true;
+ try{await renderAuditLogs()}finally{
+  realtimeAuditRefreshRunning=false;
+  if(realtimeAuditRefreshPending){realtimeAuditRefreshPending=false;queueMicrotask(()=>{void refreshManagementAuditFromRealtime()})}
+ }
+}
+async function enforceRealtimeAccess(){
+ const state=ValleCloud.accessState?.();
+ if(!state||state.allowed||realtimeAccessClosing)return;
+ realtimeAccessClosing=true;
+ connectionToast(String(state.reason||'ACESSO BLOQUEADO').toUpperCase(),'error');
+ try{await ValleCloud.signOut()}catch(_){ }
+ location.reload();
+}
+function updateRealtimeIdentityUI(){
+ const p=ValleCloud.profile;if(!p)return;
+ if(['admin','session'].includes(p.role))setupManagementUserMenu(p);
+ else if(p.role==='service')setupDashboardUserMenu(p);
+}
+function realtimeStatusGuard(status){
+ if((status==='CHANNEL_ERROR'||status==='TIMED_OUT')&&!realtimeGlobalWarningShown){
+  realtimeGlobalWarningShown=true;
+  connectionToast('SINCRONIZAÇÃO EM TEMPO REAL INDISPONÍVEL. EXECUTE O SQL REALTIME_TOTAL_V102 NO SUPABASE.','warn');
+ }
+}
+window.addEventListener('valle-signed-out',()=>{
+ baseRealtimeInstalledFor='';
+ clientPortalRealtimeInstalledFor='';
+ adminMessageRealtimeInstalled=false;
+ continuousSyncInstalled=false;
+ realtimeAccessClosing=false;
+ realtimeGlobalWarningShown=false;
+});
+function installBaseRealtime(profile){
+ if(!profile||profile.role==='client')return;
+ const key=`${profile.role}:${profile.id}`;
+ if(baseRealtimeInstalledFor===key)return;
+ baseRealtimeInstalledFor=key;
+ ValleCloud.subscribeProfileChanges?.((row)=>{
+  if(!row)return;
+  const current=ValleCloud.profile;
+  if(String(row.id||'')===String(current?.id||'') || String(row.id||'')===String(current?.session_user_id||'')){
+   updateRealtimeIdentityUI();
+   void enforceRealtimeAccess();
+  }
+  if(['admin','session'].includes(current?.role)){
+   void refreshManagedUsersFromRealtime();
+   if(current.role==='admin'&&!el('adminMessageModal')?.classList.contains('hidden'))void loadAdminMessageSessions();
+  }
+ },realtimeStatusGuard);
+ if(profile.role==='session'){
+  ValleCloud.subscribePermissionChanges?.(()=>{void refreshManagedUsersFromRealtime()},realtimeStatusGuard);
+  ValleCloud.subscribeAuditChanges?.(()=>{void refreshManagementAuditFromRealtime()},realtimeStatusGuard);
+ }
+ if(profile.role==='admin'){
+  ValleCloud.subscribeAdminMessageChanges?.(()=>{
+   if(!el('adminMessageModal')?.classList.contains('hidden'))void renderAdminMessageHistory();
+  },realtimeStatusGuard);
+ }
 }
 
 async function showRole(profile,options={}){
@@ -1162,6 +1289,7 @@ async function showRole(profile,options={}){
  document.body.classList.remove('valle-auth-active');
  updateSyncBadge();
  await activateProfileTheme(profile);
+ installBaseRealtime(profile);
  if(profile.role==='client'){
    await showClientPortal(profile);
  } else if(profile.role==='service'){
@@ -1175,31 +1303,16 @@ async function showRole(profile,options={}){
      const loaded = window.replaceValleDatabase ? window.replaceValleDatabase(remote) : normalizeDb(remote);
      window.db = loaded;
      lastAppliedWorkspaceAt=snapshot.updated_at||null;
-     try{
-       localStorage.setItem('emprestimos_pro_v2',JSON.stringify(loaded));
-       localStorage.setItem('valle_db_owner_session',profile.session_user_id||'');
-     }catch(_){}
    } else {
-     // Sessão nova: nunca reaproveita dados locais pertencentes a outra sessão.
-     let owner='';
-     try{owner=localStorage.getItem('valle_db_owner_session')||''}catch(_){}
-     let current;
-     if(owner && owner===profile.session_user_id){
-       current=window.getValleDatabase ? window.getValleDatabase() : window.db;
-     }else{
-       const theme='auto';
-       current={settings:{theme,seq:1,capitalInvestido:0,percentualJuros50:50,taxaAtrasoDiario:0,tipoTaxaAtrasoDiario:'percentual'},clientes:[],vales:[]};
-       if(window.replaceValleDatabase) current=window.replaceValleDatabase(current);
-       window.db=current;
-       try{
-         localStorage.setItem('emprestimos_pro_v2',JSON.stringify(current));
-         localStorage.setItem('valle_db_owner_session',profile.session_user_id||'');
-       }catch(_){}
-     }
+     // Sessão nova: inicia vazia e grava diretamente no banco online.
+     const theme='auto';
+     let current={settings:{theme,seq:1,capitalInvestido:0,percentualJuros50:50,taxaAtrasoDiario:0,tipoTaxaAtrasoDiario:'percentual'},clientes:[],vales:[]};
+     if(window.replaceValleDatabase) current=window.replaceValleDatabase(current);
+     window.db=current;
      await ValleCloud.saveWorkspace(current);
      lastAppliedWorkspaceAt=ValleCloud.lastSyncedAt||null;
    }
-   const perms=await ValleCloud.loadMyPermissions({preferCache:!ValleCloud.isOnline()});
+   const perms=await ValleCloud.loadMyPermissions();
    applyServiceFinancialSettings(perms);
    applyPermissions(perms);
    if(window.renderAll) renderAll();
@@ -1229,9 +1342,6 @@ async function showRole(profile,options={}){
  if(!options.background && ['session','service'].includes(profile.role)){
    window.setTimeout(()=>checkAdminMessageForUser(profile),350);
  }
- if(!options.background && ValleCloud.isOnline() && profile.role!=='client'){
-   window.setTimeout(()=>showRole(profile,{background:true}).catch(err=>console.warn('Atualização em segundo plano não concluída:',err)),1200);
- }
 }
 
 let saveHooked=false;
@@ -1259,10 +1369,11 @@ function installSaveHook(){
  window.save=function(){
    const r=original.apply(this,arguments);
    try{
-     window.__valleLastSavePromise=ValleCloud.queueWorkspace(currentValleDatabase());
+     window.__valleLastSavePromise=ValleCloud.queueWorkspace(currentValleDatabase()).catch(()=>false);
    }catch(err){
      window.__valleLastSavePromise=Promise.resolve(false);
      window.ValleOperationUI?.fail?.(err.message||'Não foi possível iniciar a gravação.');
+     throw err;
    }
    return r;
  };
@@ -1300,7 +1411,7 @@ async function syncSharedWorkspaceFromCloud(realtimeRow=null){
  }
  workspaceSyncInFlight=true;
  try{
-   // v3.6.97: quando o Supabase Realtime entrega a linha alterada, usa o
+   // v3.6.102: quando o Supabase Realtime entrega a linha alterada, usa o
    // próprio payload do Postgres. Uma consulta direta só é feita ao voltar
    // de offline/segundo plano para reconciliar eventos que possam ter sido perdidos.
    const snapshot=(realtimeRow?.data && typeof realtimeRow.data==='object')
@@ -1330,11 +1441,6 @@ async function syncSharedWorkspaceFromCloud(realtimeRow=null){
      applyPermissions(permissions);
    }
 
-   try{
-     const owner=role==='session'?ValleCloud.profile.id:(ValleCloud.profile.session_user_id||'');
-     localStorage.setItem('emprestimos_pro_v2',JSON.stringify(loaded));
-     localStorage.setItem('valle_db_owner_session',owner);
-   }catch(_){}
 
    if(window.renderAll)renderAll();
    try{window.dispatchEvent(new CustomEvent('valle-workspace-remote-applied',{detail:{updated_at:snapshot.updated_at||null}}))}catch(_){}
@@ -1359,7 +1465,7 @@ function installContinuousCloudSync(){
    if(ev.detail?.state==='synced'&&ev.detail?.lastSyncedAt)lastAppliedWorkspaceAt=ev.detail.lastSyncedAt;
  });
 
- // v3.6.97: sem polling. O workspace só é aplicado quando o Postgres publica
+ // v3.6.102: sem polling. O workspace só é aplicado quando o Postgres publica
  // INSERT/UPDATE/DELETE em session_workspaces.
  try{
    ValleCloud.subscribeWorkspaceChanges?.(
@@ -1367,7 +1473,7 @@ function installContinuousCloudSync(){
      status=>{
        if((status==='CHANNEL_ERROR'||status==='TIMED_OUT')&&!workspaceRealtimeWarningShown){
          workspaceRealtimeWarningShown=true;
-         connectionToast('SINCRONIZAÇÃO EM TEMPO REAL INDISPONÍVEL. EXECUTE O SQL V97 NO SUPABASE.','warn');
+         connectionToast('SINCRONIZAÇÃO EM TEMPO REAL INDISPONÍVEL. EXECUTE O SQL REALTIME_TOTAL_V102 NO SUPABASE.','warn');
        }
      }
    );
@@ -1392,10 +1498,6 @@ function installContinuousCloudSync(){
  window.addEventListener('focus',reconcile,{passive:true});
  document.addEventListener('visibilitychange',()=>{
    if(document.visibilityState==='visible')reconcile();
-   else if(ValleCloud.profile?.role==='service') ValleCloud.flushWorkspace(currentValleDatabase());
- });
- window.addEventListener('pagehide',()=>{
-   if(ValleCloud.profile?.role==='service') ValleCloud.flushWorkspace(currentValleDatabase());
  });
 }
 
@@ -1415,9 +1517,6 @@ function applyPermissions(p){
  document.querySelectorAll('[data-screen="crediarios"]').forEach(x=>x.classList.toggle('permission-hidden',crediariosDenied));
  document.getElementById('crediarios')?.classList.toggle('permission-hidden',crediariosDenied);
  if(crediariosDenied&&document.querySelector('.screen.active')?.id==='crediarios')setTimeout(()=>window.switchScreen?.('dashboard'),0);
- if(p.can_view_transactions===false){
-  try{const sid=window.ValleCloud?.profile?.session_user_id; if(sid)localStorage.removeItem(`valle_offline_v1_audit_logs_${sid}`)}catch(_){}
- }
  window.VALLE_PERMISSIONS=p;
  window.applyVallePermissionVisibility?.();
 }
@@ -1447,15 +1546,8 @@ O sistema restaurará o estado anterior e depois removerá este registro da Audi
  if(!confirmed)return;
  try{
   if(typeof window.valleUndoAuditRecord!=='function')throw new Error('O recurso de restauração não foi carregado. Atualize a página.');
-  const undoMarker=`valle_audit_undo_applied_${String(id)}`;
-  let alreadyRestored=false;
-  try{alreadyRestored=localStorage.getItem(undoMarker)==='1'}catch(_){ }
-  if(!alreadyRestored){
-   await window.valleUndoAuditRecord(record,logs);
-   try{localStorage.setItem(undoMarker,'1')}catch(_){ }
-  }
+  await window.valleUndoAuditRecord(record,logs);
   await ValleCloud.deleteAuditLog(id);
-  try{localStorage.removeItem(undoMarker)}catch(_){ }
   window.__valleAuditLogs=logs.filter(v=>String(v.id||v.signature)!==String(id));
   drawAuditLogs();
   try{await window.renderLancamentos?.(true)}catch(_){ }
@@ -1637,10 +1729,9 @@ async function saveManaged(e){
  }catch(err){toast(err.message || 'Erro ao realizar a operação.', 'error')}
 }
 function setupManagementTheme(){
- let theme='auto';
- try{theme=localStorage.getItem('valle_theme_guest')||'auto'}catch(_){}
+ const theme=readStoredTheme(null)||'auto';
  applyUserTheme(theme,null);
- bindThemePicker(document.querySelector('[data-theme-picker="auth"]'),mode=>applyUserTheme(mode,null));
+ bindThemePicker(document.querySelector('[data-theme-picker="auth"]'),persistUserTheme);
  if(!document.documentElement.dataset.themePickerOutsideBound){
   document.documentElement.dataset.themePickerOutsideBound='1';
   document.addEventListener('click',ev=>{if(!ev.target.closest('[data-theme-picker]'))closeThemePickers()});

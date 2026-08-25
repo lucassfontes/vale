@@ -1,8 +1,21 @@
 (function(){
   'use strict';
   const cfg = window.VALLE_SUPABASE_CONFIG || {};
+  // Limpa resíduos locais de versões antigas sem apagar as duas preferências permitidas:
+  // 1) sessão/login do Supabase; 2) tema visual do aparelho.
+  try {
+    const keep = key => {
+      const value = String(key || '');
+      return value === 'valle_theme_mode' || /^sb-.*-auth-token(?:-code-verifier)?$/i.test(value);
+    };
+    const remove=[];
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(key && !keep(key)) remove.push(key);
+    }
+    remove.forEach(key=>localStorage.removeItem(key));
+  } catch (_) {}
   const configured = /^https:\/\/.+\.supabase\.co$/i.test(cfg.url || '') && !String(cfg.anonKey || '').includes('COLE_AQUI');
-  const CACHE_PREFIX = 'valle_offline_v1_';
   let client = null;
   let profile = null;
   let sessionProfile = null;
@@ -23,24 +36,12 @@
     return client;
   }
 
-  function safeGet(key, fallback=null){
-    try { const raw = localStorage.getItem(CACHE_PREFIX + key); return raw ? JSON.parse(raw) : fallback; }
-    catch (_) { return fallback; }
-  }
-  function safeSet(key, value){
-    try { localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value)); return true; }
-    catch (e) { console.warn('Não foi possível gravar o cache offline:', e); return false; }
-  }
-  function safeRemove(key){ try { localStorage.removeItem(CACHE_PREFIX + key); } catch (_) {} }
+  // v3.6.102: nenhum dado operacional do sistema é persistido no navegador.
+  // As únicas persistências locais permitidas são a sessão/login do Supabase e o tema visual.
   function currentSessionId(){
     if (!profile) return null;
     return profile.role === 'session' ? profile.id : profile.session_user_id || null;
   }
-  function profileCacheKey(id){ return `profile_${id}`; }
-  function sessionProfileCacheKey(id){ return `session_profile_${id}`; }
-  function workspaceCacheKey(id){ return `workspace_${id}`; }
-  function pendingCacheKey(id){ return `pending_workspace_${id}`; }
-  function permissionsCacheKey(id){ return `permissions_${id}`; }
 
   function todayISO(){ return new Date().toISOString().slice(0,10); }
   function isExpired(date){ return !!date && String(date).slice(0,10) < todayISO(); }
@@ -70,10 +71,10 @@
   async function getCurrentAuth(){
     const c = getClient();
     if (!c) return null;
-    // getSession usa a sessão persistida no aparelho e continua funcionando offline.
+    // getSession restaura somente o login persistido pelo Supabase. Os dados do sistema continuam 100% online.
     const sessionResult = await c.auth.getSession();
     if (sessionResult?.data?.session?.user) return sessionResult.data.session.user;
-    if (!isOnline()) return null;
+    if (!isOnline()) return sessionResult?.data?.session?.user || null;
     const { data, error } = await c.auth.getUser();
     if (error || !data?.user) return null;
     return data.user;
@@ -82,63 +83,33 @@
   async function loadProfile(userId){
     const c = getClient();
     if (!c) throw new Error('Supabase não configurado.');
-    const cached = safeGet(profileCacheKey(userId));
-    if (!isOnline()) {
-      if (!cached) throw new Error('Primeiro acesso deste usuário precisa ser feito com internet.');
-      profile = cached;
-      sessionProfile = profile.role === 'service'
-        ? safeGet(sessionProfileCacheKey(profile.session_user_id))
-        : (profile.role === 'session' ? profile : null);
-      return profile;
-    }
-    try {
-      const profileRequest = c.from('profiles').select('*').eq('id', userId).maybeSingle();
-      const res = cached
-        ? await withTimeout(profileRequest, 1800, 'Usando o perfil salvo neste aparelho.')
-        : await profileRequest;
-      if (res.error) throw res.error;
+    if (!isOnline()) throw new Error('O VALLE precisa de internet para carregar os dados do usuário.');
 
-      if (res.data) {
-        const data=res.data;
-        profile = data;
-        safeSet(profileCacheKey(userId), data);
-        sessionProfile = null;
-        if (data.role === 'service' && data.session_user_id) {
-          const cachedSession = safeGet(sessionProfileCacheKey(data.session_user_id));
-          const sessionRequest = c.from('profiles').select('*').eq('id', data.session_user_id).single();
-          const sessionRes = cachedSession
-            ? await withTimeout(sessionRequest, 1400, 'Usando a sessão salva neste aparelho.')
-            : await sessionRequest;
-          if (sessionRes.error) throw sessionRes.error;
-          sessionProfile = sessionRes.data;
-          safeSet(sessionProfileCacheKey(data.session_user_id), sessionRes.data);
-        } else if (data.role === 'session') {
-          sessionProfile = data;
-          safeSet(sessionProfileCacheKey(data.id), data);
-        }
-        return data;
+    const res = await c.from('profiles').select('*').eq('id', userId).maybeSingle();
+    if (res.error) throw res.error;
+
+    if (res.data) {
+      profile = res.data;
+      sessionProfile = null;
+      if (profile.role === 'service' && profile.session_user_id) {
+        const sessionRes = await c.from('profiles').select('*').eq('id', profile.session_user_id).single();
+        if (sessionRes.error) throw sessionRes.error;
+        sessionProfile = sessionRes.data;
+      } else if (profile.role === 'session') {
+        sessionProfile = profile;
       }
-
-      // Cliente não ocupa a hierarquia profiles/admin/session/service.
-      // Sua conta fica isolada em client_accounts para impedir acesso ao workspace completo.
-      const clientRes=await c.from('client_accounts')
-        .select('user_id,session_user_id,client_id,name,email,active,created_at,updated_at')
-        .eq('user_id',userId).maybeSingle();
-      if(clientRes.error)throw clientRes.error;
-      if(!clientRes.data)throw new Error('Perfil não encontrado.');
-      const a=clientRes.data;
-      profile={id:a.user_id,name:a.name,email:a.email,role:'client',session_user_id:a.session_user_id,client_id:a.client_id,active:a.active,user_theme:'auto'};
-      sessionProfile=null;
-      safeSet(profileCacheKey(userId),profile);
-      return profile;
-    } catch (err) {
-      if (!cached) throw err;
-      profile = cached;
-      sessionProfile = profile.role === 'service'
-        ? safeGet(sessionProfileCacheKey(profile.session_user_id))
-        : (profile.role === 'session' ? profile : null);
       return profile;
     }
+
+    const clientRes=await c.from('client_accounts')
+      .select('user_id,session_user_id,client_id,name,email,active,created_at,updated_at')
+      .eq('user_id',userId).maybeSingle();
+    if(clientRes.error)throw clientRes.error;
+    if(!clientRes.data)throw new Error('Perfil não encontrado.');
+    const a=clientRes.data;
+    profile={id:a.user_id,name:a.name,email:a.email,role:'client',session_user_id:a.session_user_id,client_id:a.client_id,active:a.active,user_theme:'auto'};
+    sessionProfile=null;
+    return profile;
   }
 
   function accessState(){
@@ -154,7 +125,7 @@
   async function signIn(email, password){
     const c = getClient();
     if (!c) throw new Error('Supabase ainda não foi configurado. Preencha js/supabase-config.js.');
-    if (!isOnline()) throw new Error('Para entrar pela primeira vez, conecte-se à internet. Depois o sistema continuará disponível offline neste aparelho.');
+    if (!isOnline()) throw new Error('O VALLE precisa de internet para entrar e carregar os dados.');
     const { data, error } = await c.auth.signInWithPassword({ email: email.trim(), password });
     if (error) throw error;
     await loadProfile(data.user.id);
@@ -174,8 +145,6 @@
     await loadProfile(user.id);
     const state = accessState();
     if (!state.allowed) {
-      // Offline não encerra a sessão, pois isso apagaria o acesso local. O bloqueio
-      // continuará sendo conferido assim que a conexão voltar.
       if (isOnline()) await getClient().auth.signOut();
       return { blocked:true, ...state };
     }
@@ -203,17 +172,16 @@
   }
 
   async function signOut(){
+    await resetRealtimeSubscriptions(true);
     if (getClient()) await getClient().auth.signOut();
     profile = null; sessionProfile = null;
+    try{window.dispatchEvent(new CustomEvent('valle-signed-out'))}catch(_){}
   }
 
   async function setMyTheme(theme){
     const value = ['auto','light','dark'].includes(theme) ? theme : 'auto';
-    if (profile) {
-      profile.user_theme = value;
-      safeSet(profileCacheKey(profile.id), profile);
-    }
-    if (!isOnline()) return value;
+    if (profile) profile.user_theme = value;
+    if (!isOnline()) throw new Error('Salvar o tema precisa de internet.');
     const { data, error } = await getClient().rpc('set_my_theme', { new_theme:value });
     if (error) {
       // Em bancos ainda não atualizados para a v39, o modo automático continua
@@ -227,17 +195,10 @@
     return data || value;
   }
 
-  function cachedWorkspaceSnapshot(){
-    const sid = currentSessionId();
-    return sid ? safeGet(workspaceCacheKey(sid)) : null;
-  }
-
   async function loadWorkspaceSnapshot(options={}){
     if (!profile || !['session','service'].includes(profile.role)) return null;
+    if (!isOnline()) throw new Error('O VALLE precisa de internet para carregar os dados da sessão.');
     const sid = currentSessionId();
-    const cached = cachedWorkspaceSnapshot();
-    const forceFresh = options.forceFresh === true;
-    if (!isOnline() || (!forceFresh && options.preferCache && cached)) return cached;
     loadingRemote = true;
     try {
       const request = getClient()
@@ -245,28 +206,16 @@
         .select('data,updated_at,updated_by')
         .eq('session_user_id', sid)
         .maybeSingle();
-
-      // v3.6.96: a sincronização entre aparelhos precisa consultar o banco de
-      // verdade. O timeout curto de 1,8 s fazia celulares em redes mais lentas
-      // receberem repetidamente o cache local e nunca enxergarem uma reabertura.
-      const result = forceFresh
-        ? await withTimeout(request, 8000, 'Não foi possível consultar a versão mais recente do banco agora.')
-        : (cached
-            ? await withTimeout(request, 2500, 'Usando os dados salvos neste aparelho.')
-            : await request);
-      const { data, error } = result;
+      const { data, error } = await withTimeout(request, 10000, 'Não foi possível consultar o banco de dados agora.');
       if (error) throw error;
       if (data) {
         if (data.updated_at) lastSyncedAt = data.updated_at;
-        safeSet(workspaceCacheKey(sid), data);
         confirmedWorkspace = clone(data.data || {});
       }
-      return data || (forceFresh ? null : cached);
+      return data || null;
     } catch (err) {
       lastSyncError = err.message || String(err);
-      // Em uma sincronização forçada não devolve o cache antigo como se fosse
-      // uma resposta nova do servidor. A próxima checagem tentará novamente.
-      return forceFresh ? null : cached;
+      throw err;
     } finally { loadingRemote = false; }
   }
 
@@ -275,7 +224,7 @@
     return snapshot?.data || null;
   }
 
-  // v3.6.97 — sincronização orientada a eventos do banco (Supabase Realtime).
+  // v3.6.102 — sincronização orientada a eventos do banco (Supabase Realtime).
   // Não há polling: cada tela só recebe atualização quando o Postgres publica
   // uma alteração real na tabela correspondente.
   let workspaceRealtimeChannel = null;
@@ -283,12 +232,48 @@
   let permissionsRealtimeChannel = null;
   let clientPaymentsRealtimeChannel = null;
   let adminMessagesRealtimeChannel = null;
+  let profilesRealtimeChannel = null;
+  let clientPortalRealtimeChannel = null;
+  let adminMessageReadsRealtimeChannel = null;
 
+  // v3.6.102 — cada assinatura aceita vários consumidores. Assim Dashboard,
+  // Lançamentos, Auditoria e painel administrativo podem reagir ao MESMO evento
+  // do Postgres sem criar polling e sem perder callbacks por já existir um canal.
+  const realtimeListeners={
+    workspace:new Set(),audit:new Set(),permissions:new Set(),client_payments:new Set(),
+    admin_messages:new Set(),profiles:new Set(),client_portal:new Set(),admin_message_reads:new Set()
+  };
+  const realtimeStatusListeners={
+    workspace:new Set(),audit:new Set(),permissions:new Set(),client_payments:new Set(),
+    admin_messages:new Set(),profiles:new Set(),client_portal:new Set(),admin_message_reads:new Set()
+  };
+  function addRealtimeListener(scope,callback,statusCallback){
+    if(typeof callback==='function')realtimeListeners[scope]?.add(callback);
+    if(typeof statusCallback==='function')realtimeStatusListeners[scope]?.add(statusCallback);
+  }
+  function emitRealtime(scope,row,payload,source=scope){
+    try{window.dispatchEvent(new CustomEvent(`valle-realtime-${scope}`,{detail:{row,payload,source}}));}catch(_){}
+    for(const callback of realtimeListeners[scope]||[]){
+      try{callback(row,payload,source)}catch(e){console.warn(`Falha ao processar Realtime (${scope}):`,e)}
+    }
+  }
   function realtimeStatus(scope,status){
     try{window.dispatchEvent(new CustomEvent('valle-realtime-status',{detail:{scope,status}}));}catch(_){}
+    for(const callback of realtimeStatusListeners[scope]||[]){try{callback(status)}catch(_){}}
+  }
+  async function resetRealtimeSubscriptions(clearListeners=true){
+    const c=getClient();
+    const channels=[workspaceRealtimeChannel,auditRealtimeChannel,permissionsRealtimeChannel,clientPaymentsRealtimeChannel,adminMessagesRealtimeChannel,profilesRealtimeChannel,clientPortalRealtimeChannel,adminMessageReadsRealtimeChannel].filter(Boolean);
+    workspaceRealtimeChannel=auditRealtimeChannel=permissionsRealtimeChannel=clientPaymentsRealtimeChannel=adminMessagesRealtimeChannel=profilesRealtimeChannel=clientPortalRealtimeChannel=adminMessageReadsRealtimeChannel=null;
+    if(c?.removeChannel){await Promise.allSettled(channels.map(channel=>c.removeChannel(channel)))}
+    if(clearListeners){
+      Object.values(realtimeListeners).forEach(set=>set.clear());
+      Object.values(realtimeStatusListeners).forEach(set=>set.clear());
+    }
   }
 
   function subscribeWorkspaceChanges(callback,statusCallback){
+    addRealtimeListener('workspace',callback,statusCallback);
     if(!profile || !['session','service'].includes(profile.role) || !isOnline()) return null;
     const sid=currentSessionId();
     const c=getClient();
@@ -299,20 +284,17 @@
       .on('postgres_changes',{event:'*',schema:'public',table:'session_workspaces',filter:`session_user_id=eq.${sid}`},payload=>{
         const row=payload?.new||payload?.old||null;
         if(row?.data){
-          // Mantém a base usada pela fila de patches alinhada com o último estado
-          // publicado pelo Postgres, evitando que uma gravação posterior reenvie
-          // um snapshot antigo por cima de uma mudança recebida de outro aparelho.
           confirmedWorkspace=clone(row.data);
-          safeSet(workspaceCacheKey(sid),{data:clone(row.data),updated_at:row.updated_at||null,updated_by:row.updated_by||null});
           if(row.updated_at)lastSyncedAt=row.updated_at;
         }
-        try{callback?.(row,payload)}catch(e){console.warn('Falha ao processar atualização do workspace em tempo real:',e)}
+        emitRealtime('workspace',row,payload);
       })
-      .subscribe(status=>{realtimeStatus('workspace',status);try{statusCallback?.(status)}catch(_){}});
+      .subscribe(status=>realtimeStatus('workspace',status));
     return workspaceRealtimeChannel;
   }
 
   function subscribeAuditChanges(callback,statusCallback){
+    addRealtimeListener('audit',callback,statusCallback);
     if(!profile || !['session','service'].includes(profile.role) || !isOnline()) return null;
     const sid=currentSessionId();
     const c=getClient();
@@ -320,26 +302,29 @@
     if(auditRealtimeChannel)return auditRealtimeChannel;
     auditRealtimeChannel=c.channel(`valle-audit-${sid}-${Math.random().toString(36).slice(2,8)}`)
       .on('postgres_changes',{event:'*',schema:'public',table:'audit_logs',filter:`session_user_id=eq.${sid}`},payload=>{
-        try{callback?.(payload?.new||payload?.old||null,payload)}catch(e){console.warn('Falha ao processar lançamento em tempo real:',e)}
+        emitRealtime('audit',payload?.new||payload?.old||null,payload);
       })
-      .subscribe(status=>{realtimeStatus('audit',status);try{statusCallback?.(status)}catch(_){}});
+      .subscribe(status=>realtimeStatus('audit',status));
     return auditRealtimeChannel;
   }
 
   function subscribePermissionChanges(callback,statusCallback){
-    if(!profile || profile.role!=='service' || !isOnline()) return null;
+    addRealtimeListener('permissions',callback,statusCallback);
+    if(!profile || !['session','service'].includes(profile.role) || !isOnline()) return null;
     const c=getClient();
     if(!c?.channel||!profile.id)return null;
     if(permissionsRealtimeChannel)return permissionsRealtimeChannel;
+    const filter=profile.role==='service'?`service_user_id=eq.${profile.id}`:`session_user_id=eq.${profile.id}`;
     permissionsRealtimeChannel=c.channel(`valle-permissions-${profile.id}-${Math.random().toString(36).slice(2,8)}`)
-      .on('postgres_changes',{event:'*',schema:'public',table:'service_permissions',filter:`service_user_id=eq.${profile.id}`},payload=>{
-        try{callback?.(payload?.new||payload?.old||null,payload)}catch(e){console.warn('Falha ao processar permissões em tempo real:',e)}
+      .on('postgres_changes',{event:'*',schema:'public',table:'service_permissions',filter},payload=>{
+        emitRealtime('permissions',payload?.new||payload?.old||null,payload);
       })
-      .subscribe(status=>{realtimeStatus('permissions',status);try{statusCallback?.(status)}catch(_){}});
+      .subscribe(status=>realtimeStatus('permissions',status));
     return permissionsRealtimeChannel;
   }
 
   function subscribeClientPaymentChanges(callback,statusCallback){
+    addRealtimeListener('client_payments',callback,statusCallback);
     if(!profile || !['session','service'].includes(profile.role) || !isOnline()) return null;
     const sid=currentSessionId();
     const c=getClient();
@@ -347,23 +332,92 @@
     if(clientPaymentsRealtimeChannel)return clientPaymentsRealtimeChannel;
     clientPaymentsRealtimeChannel=c.channel(`valle-client-payments-${sid}-${Math.random().toString(36).slice(2,8)}`)
       .on('postgres_changes',{event:'*',schema:'public',table:'client_payment_requests',filter:`session_user_id=eq.${sid}`},payload=>{
-        try{callback?.(payload?.new||payload?.old||null,payload)}catch(e){console.warn('Falha ao processar pagamento PIX em tempo real:',e)}
+        emitRealtime('client_payments',payload?.new||payload?.old||null,payload);
       })
-      .subscribe(status=>{realtimeStatus('client_payments',status);try{statusCallback?.(status)}catch(_){}});
+      .subscribe(status=>realtimeStatus('client_payments',status));
     return clientPaymentsRealtimeChannel;
   }
 
   function subscribeAdminMessageChanges(callback,statusCallback){
-    if(!profile || !['session','service'].includes(profile.role) || !isOnline()) return null;
+    addRealtimeListener('admin_messages',callback,statusCallback);
+    if(!profile || !['admin','session','service'].includes(profile.role) || !isOnline()) return null;
     const c=getClient();
     if(!c?.channel)return null;
     if(adminMessagesRealtimeChannel)return adminMessagesRealtimeChannel;
     adminMessagesRealtimeChannel=c.channel(`valle-admin-messages-${profile.id}-${Math.random().toString(36).slice(2,8)}`)
       .on('postgres_changes',{event:'*',schema:'public',table:'admin_messages'},payload=>{
-        try{callback?.(payload?.new||payload?.old||null,payload)}catch(e){console.warn('Falha ao processar MSG ADM em tempo real:',e)}
+        emitRealtime('admin_messages',payload?.new||payload?.old||null,payload);
       })
-      .subscribe(status=>{realtimeStatus('admin_messages',status);try{statusCallback?.(status)}catch(_){}});
+      .subscribe(status=>realtimeStatus('admin_messages',status));
     return adminMessagesRealtimeChannel;
+  }
+
+  function applyRealtimeProfileRow(row,eventType=''){
+    if(!row)return;
+    const deleted=String(eventType||'').toUpperCase()==='DELETE';
+    if(profile && String(row.id||'')===String(profile.id||''))profile=deleted?{...profile,active:false}:{...profile,...row};
+    if(sessionProfile && String(row.id||'')===String(sessionProfile.id||''))sessionProfile=deleted?{...sessionProfile,active:false}:{...sessionProfile,...row};
+  }
+
+  function subscribeProfileChanges(callback,statusCallback){
+    addRealtimeListener('profiles',callback,statusCallback);
+    if(!profile || profile.role==='client' || !isOnline()) return null;
+    const c=getClient();
+    if(!c?.channel||!profile.id)return null;
+    if(profilesRealtimeChannel)return profilesRealtimeChannel;
+    const ch=c.channel(`valle-profiles-${profile.id}-${Math.random().toString(36).slice(2,8)}`);
+    const handler=payload=>{const row=payload?.new||payload?.old||null;applyRealtimeProfileRow(row,payload?.eventType);emitRealtime('profiles',row,payload)};
+    if(profile.role==='admin'){
+      ch.on('postgres_changes',{event:'*',schema:'public',table:'profiles'},handler);
+    }else if(profile.role==='session'){
+      ch.on('postgres_changes',{event:'*',schema:'public',table:'profiles',filter:`id=eq.${profile.id}`},handler)
+        .on('postgres_changes',{event:'*',schema:'public',table:'profiles',filter:`session_user_id=eq.${profile.id}`},handler);
+    }else if(profile.role==='service'){
+      ch.on('postgres_changes',{event:'*',schema:'public',table:'profiles',filter:`id=eq.${profile.id}`},handler);
+      if(profile.session_user_id)ch.on('postgres_changes',{event:'*',schema:'public',table:'profiles',filter:`id=eq.${profile.session_user_id}`},handler);
+    }
+    profilesRealtimeChannel=ch.subscribe(status=>realtimeStatus('profiles',status));
+    return profilesRealtimeChannel;
+  }
+
+  function subscribeClientPortalChanges(callback,statusCallback){
+    addRealtimeListener('client_portal',callback,statusCallback);
+    if(!profile || profile.role!=='client' || !isOnline())return null;
+    const c=getClient();
+    if(!c?.channel||!profile.id)return null;
+    if(clientPortalRealtimeChannel)return clientPortalRealtimeChannel;
+    const uid=profile.id;
+    clientPortalRealtimeChannel=c.channel(`valle-client-portal-${uid}-${Math.random().toString(36).slice(2,8)}`)
+      .on('postgres_changes',{event:'*',schema:'public',table:'client_portal_updates',filter:`user_id=eq.${uid}`},payload=>{
+        emitRealtime('client_portal',payload?.new||payload?.old||null,payload,'portal_update');
+      })
+      .on('postgres_changes',{event:'*',schema:'public',table:'client_payment_requests',filter:`client_user_id=eq.${uid}`},payload=>{
+        emitRealtime('client_portal',payload?.new||payload?.old||null,payload,'payment_request');
+      })
+      .on('postgres_changes',{event:'*',schema:'public',table:'client_accounts',filter:`user_id=eq.${uid}`},payload=>{
+        const row=payload?.new||payload?.old||null;
+        if(row){
+          if(payload?.eventType==='DELETE')profile={...profile,active:false};
+          else profile={...profile,name:row.name,email:row.email,active:row.active,session_user_id:row.session_user_id,client_id:row.client_id};
+        }
+        emitRealtime('client_portal',row,payload,'client_account');
+      })
+      .subscribe(status=>realtimeStatus('client_portal',status));
+    return clientPortalRealtimeChannel;
+  }
+
+  function subscribeAdminMessageReadChanges(callback,statusCallback){
+    addRealtimeListener('admin_message_reads',callback,statusCallback);
+    if(!profile || !['session','service'].includes(profile.role) || !isOnline())return null;
+    const c=getClient();
+    if(!c?.channel||!profile.id)return null;
+    if(adminMessageReadsRealtimeChannel)return adminMessageReadsRealtimeChannel;
+    adminMessageReadsRealtimeChannel=c.channel(`valle-admin-message-reads-${profile.id}-${Math.random().toString(36).slice(2,8)}`)
+      .on('postgres_changes',{event:'*',schema:'public',table:'admin_message_reads',filter:`user_id=eq.${profile.id}`},payload=>{
+        emitRealtime('admin_message_reads',payload?.new||payload?.old||null,payload);
+      })
+      .subscribe(status=>realtimeStatus('admin_message_reads',status));
+    return adminMessageReadsRealtimeChannel;
   }
 
   function emitSyncState(){
@@ -372,7 +426,7 @@
       error: lastSyncError,
       lastSyncedAt,
       online: isOnline(),
-      pending: !!(currentSessionId() && safeGet(pendingCacheKey(currentSessionId())))
+      pending: false
     }}));
   }
 
@@ -389,19 +443,6 @@
       }
     } catch (_) {}
     return completeData;
-  }
-
-  function storePending(data){
-    const sid = currentSessionId();
-    if (!sid) return false;
-    const now = new Date().toISOString();
-    const pending = { data:sanitizeWorkspace(data), queued_at:now, updated_by:profile?.id || null };
-    safeSet(pendingCacheKey(sid), pending);
-    safeSet(workspaceCacheKey(sid), { data:pending.data, updated_at:now, updated_by:pending.updated_by, offline:true });
-    syncState = 'offline';
-    lastSyncError = null;
-    emitSyncState();
-    return true;
   }
 
   function stableComparable(value){
@@ -455,8 +496,6 @@
   function applyConfirmedSnapshot(snapshot){
     if(!snapshot?.data)return;
     confirmedWorkspace=clone(snapshot.data);
-    const sid=currentSessionId();
-    if(sid)safeSet(workspaceCacheKey(sid),snapshot);
     if(snapshot.updated_at)lastSyncedAt=snapshot.updated_at;
     try{window.dispatchEvent(new CustomEvent('valle-workspace-confirmed',{detail:clone(snapshot)}))}catch(_){}
   }
@@ -485,29 +524,7 @@
       updated_by:result?.updated_by||profile.id
     };
     applyConfirmedSnapshot(snapshot);
-    safeRemove(pendingCacheKey(sid));
     syncState='synced';lastSyncError=null;emitSyncState();
-    return true;
-  }
-
-  async function pushWorkspace(data, queuedAt=null){
-    const sid = currentSessionId();
-    if (!sid) return false;
-    const completeData = sanitizeWorkspace(data);
-    const payload = {
-      session_user_id: sid,
-      updated_by: profile.id,
-      data: completeData,
-      updated_at: queuedAt || new Date().toISOString()
-    };
-    const { error } = await getClient().from('session_workspaces').upsert(payload, { onConflict:'session_user_id' });
-    if (error) throw error;
-    safeSet(workspaceCacheKey(sid), { data:completeData, updated_at:payload.updated_at, updated_by:profile.id });
-    safeRemove(pendingCacheKey(sid));
-    syncState = 'synced';
-    lastSyncedAt = payload.updated_at;
-    lastSyncError = null;
-    emitSyncState();
     return true;
   }
 
@@ -523,7 +540,7 @@
       if(!options.silent)window.ValleOperationUI?.complete?.();
       return result;
     }catch(error){
-      syncState='offline';lastSyncError=error.message||String(error);emitSyncState();
+      syncState=isOnline()?'error':'offline';lastSyncError=error.message||String(error);emitSyncState();
       if(!options.silent)window.ValleOperationUI?.fail?.(error.message||'Não foi possível confirmar a operação no banco de dados.');
       throw error;
     }
@@ -535,16 +552,13 @@
     return saveWorkspaceStrict(data, options);
   }
 
-  async function syncPendingWorkspace(){
-    // v3.6.93 não confirma alterações apenas localmente. Pendências antigas são
-    // reconciliadas explicitamente quando a sessão volta a ficar online.
-    if(!profile||!isOnline())return false;
-    const sid=currentSessionId(); const pending=sid?safeGet(pendingCacheKey(sid)):null;
-    if(!pending?.data)return false;
-    try{return await saveWorkspaceStrict(pending.data,{silent:true})}catch(_){return false}
-  }
-
   function queueWorkspace(data){
+    if(!isOnline()){
+      const error=new Error('Esta operação precisa de internet para ser enviada ao banco de dados.');
+      window.ValleOperationUI?.fail?.(error.message);
+      try{window.dispatchEvent(new CustomEvent('valle-workspace-write-failed',{detail:{error:error.message,confirmed:confirmedWorkspace?clone(confirmedWorkspace):null}}))}catch(_){}
+      throw error;
+    }
     const snapshot=clone(data||{});
     window.ValleOperationUI?.begin?.();
     workspaceWriteChain=workspaceWriteChain.then(async()=>{
@@ -554,7 +568,7 @@
         window.ValleOperationUI?.complete?.();
         return ok;
       }catch(error){
-        syncState='offline';lastSyncError=error.message||String(error);emitSyncState();
+        syncState=isOnline()?'error':'offline';lastSyncError=error.message||String(error);emitSyncState();
         window.ValleOperationUI?.fail?.(error.message||'Não foi possível confirmar a operação no banco de dados.');
         try{window.dispatchEvent(new CustomEvent('valle-workspace-write-failed',{detail:{error:error.message||String(error),confirmed:confirmedWorkspace?clone(confirmedWorkspace):null}}))}catch(_){}
         throw error;
@@ -574,11 +588,9 @@
       syncState = 'syncing'; emitSyncState();
       try {
         if (profile?.id) await loadProfile(profile.id); // revalida bloqueio e validade
-        await syncPendingWorkspace();
-        if (profile?.id) await flushPendingAuditLogs(currentSessionId());
-        if (syncState !== 'synced') { syncState='idle'; emitSyncState(); }
+        syncState='idle'; emitSyncState();
       } catch (e) {
-        syncState='offline'; lastSyncError=e.message||String(e); emitSyncState();
+        syncState=isOnline()?'error':'offline'; lastSyncError=e.message||String(e); emitSyncState();
       }
     });
     window.addEventListener('offline', ()=>{ syncState='offline'; emitSyncState(); });
@@ -634,10 +646,9 @@
 
   async function listAdminMessages(limit=20){
     if (!profile || profile.role !== 'admin') return [];
-    if (!isOnline()) return safeGet('admin_messages_recent',[]).slice(0,limit);
+    if (!isOnline()) throw new Error('Consultar mensagens precisa de internet.');
     const {data,error}=await getClient().from('admin_messages').select('*').order('created_at',{ascending:false}).limit(limit);
     if(error) throw error;
-    safeSet('admin_messages_recent',data||[]);
     return data||[];
   }
 
@@ -659,15 +670,10 @@
     return runConfirmedMutation(async()=>{
       const {error}=await getClient().from('admin_messages').delete().eq('id',id);
       if(error) throw error;
-      const recent=safeGet('admin_messages_recent',[]).filter(item=>String(item.id)!==id);
-      safeSet('admin_messages_recent',recent);
       return true;
     },'Mensagem excluída com sucesso!');
   }
 
-  function localAdminMessageSeenKey(messageId){
-    return `admin_message_seen_${profile?.id||'guest'}_${messageId}`;
-  }
 
   async function getUnreadAdminMessage(){
     if (!profile || !['session','service'].includes(profile.role)) return null;
@@ -703,103 +709,40 @@
     });
     if(!eligible.length) return null;
 
-    // O cache local é usado SEMPRE como proteção. Assim, se a tabela
-    // admin_message_reads estiver ausente ou com RLS antigo, a MSG ADM
-    // continua aparecendo uma única vez neste aparelho em vez de falhar.
     const seen=new Set();
-    eligible.forEach(item=>{
-      if(safeGet(localAdminMessageSeenKey(item.id),false)) seen.add(String(item.id));
-    });
-
     const ids=eligible.map(item=>item.id).filter(id=>id!==null&&id!==undefined);
-    try{
-      const readsResult=await c.from('admin_message_reads')
-        .select('message_id')
-        .eq('user_id',profile.id)
-        .in('message_id',ids);
-      if(!readsResult.error){
-        (readsResult.data||[]).forEach(row=>seen.add(String(row.message_id)));
-      }else{
-        console.warn('MSG ADM: controle remoto de leitura indisponível; usando controle local.', readsResult.error);
-      }
-    }catch(err){
-      console.warn('MSG ADM: falha ao consultar leituras; usando controle local.',err);
-    }
-
+    const readsResult=await c.from('admin_message_reads')
+      .select('message_id')
+      .eq('user_id',profile.id)
+      .in('message_id',ids);
+    if(readsResult.error) throw readsResult.error;
+    (readsResult.data||[]).forEach(row=>seen.add(String(row.message_id)));
     return eligible.find(item=>!seen.has(String(item.id)))||null;
   }
 
   async function markAdminMessageSeen(messageId){
     if (!profile || !['session','service'].includes(profile.role) || !messageId) return false;
-    // Grava primeiro localmente para nunca reapresentar a mensagem por causa
-    // de uma falha de rede/RLS no momento em que o usuário fecha o aviso.
-    safeSet(localAdminMessageSeenKey(messageId),true);
-    if (!isOnline()) return true;
-    try{
-      const {error}=await getClient().from('admin_message_reads').upsert({
-        message_id:messageId,user_id:profile.id,seen_at:new Date().toISOString()
-      },{onConflict:'message_id,user_id'});
-      if(error) console.warn('MSG ADM: leitura salva apenas localmente.',error);
-    }catch(err){
-      console.warn('MSG ADM: leitura salva apenas localmente.',err);
-    }
+    if (!isOnline()) throw new Error('Confirmar a leitura da mensagem precisa de internet.');
+    const {error}=await getClient().from('admin_message_reads').upsert({
+      message_id:messageId,user_id:profile.id,seen_at:new Date().toISOString()
+    },{onConflict:'message_id,user_id'});
+    if(error) throw error;
     return true;
   }
 
 
-  function auditCacheKey(id){ return `audit_logs_${id}`; }
-  function auditPendingKey(id){ return `audit_logs_pending_${id}`; }
+
   function auditHash(input){
     let h=2166136261; const str=JSON.stringify(input||{});
     for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}
     return `VALLE-${Date.now().toString(36).toUpperCase()}-${(h>>>0).toString(16).padStart(8,'0').toUpperCase()}`;
   }
 
-  /*
-   * LANÇAMENTOS: o registro da auditoria não pode desaparecer se houver
-   * uma falha momentânea de rede/Supabase.
-   *
-   * Antes: o lançamento era colocado no cache, mas uma falha no INSERT era
-   * apenas avisada no console. Na próxima leitura online, listAuditLogs()
-   * substituía o cache pelos registros do servidor e o lançamento sumia.
-   *
-   * Agora:
-   * 1. o lançamento entra em uma fila pendente imediatamente;
-   * 2. o envio usa upsert pela assinatura, evitando duplicidade em retries;
-   * 3. somente após confirmação do servidor ele sai da fila;
-   * 4. a leitura online sempre mantém os pendentes junto dos registros do servidor;
-   * 5. quando a internet volta, a fila é reenviada automaticamente.
-   */
-  async function flushPendingAuditLogs(sessionId=null){
-    if(!profile || !['session','service'].includes(profile.role) || !isOnline()) return false;
-    const sid=String(sessionId || currentSessionId() || '').trim();
-    if(!sid) return false;
-
-    const pending=safeGet(auditPendingKey(sid),[]) || [];
-    if(!pending.length) return true;
-
-    const remaining=[];
-    for(const item of pending){
-      try{
-        const payload={...item, session_user_id:sid};
-        const {error}=await getClient()
-          .from('audit_logs')
-          .upsert(payload,{onConflict:'signature'});
-        if(error) throw error;
-      }catch(error){
-        console.warn('Lançamento ainda pendente de sincronização:',error);
-        remaining.push(item);
-      }
-    }
-    safeSet(auditPendingKey(sid),remaining);
-    return remaining.length===0;
-  }
-
   async function recordAudit(action, entityType, entityId, details={}){
     if (!profile || !['session','service'].includes(profile.role)) return false;
+    if (!isOnline()) throw new Error('Registrar o lançamento precisa de internet.');
     const sid=String(currentSessionId() || '').trim();
     if(!sid) return false;
-
     const now=new Date().toISOString();
     const d=clone(details||{});
     const signature=auditHash({sid,uid:profile.id,action,entityType,entityId,d,now});
@@ -811,128 +754,63 @@
       vale_number:d.vale_number||d.numero||null, old_data:d.old_data||null, new_data:d.new_data||null,
       changes:d.changes||{}, details:d, signature, created_at:now
     };
-
-    const cacheKey=auditCacheKey(sid);
-    const pendingKey=auditPendingKey(sid);
-    const cached=safeGet(cacheKey,[]) || [];
-    const withoutSame=cached.filter(row=>String(row?.signature||'')!==signature);
-    withoutSame.unshift(item);
-    safeSet(cacheKey,withoutSame.slice(0,2000));
-
-    const pending=safeGet(pendingKey,[]) || [];
-    if(!pending.some(row=>String(row?.signature||'')===signature)){
-      pending.unshift(item);
-      safeSet(pendingKey,pending.slice(0,2000));
-    }
-
-    try{window.dispatchEvent(new CustomEvent('valle-audit-recorded',{detail:item}));}catch(_){}
-
-    if(!isOnline()) return true;
-
-    await flushPendingAuditLogs(sid);
+    const {data,error}=await getClient().from('audit_logs').upsert(item,{onConflict:'signature'}).select('*').single();
+    if(error) throw error;
+    const confirmed=data||item;
+    try{window.dispatchEvent(new CustomEvent('valle-audit-recorded',{detail:confirmed}));}catch(_){}
     return true;
   }
 
   async function listAuditLogs(limit=1000, sessionId=null){
     if(!profile || !['session','service'].includes(profile.role)) return [];
+    if(!isOnline()) throw new Error('Consultar lançamentos precisa de internet.');
     const sid=String(sessionId || currentSessionId() || '').trim();
     if(!sid) return [];
-
-    const belongsToCurrentSession=row => String(row?.session_user_id || '') === sid;
-
-    if(isOnline()){
-      // Tenta enviar pendências antes da consulta, mas nunca descarta as que falharem.
-      await flushPendingAuditLogs(sid);
-      const pending=safeGet(auditPendingKey(sid),[]) || [];
-
-      const {data,error}=await getClient()
-        .from('audit_logs')
-        .select('*')
-        .eq('session_user_id',sid)
-        .order('created_at',{ascending:false})
-        .limit(limit);
-      if(error) throw error;
-
-      const server=(data||[]).filter(belongsToCurrentSession);
-      const merged=[...server,...pending].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
-      const seen=new Set();
-      const unique=merged.filter(row=>{
-        const key=String(row?.signature||row?.id||'');
-        if(!key || seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      }).slice(0,limit);
-
-      safeSet(auditCacheKey(sid),unique);
-      return unique;
-    }
-
-    return (safeGet(auditCacheKey(sid),[]) || [])
-      .filter(belongsToCurrentSession)
-      .slice(0,limit);
+    const {data,error}=await getClient()
+      .from('audit_logs')
+      .select('*')
+      .eq('session_user_id',sid)
+      .order('created_at',{ascending:false})
+      .limit(limit);
+    if(error) throw error;
+    return data||[];
   }
 
   async function deleteAuditLog(logId){
     if(!profile || profile.role!=='session') throw new Error('Somente o usuário de sessão pode excluir registros de auditoria.');
+    if(!isOnline()) throw new Error('Excluir um lançamento precisa de internet.');
     const sid=String(profile.id || currentSessionId() || '').trim();
     const target=String(logId || '').trim();
     if(!sid || !target) throw new Error('Registro de auditoria inválido.');
-
-    const cacheKey=auditCacheKey(sid);
-    const pendingKey=auditPendingKey(sid);
-    const cached=safeGet(cacheKey,[]) || [];
-    const pending=safeGet(pendingKey,[]) || [];
-    const isTarget=row=>String(row?.id || row?.signature || '')===target;
-
-    if(isOnline()){
-      await runConfirmedMutation(async()=>{
-        let query=getClient().from('audit_logs').delete().eq('session_user_id',sid);
-        query=/^\d+$/.test(target) ? query.eq('id',Number(target)) : query.eq('signature',target);
-        const {data,error}=await query.select('id,signature');
-        if(error) throw error;
-        if(!data?.length && cached.some(isTarget) && !pending.some(isTarget)){
-          throw new Error('O registro não pôde ser excluído. Verifique a política de exclusão no Supabase.');
-        }
-        return true;
-      },'Registro excluído com sucesso!');
-    }
-
-    safeSet(cacheKey,cached.filter(row=>!isTarget(row)));
-    safeSet(pendingKey,pending.filter(row=>!isTarget(row)));
+    await runConfirmedMutation(async()=>{
+      let query=getClient().from('audit_logs').delete().eq('session_user_id',sid);
+      query=/^\d+$/.test(target) ? query.eq('id',Number(target)) : query.eq('signature',target);
+      const {data,error}=await query.select('id,signature');
+      if(error) throw error;
+      if(!data?.length) throw new Error('O registro não pôde ser excluído. Verifique a política de exclusão no Supabase.');
+      return true;
+    },'Registro excluído com sucesso!');
     try{window.dispatchEvent(new CustomEvent('valle-audit-deleted',{detail:{id:target,session_user_id:sid}}));}catch(_){}
     return true;
   }
 
   async function listManagedUsers(options={}){
     if (!profile) return [];
-    const cached = safeGet(`managed_users_${profile.id}`, []);
-    if (!isOnline() || (options.preferCache && cached.length)) return cached;
+    if (!isOnline()) throw new Error('Consultar usuários precisa de internet.');
     let q = getClient().from('profiles').select('*').order('created_at', {ascending:false});
     if (profile.role === 'session') q = q.eq('session_user_id', profile.id).eq('role','service');
     else if (profile.role === 'admin') q = q.eq('role','session');
     else return [];
-    try {
-      const { data, error } = cached.length
-        ? await withTimeout(q, 1800, 'Usando a lista salva neste aparelho.')
-        : await q;
-      if (error) throw error;
-      safeSet(`managed_users_${profile.id}`, data || []);
-      return data || [];
-    } catch (e) { return cached; }
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
   }
 
   async function getPermissions(userId, options={}){
-    const cached = safeGet(permissionsCacheKey(userId), {});
-    if (!isOnline() || (options.preferCache && Object.keys(cached).length)) return cached;
-    try {
-      const request = getClient().from('service_permissions').select('*').eq('service_user_id',userId).maybeSingle();
-      const { data, error } = Object.keys(cached).length
-        ? await withTimeout(request, 1400, 'Usando as permissões salvas neste aparelho.')
-        : await request;
-      if (error) throw error;
-      safeSet(permissionsCacheKey(userId), data || {});
-      return data || {};
-    } catch (e) { return cached; }
+    if (!isOnline()) throw new Error('Consultar permissões precisa de internet.');
+    const { data, error } = await getClient().from('service_permissions').select('*').eq('service_user_id',userId).maybeSingle();
+    if (error) throw error;
+    return data || {};
   }
 
   async function savePermissions(userId, permissions){
@@ -941,7 +819,6 @@
       const payload = { service_user_id:userId, session_user_id:profile.id, ...permissions, updated_at:new Date().toISOString() };
       const { error } = await getClient().from('service_permissions').upsert(payload,{onConflict:'service_user_id'});
       if (error) throw error;
-      safeSet(permissionsCacheKey(userId), payload);
       return true;
     },'Permissões atualizadas com sucesso!');
   }
@@ -976,7 +853,7 @@
 
   async function listClientPaymentRequests(limit=80){
     if(!profile || !['service','session'].includes(profile.role)) return [];
-    if(!isOnline()) return [];
+    if(!isOnline()) throw new Error('Consultar pagamentos informados precisa de internet.');
     const sessionId=profile.role==='session'?profile.id:profile.session_user_id;
     const {data,error}=await getClient().from('client_payment_requests')
       .select('*')
@@ -1006,8 +883,8 @@
   window.ValleCloud = {
     configured, getClient, signIn, signOut, verifyCurrentPassword, restoreSession, loadProfile,
     get profile(){return profile}, get sessionProfile(){return sessionProfile},
-    accessState, setMyTheme, loadWorkspace, loadWorkspaceSnapshot, subscribeWorkspaceChanges, subscribeAuditChanges, subscribePermissionChanges, subscribeClientPaymentChanges, subscribeAdminMessageChanges, saveWorkspace, saveWorkspaceStrict, queueWorkspace, flushWorkspace,
-    syncPendingWorkspace, invokeManage, createAdminMessage, listAdminMessages, deactivateAdminMessage, deleteAdminMessage, getUnreadAdminMessage, markAdminMessageSeen,
+    accessState, setMyTheme, loadWorkspace, loadWorkspaceSnapshot, subscribeWorkspaceChanges, subscribeAuditChanges, subscribePermissionChanges, subscribeClientPaymentChanges, subscribeAdminMessageChanges, subscribeProfileChanges, subscribeClientPortalChanges, subscribeAdminMessageReadChanges, resetRealtimeSubscriptions, saveWorkspace, saveWorkspaceStrict, queueWorkspace, flushWorkspace,
+    invokeManage, createAdminMessage, listAdminMessages, deactivateAdminMessage, deleteAdminMessage, getUnreadAdminMessage, markAdminMessageSeen,
     listManagedUsers, getPermissions, savePermissions, loadMyPermissions, loadClientPortal, createClientPaymentRequest, listClientPaymentRequests, updateClientPaymentRequestStatus, recordAudit, listAuditLogs, deleteAuditLog, getCurrentSessionId:currentSessionId,
     normalizePhone, isOnline, workspaceSignature,
     get syncState(){return syncState},
