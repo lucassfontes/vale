@@ -1009,7 +1009,7 @@ function ensureClientPortal(){
  portal=document.createElement('section');portal.id='clientPortal';portal.className='client-portal hidden';
  portal.innerHTML=`<header class="client-portal-top"><div class="client-portal-top-inner"><div class="client-portal-brand"><span class="client-portal-logo-shell"><img src="icons/icon-valle.png" alt="VALLE"></span><div class="client-portal-brand-copy"><strong>VALLE</strong><small><i class="bi bi-person-badge"></i> ÁREA DO CLIENTE</small></div></div><div class="client-portal-user"><div class="client-portal-user-copy"><small>MINHA CONTA</small><strong id="clientPortalUserName">Cliente</strong><span id="clientPortalUserEmail"></span></div><button id="clientPortalLogout" type="button" class="btn client-portal-logout" aria-label="Sair da Área do Cliente" title="Sair"><i class="bi bi-box-arrow-right"></i><span>SAIR</span></button></div></div></header><div id="clientPortalPullRefresh" class="client-pull-refresh" aria-live="polite"><span class="client-pull-refresh-icon"><i class="bi bi-arrow-down"></i></span><strong id="clientPortalPullRefreshText">PUXE PARA ATUALIZAR</strong></div><main class="client-portal-main"><section class="client-portal-hero"><div><small>MINHA CONTA</small><h1 id="clientPortalGreeting"><span class="client-greeting-hello">Olá</span><strong id="clientPortalGreetingName" class="client-greeting-name">Cliente</strong></h1><p>Acompanhe seus vales, crediários, parcelas e vencimentos.</p></div></section><div id="clientPortalMessage"></div><section id="clientPortalSummary" class="client-portal-summary"></section><section class="client-portal-section"><div class="client-portal-section-head"><div><small>CONTRATOS</small><h2>Meus crediários</h2></div></div><div id="clientPortalCrediarios" class="client-portal-contracts"></div></section><section class="client-portal-section"><div class="client-portal-section-head"><div><small>LANÇAMENTOS</small><h2>Meus vales</h2></div></div><div id="clientPortalVales" class="client-portal-vales"></div></section><section class="client-portal-section"><div class="client-portal-section-head"><div><small>PAGAMENTOS</small><h2>Pagamentos informados</h2></div></div><div id="clientPortalPaymentHistory" class="client-portal-payment-history"></div></section></main>`;
  document.body.appendChild(portal);
- el('clientPortalLogout').onclick=async()=>{document.body.classList.remove('client-portal-active');await ValleCloud.signOut();portal.classList.add('hidden');el('authGate').classList.remove('hidden');document.documentElement.classList.add('valle-auth-active');document.body.classList.add('valle-auth-active')};
+ el('clientPortalLogout').onclick=async()=>{document.body.classList.remove('client-portal-active','valle-main-app-active');await ValleCloud.signOut();portal.classList.add('hidden');el('authGate').classList.remove('hidden');document.documentElement.classList.add('valle-auth-active');document.body.classList.add('valle-auth-active')};
  setupClientPortalPullRefresh(portal);
  return portal;
 }
@@ -1284,6 +1284,10 @@ function installBaseRealtime(profile){
 
 async function showRole(profile,options={}){
  const app=document.querySelector('.app'); const gate=el('authGate'); const panel=el('managementPanel');
+ // O carrossel inferior pertence somente ao painel principal do usuário de serviço.
+ // Esta classe é a única autorização para exibir o dock mobile; login, cliente,
+ // administrador e usuário de sessão nunca mostram a barra.
+ document.body.classList.toggle('valle-main-app-active', profile?.role==='service');
  gate.classList.add('hidden');
  document.documentElement.classList.remove('valle-auth-active');
  document.body.classList.remove('valle-auth-active');
@@ -1739,7 +1743,7 @@ function setupManagementTheme(){
 }
 
 async function boot(){
- inject(); setupManagementTheme(); document.querySelector('.app').classList.add('hidden');
+ inject(); setupManagementTheme(); document.body.classList.remove('valle-main-app-active'); document.querySelector('.app').classList.add('hidden');
  // A biblioteca remota do Supabase não bloqueia mais todo o HTML. Espera
  // apenas um curto período para restaurar uma sessão já salva.
  let supabaseReady=true;

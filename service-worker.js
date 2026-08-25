@@ -1,5 +1,5 @@
-/** VALLE PWA v3.6.102 — 100% online. Service Worker mantido somente para Web Push/atualização. */
-importScripts('./js/version.js');
+/** VALLE PWA v3.6.110 — 100% online. Service Worker mantido somente para Web Push/atualização. */
+importScripts('./js/version.js?v=3.6.110');
 
 self.addEventListener('install', () => {
   // Não pré-carrega nem armazena arquivos do aplicativo.

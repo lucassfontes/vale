@@ -33621,3 +33621,361 @@ body.valle-system-message-open{
     max-height:48dvh !important;
   }
 }
+
+
+/* =========================================================
+   VALLE 3.6.103 — carrossel mobile em posição física estável
+   O menu é desacoplado do conteúdo no celular (via app.js),
+   mantendo exatamente a mesma altura/distância inferior mesmo
+   quando a aba tem poucos registros ou muda em tempo real.
+   ========================================================= */
+@media (max-width:780px) {
+  html,
+  body {
+    overflow-anchor: none !important;
+  }
+
+  body > .tabs.valle-mobile-nav-detached {
+    position: fixed !important;
+    top: auto !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: max(18px, env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    height: 74px !important;
+    min-height: 74px !important;
+    max-height: 74px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    z-index: 2147482500 !important;
+    transform: translate3d(0, 0, 0) !important;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    contain: layout paint style !important;
+  }
+
+  body.mobile-nav-hidden > .tabs.valle-mobile-nav-detached {
+    transform: translate3d(0, calc(100% + 44px), 0) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+}
+
+@media (max-width:390px) {
+  body > .tabs.valle-mobile-nav-detached {
+    left: 6px !important;
+    right: 6px !important;
+    height: 68px !important;
+    min-height: 68px !important;
+    max-height: 68px !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.104 — dock inferior imóvel + oculto fora do app
+   ========================================================= */
+.valle-mobile-nav-dock{
+  display:none;
+}
+
+@media (max-width:780px) {
+  #valleMobileNavDock.valle-mobile-nav-dock {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: max(18px, env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    height: 74px !important;
+    min-height: 74px !important;
+    max-height: 74px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 2147482500 !important;
+    transform: translate3d(0,0,0) !important;
+    contain: layout paint style !important;
+    isolation: isolate !important;
+    pointer-events: none !important;
+    overflow: visible !important;
+  }
+
+  body.valle-main-app-active:not(.valle-auth-active):not(.client-portal-active) #valleMobileNavDock.valle-mobile-nav-dock {
+    display: block !important;
+  }
+
+  body.valle-auth-active #valleMobileNavDock.valle-mobile-nav-dock,
+  body.client-portal-active #valleMobileNavDock.valle-mobile-nav-dock,
+  body:not(.valle-main-app-active) #valleMobileNavDock.valle-mobile-nav-dock,
+  #valleMobileNavDock[aria-hidden="true"] {
+    display: none !important;
+  }
+
+  #valleMobileNavDock > .tabs.valle-mobile-nav-detached {
+    position: absolute !important;
+    inset: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 74px !important;
+    min-height: 74px !important;
+    max-height: 74px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    transform: none !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    will-change: auto !important;
+  }
+
+  /* A regra antiga de esconder a navegação ao rolar não pode mais deslocar o dock. */
+  body.mobile-nav-hidden #valleMobileNavDock > .tabs.valle-mobile-nav-detached {
+    transform: none !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
+
+@media (max-width:390px) {
+  #valleMobileNavDock.valle-mobile-nav-dock {
+    left: 6px !important;
+    right: 6px !important;
+    height: 68px !important;
+    min-height: 68px !important;
+    max-height: 68px !important;
+  }
+  #valleMobileNavDock > .tabs.valle-mobile-nav-detached {
+    height: 68px !important;
+    min-height: 68px !important;
+    max-height: 68px !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.105 — carrossel imóvel inclusive em abas vazias
+   ---------------------------------------------------------
+   Evita que a redução de conteúdo (ex.: Crediário sem registros)
+   altere a geometria útil do painel mobile. O dock continua fora
+   do fluxo e sem qualquer transição vertical.
+   ========================================================= */
+@media (max-width:780px) {
+  body.valle-main-app-active .app:not(.hidden) main {
+    min-height: calc(100svh - 68px) !important;
+  }
+
+  body.valle-main-app-active .app:not(.hidden) .screen.active {
+    min-height: calc(100svh - 156px) !important;
+  }
+
+  #valleMobileNavDock.valle-mobile-nav-dock {
+    transition: none !important;
+    animation: none !important;
+    will-change: auto !important;
+  }
+
+  #valleMobileNavDock > .tabs.valle-mobile-nav-detached {
+    top: 0 !important;
+    bottom: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.106 — carrossel mobile realmente estável
+   ---------------------------------------------------------
+   Correção definitiva para abas com pouco/nenhum conteúdo.
+   A página mantém uma reserva vertical real para não encolher
+   quando Crediários/Notificações ficam vazios. Isso impede a
+   viewport móvel de recalcular a barra inferior e mantém o dock
+   na mesma posição física usada nas abas com vários registros.
+   ========================================================= */
+@media (max-width:780px) {
+  html {
+    --valle-mobile-stable-vh: 100lvh;
+    overflow-anchor: none !important;
+  }
+
+  body.valle-main-app-active:not(.valle-auth-active):not(.client-portal-active) {
+    min-height: calc(var(--valle-mobile-stable-vh, 100lvh) + 190px) !important;
+    overflow-anchor: none !important;
+  }
+
+  body.valle-main-app-active:not(.valle-auth-active):not(.client-portal-active) .app:not(.hidden),
+  body.valle-main-app-active:not(.valle-auth-active):not(.client-portal-active) .app:not(.hidden) main {
+    min-height: calc(var(--valle-mobile-stable-vh, 100lvh) + 190px) !important;
+  }
+
+  body.valle-main-app-active:not(.valle-auth-active):not(.client-portal-active) .app:not(.hidden) .screen.active {
+    min-height: calc(var(--valle-mobile-stable-vh, 100lvh) + 36px) !important;
+  }
+
+  #valleMobileNavDock.valle-mobile-nav-dock {
+    top: auto !important;
+    bottom: max(18px, env(safe-area-inset-bottom, 0px)) !important;
+    height: 74px !important;
+    min-height: 74px !important;
+    max-height: 74px !important;
+    transform: none !important;
+    translate: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+
+  #valleMobileNavDock > .tabs.valle-mobile-nav-detached {
+    top: 0 !important;
+    right: 0 !important;
+    bottom: auto !important;
+    left: 0 !important;
+    height: 74px !important;
+    min-height: 74px !important;
+    max-height: 74px !important;
+    transform: none !important;
+    translate: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (max-width:390px) {
+  #valleMobileNavDock.valle-mobile-nav-dock,
+  #valleMobileNavDock > .tabs.valle-mobile-nav-detached {
+    height: 68px !important;
+    min-height: 68px !important;
+    max-height: 68px !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.107 — dock mais baixo + ocultação suave por gesto
+   ---------------------------------------------------------
+   Aproxima o carrossel da borda inferior e permite recolhê-lo
+   ao arrastar de baixo para cima. O movimento inverso restaura.
+   A animação ocorre no host fixo para não alterar o layout.
+   ========================================================= */
+@media (max-width:780px) {
+  #valleMobileNavDock.valle-mobile-nav-dock {
+    bottom: max(6px, env(safe-area-inset-bottom, 0px)) !important;
+    transform: translate3d(0, 0, 0) !important;
+    opacity: 1 !important;
+    transition:
+      transform 340ms cubic-bezier(.22,.78,.22,1),
+      opacity 260ms ease !important;
+    will-change: transform, opacity !important;
+  }
+
+  body.mobile-nav-hidden #valleMobileNavDock.valle-mobile-nav-dock {
+    transform: translate3d(0, calc(100% + 18px), 0) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  #valleMobileNavDock > .tabs.valle-mobile-nav-detached {
+    transition: none !important;
+  }
+}
+
+@media (max-width:390px) {
+  #valleMobileNavDock.valle-mobile-nav-dock {
+    bottom: max(4px, env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) and (max-width:780px) {
+  #valleMobileNavDock.valle-mobile-nav-dock {
+    transition-duration: 1ms !important;
+  }
+}
+
+/* =========================================================
+   VALLE 3.6.108 — carrossel encostado na borda e atrás dos modais
+   ---------------------------------------------------------
+   - bottom: 0 real: não usa safe-area para afastar o dock da borda.
+   - z-index baixo o bastante para ficar atrás dos modais.
+   - mantém a animação suave de recolher/mostrar da 3.6.107.
+   ========================================================= */
+@media (max-width:780px) {
+  #valleMobileNavDock.valle-mobile-nav-dock {
+    bottom: 0 !important;
+    z-index: 50 !important;
+  }
+
+  body.modal-open #valleMobileNavDock.valle-mobile-nav-dock {
+    z-index: 1 !important;
+  }
+}
+
+@media (max-width:390px) {
+  #valleMobileNavDock.valle-mobile-nav-dock {
+    bottom: 0 !important;
+  }
+}
+
+/* =========================================================
+   VALLE 3.6.109 — altura fina do carrossel mobile
+   ---------------------------------------------------------
+   Sobe levemente o dock em relação à 3.6.108, sem voltar
+   para a posição alta anterior. Mantém o carrossel atrás
+   de todos os modais.
+   ========================================================= */
+@media (max-width:780px) {
+  #valleMobileNavDock.valle-mobile-nav-dock {
+    bottom: 10px !important;
+    z-index: 50 !important;
+  }
+
+  body.modal-open #valleMobileNavDock.valle-mobile-nav-dock {
+    z-index: 1 !important;
+  }
+}
+
+@media (max-width:390px) {
+  #valleMobileNavDock.valle-mobile-nav-dock {
+    bottom: 8px !important;
+  }
+}
+
+/* =========================================================
+   VALLE 3.6.110 — carrossel mobile 100% da largura
+   ---------------------------------------------------------
+   O dock e a barra de abas ocupam toda a largura física da
+   viewport, sem margens laterais ou max-width. Mantém altura,
+   posição vertical, gesto de ocultar e prioridade dos modais.
+   ========================================================= */
+@media (max-width:780px) {
+  #valleMobileNavDock.valle-mobile-nav-dock {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  #valleMobileNavDock > .tabs.valle-mobile-nav-detached {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    border-radius: 0 !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@media (max-width:390px) {
+  #valleMobileNavDock.valle-mobile-nav-dock,
+  #valleMobileNavDock > .tabs.valle-mobile-nav-detached {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+}

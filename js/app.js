@@ -1,7 +1,7 @@
 /* VERSÃO DO SISTEMA — controlada em js/version.js */
 const versao = document.getElementById("versao_sytem");
 if (versao) {
-  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.102'}`;
+  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.110'}`;
 }
 /**
  * ARQUIVO PRINCIPAL DO VALLE
@@ -700,7 +700,21 @@ function switchScreen(id) {
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.screen === id));
   const activeTab = document.querySelector(`.tab[data-screen="${id}"]`);
   if (activeTab && mobile) {
-    requestAnimationFrame(() => activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }));
+    // VALLE 3.6.105: centraliza SOMENTE no eixo horizontal.
+    // scrollIntoView() também podia alterar a rolagem vertical/visual viewport
+    // quando a nova aba tinha pouco conteúdo (ex.: Crediário vazio), fazendo
+    // o dock inferior parecer subir.
+    requestAnimationFrame(() => {
+      const nav = activeTab.closest('.tabs');
+      if (!nav) return;
+      const targetLeft = activeTab.offsetLeft - ((nav.clientWidth - activeTab.offsetWidth) / 2);
+      const maxLeft = Math.max(0, nav.scrollWidth - nav.clientWidth);
+      nav.scrollTo({
+        left: Math.max(0, Math.min(targetLeft, maxLeft)),
+        top: 0,
+        behavior: 'smooth'
+      });
+    });
   }
 
   if (!mobile || !previousId || previousId === id) {
@@ -6146,31 +6160,38 @@ if (document.readyState === 'loading') {
     tracking = false;
 
     const horizontal = directionLock === 'horizontal' || (Math.abs(dx) > Math.abs(dy) * 1.35);
+    const vertical = directionLock === 'vertical' || (Math.abs(dy) > Math.abs(dx) * 1.25);
     if (gesture.type === 'swipe') gesture.type = null;
     directionLock = '';
+
+    // VALLE 3.6.107: gesto vertical controla o dock inferior.
+    // Dedo de baixo para cima = esconde. De cima para baixo = mostra.
+    // Funciona até em abas vazias, onde não existe rolagem suficiente para
+    // disparar um evento scroll do navegador.
+    if (vertical && elapsed <= 950 && Math.abs(dy) >= 44) {
+      if (dy < 0) document.body.classList.add('mobile-nav-hidden');
+      else document.body.classList.remove('mobile-nav-hidden');
+      return;
+    }
+
     if (!horizontal || elapsed > 850 || Math.abs(dx) < SWIPE_MIN) return;
     moveScreen(dx > 0 ? 'prev' : 'next');
   };
 
   const updateNavOnScroll = () => {
     scrollTicking = false;
-    if (!isMobile()) {
-      document.body.classList.remove('mobile-nav-hidden');
-      lastScrollY = Math.max(0, window.scrollY);
-      return;
-    }
+    if (!isMobile()) return;
 
     const currentY = Math.max(0, window.scrollY);
     const delta = currentY - lastScrollY;
 
-    if (currentY <= 18) {
+    // VALLE 3.6.107: acompanha a intenção natural do gesto de rolagem.
+    // Ao deslizar o conteúdo para cima (scrollY aumenta), recolhe o carrossel;
+    // ao voltar para baixo (scrollY diminui), exibe novamente.
+    if (currentY <= 4 || delta < -8) {
       document.body.classList.remove('mobile-nav-hidden');
-    } else if (delta > 7) {
-      // Página descendo (dedo sobe): esconde.
+    } else if (delta > 8) {
       document.body.classList.add('mobile-nav-hidden');
-    } else if (delta < -7) {
-      // Página subindo (dedo desce): mostra.
-      document.body.classList.remove('mobile-nav-hidden');
     }
 
     lastScrollY = currentY;
@@ -6481,3 +6502,145 @@ if (document.readyState === 'loading') {
 } else {
   setupValleAppPullRefresh();
 }
+
+
+/* =========================================================
+   VALLE 3.6.104 — dock mobile realmente fixo
+   ---------------------------------------------------------
+   O carrossel é colocado dentro de um host fixo próprio que é
+   filho direto do <body>. O host não recebe transform do .app,
+   não depende da altura do conteúdo e não participa do fluxo da
+   página. Ele só fica visível quando auth-ui.js marca o painel
+   principal do usuário de serviço como ativo.
+   ========================================================= */
+(function setupStableMobileCarouselPosition(){
+  const MOBILE_MAX = 780;
+  const DOCK_ID = 'valleMobileNavDock';
+  let nav = null;
+  let app = null;
+  let placeholder = null;
+  let dock = null;
+  let stableViewportHeight = 0;
+  let lastViewportWidth = 0;
+
+  function syncStableViewportHeight(forceReset = false){
+    if (window.innerWidth > MOBILE_MAX) return;
+    const width = Math.max(1, Math.round(window.visualViewport?.width || window.innerWidth || document.documentElement.clientWidth || 1));
+    const height = Math.max(320, Math.round(window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight || 720));
+    if (forceReset || !stableViewportHeight || (lastViewportWidth && Math.abs(width - lastViewportWidth) > 80)) {
+      stableViewportHeight = height;
+    } else {
+      // Nunca reduz durante navegação/abas vazias/teclado. Só cresce quando a
+      // viewport útil realmente fica maior (ex.: barras do navegador recolhidas).
+      stableViewportHeight = Math.max(stableViewportHeight, height);
+    }
+    lastViewportWidth = width;
+    document.documentElement.style.setProperty('--valle-mobile-stable-vh', `${stableViewportHeight}px`);
+  }
+
+  function ensureRefs(){
+    nav = nav || document.querySelector('.tabs');
+    app = app || document.querySelector('.app');
+    if (!nav || !app) return false;
+
+    if (!placeholder) {
+      placeholder = document.createComment('valle-mobile-tabs-origin');
+      nav.parentNode?.insertBefore(placeholder, nav);
+    }
+
+    dock = dock || document.getElementById(DOCK_ID);
+    if (!dock) {
+      dock = document.createElement('div');
+      dock.id = DOCK_ID;
+      dock.className = 'valle-mobile-nav-dock';
+      dock.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(dock);
+
+      // VALLE 3.6.107: permite recolher o carrossel arrastando o próprio
+      // dock de baixo para cima, sem disputar com o swipe horizontal das abas.
+      let dockStartX = 0;
+      let dockStartY = 0;
+      let dockTracking = false;
+      dock.addEventListener('touchstart', event => {
+        if (event.touches.length !== 1 || window.innerWidth > MOBILE_MAX) return;
+        const touch = event.touches[0];
+        dockStartX = touch.clientX;
+        dockStartY = touch.clientY;
+        dockTracking = true;
+      }, { passive:true });
+      dock.addEventListener('touchend', event => {
+        if (!dockTracking || !event.changedTouches.length || window.innerWidth > MOBILE_MAX) {
+          dockTracking = false;
+          return;
+        }
+        const touch = event.changedTouches[0];
+        const dx = touch.clientX - dockStartX;
+        const dy = touch.clientY - dockStartY;
+        dockTracking = false;
+        if (dy <= -34 && Math.abs(dy) > Math.abs(dx) * 1.15) {
+          document.body.classList.add('mobile-nav-hidden');
+        }
+      }, { passive:true });
+    }
+    return true;
+  }
+
+  function syncVisibility(){
+    if (!dock) return;
+    const visible = window.innerWidth <= MOBILE_MAX && document.body.classList.contains('valle-main-app-active');
+    dock.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  }
+
+  function applyPosition(){
+    if (!ensureRefs()) return;
+    const mobile = window.innerWidth <= MOBILE_MAX;
+
+    if (mobile) {
+      syncStableViewportHeight();
+      if (nav.parentNode !== dock) dock.appendChild(nav);
+      nav.classList.add('valle-mobile-nav-detached');
+      document.body.classList.add('valle-mobile-nav-stable');
+      document.body.classList.remove('mobile-nav-hidden');
+      syncVisibility();
+      return;
+    }
+
+    nav.classList.remove('valle-mobile-nav-detached');
+    document.body.classList.remove('valle-mobile-nav-stable', 'mobile-nav-hidden');
+    if (placeholder.parentNode) placeholder.parentNode.insertBefore(nav, placeholder.nextSibling);
+    dock?.setAttribute('aria-hidden', 'true');
+  }
+
+  let frame = 0;
+  function scheduleApply(){
+    if (frame) cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      applyPosition();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyPosition, { once:true });
+  } else {
+    applyPosition();
+  }
+
+  window.addEventListener('resize', scheduleApply, { passive:true });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      syncStableViewportHeight();
+      scheduleApply();
+    }, { passive:true });
+  }
+  window.addEventListener('orientationchange', () => {
+    stableViewportHeight = 0;
+    lastViewportWidth = 0;
+    window.setTimeout(() => { syncStableViewportHeight(true); scheduleApply(); }, 120);
+  }, { passive:true });
+
+  // Observa apenas a troca do estado de autenticação/painel. Alterações em
+  // notificações, listas, Realtime ou altura da tela não reposicionam o dock.
+  const observer = new MutationObserver(syncVisibility);
+  observer.observe(document.body, { attributes:true, attributeFilter:['class'] });
+})();
