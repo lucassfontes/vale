@@ -267,14 +267,14 @@
       .valle-loading-progress span { width: 100%; }
     }
   </style>
-  <link rel="manifest" href="manifest.json?v=3.6.110">
+  <link rel="manifest" href="manifest.json?v=3.6.126">
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="vendor/bootstrap/bootstrap.min.css">
   <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="css/app.css?v=3.6.110">
+  <link rel="stylesheet" href="css/app.css?v=3.6.126">
 </head>
 
 <body class="bootstrap-only-ui" style="background:#070b18">
@@ -440,8 +440,8 @@
             </div>
           </div>
           <button type="button" id="dashboardPushNoticesBtn" class="user-theme-menu-btn user-notices-menu-btn"><span>🔔</span><span>Avisos no celular</span></button>
-          <button type="button" id="dashboardLogoutBtn">Sair</button>
-          <p id="versao_sytem"></p>
+          <button type="button" id="dashboardLogoutBtn" data-valle-logout>Sair</button>
+          <p id="versao_sytem" class="valle-menu-version" data-valle-version></p>
         </div>
 
         <div class="premium-kpis dashboard-money-kpis">
@@ -1060,6 +1060,7 @@
                     <option value="quitados">PAGAMENTOS QUITADOS</option>
                     <option value="parciais">PAGAMENTOS PARCIAIS</option>
                     <option value="juros">PAGAMENTOS DE JUROS</option>
+                    <option value="so-capital">SÓ CAPITAL</option>
                     <option value="vales">NOVOS VALES</option>
                   </select>
                   <select class="form-select" id="lancamentosUsuario" aria-label="Filtrar usuário">
@@ -1261,15 +1262,15 @@
   </script>
   <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="js/version.js?v=3.6.110"></script>
+  <script src="js/version.js?v=3.6.126"></script>
   <script src="js/supabase-config.js?v=34"></script>
-  <script src="js/operation-feedback.js?v=3.6.110"></script>
-  <script src="js/supabase-client.js?v=3.6.110"></script>
-  <script src="js/app.js?v=3.6.110"></script>
-  <script src="js/lancamentos.js?v=3.6.110"></script>
-  <script src="js/client-payments.js?v=3.6.110"></script>
-  <script src="js/auth-ui.js?v=3.6.110"></script>
-  <script src="js/bootstrap-enhance.js?v=53"></script>
+  <script src="js/operation-feedback.js?v=3.6.126"></script>
+  <script src="js/supabase-client.js?v=3.6.126"></script>
+  <script src="js/app.js?v=3.6.126"></script>
+  <script src="js/lancamentos.js?v=3.6.126"></script>
+  <script src="js/client-payments.js?v=3.6.126"></script>
+  <script src="js/auth-ui.js?v=3.6.126"></script>
+  <script src="js/bootstrap-enhance.js?v=3.6.126"></script>
   <script src="js/push-notifications.js?v=34"></script>
   <script>
     (function () {
@@ -1287,7 +1288,7 @@
       window.addEventListener('load', async function () {
         try {
           const registro = await navigator.serviceWorker.register(
-            'service-worker.js?v=3.6.110',
+            'service-worker.js?v=3.6.126',
             { updateViaCache: 'none' }
           );
 

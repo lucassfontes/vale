@@ -1,8 +1,8 @@
 (function(){
   'use strict';
 
-  const ACTIONS = new Set(['CRIAR_VALE','REABRIR_VALE','QUITAR_VALE','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS','PAGAMENTO_ENTRADA']);
-  const PAYMENT_ACTIONS = new Set(['QUITAR_VALE','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS']);
+  const ACTIONS = new Set(['CRIAR_VALE','REABRIR_VALE','QUITAR_VALE','QUITAR_SO_CAPITAL','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS','PAGAMENTO_ENTRADA']);
+  const PAYMENT_ACTIONS = new Set(['QUITAR_VALE','QUITAR_SO_CAPITAL','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS']);
   const state = { entries: [], loading: false, loadedAt: 0, bound: false, realtimeInstalled:false };
 
   const el = id => document.getElementById(id);
@@ -62,6 +62,7 @@
       CRIAR_VALE: { category:'vales', label:'NOVO VALE', icon:'bi-file-earmark-plus', tone:'purple' },
       REABRIR_VALE: { category:'vales', label:'VALE REABERTO', icon:'bi-unlock-fill', tone:'cyan' },
       QUITAR_VALE: { category:'pagamentos', label:'PAGAMENTO TOTAL', icon:'bi-check-circle-fill', tone:'green' },
+      QUITAR_SO_CAPITAL: { category:'pagamentos', label:'SÓ CAPITAL', icon:'bi-wallet2', tone:'capital-blue' },
       PAGAMENTO_PARCIAL: { category:'pagamentos', label:'PAGAMENTO PARCIAL', icon:'bi-cash-stack', tone:'orange' },
       PAGAMENTO_JUROS: { category:'pagamentos', label:'PAGAMENTO DE JUROS', icon:'bi-percent', tone:'cyan' },
       PAGAMENTO_ENTRADA: { category:'pagamentos', label:'ENTRADA DO CREDIÁRIO', icon:'bi-cash-coin', tone:'green' }
@@ -99,6 +100,7 @@
       originalPrincipal:numberValue(source.valorOriginal ?? source.valor ?? log.old_data?.valorOriginal ?? log.old_data?.valor),
       principalAmount:numberValue(log.details?.valor_principal_pago),
       interestAmount:numberValue(log.details?.valor_juros_pago),
+      waivedInterest:numberValue(log.details?.juros_perdoados ?? source.jurosPerdoados),
       client:String(log.client_name || source.cliente || source.nome || 'SEM CLIENTE'),
       vale:String(log.vale_number || source.numero || ''),
       valeId:String(log.entity_id || source.id || ''),
@@ -172,9 +174,10 @@
         (f.type === 'todos'
           || (f.type === 'pagamentos' && item.category === 'pagamentos')
           || (f.type === 'vales' && item.category === 'vales')
-          || (f.type === 'quitados' && item.action === 'QUITAR_VALE')
+          || (f.type === 'quitados' && (item.action === 'QUITAR_VALE' || item.action === 'QUITAR_SO_CAPITAL'))
           || (f.type === 'parciais' && item.action === 'PAGAMENTO_PARCIAL')
-          || (f.type === 'juros' && item.action === 'PAGAMENTO_JUROS')) &&
+          || (f.type === 'juros' && item.action === 'PAGAMENTO_JUROS')
+          || (f.type === 'so-capital' && item.action === 'QUITAR_SO_CAPITAL')) &&
         (!f.user || item.actorId === f.user) &&
         (!f.from || item.day >= f.from) &&
         (!f.to || item.day <= f.to);
@@ -193,7 +196,7 @@
 
   function renderSummary(entries){
     const payments=entries.filter(item=>item.category==='pagamentos');
-    const quitados=entries.filter(item=>item.action==='QUITAR_VALE');
+    const quitados=entries.filter(item=>item.action==='QUITAR_VALE' || item.action==='QUITAR_SO_CAPITAL');
     const parciais=entries.filter(item=>item.action==='PAGAMENTO_PARCIAL');
     const juros=entries.filter(item=>item.action==='PAGAMENTO_JUROS');
     const vales=entries.filter(item=>item.action==='CRIAR_VALE');
@@ -272,7 +275,12 @@
   }
 
   function entryHtml(item){
-    const amountLabel = item.action === 'REABRIR_VALE' ? 'SALDO REABERTO' : (item.category === 'vales' ? 'VALOR LIBERADO' : 'VALOR PAGO');
+    const amountLabel = item.action === 'REABRIR_VALE' ? 'SALDO REABERTO' : (item.action === 'QUITAR_SO_CAPITAL' ? 'CAPITAL RECEBIDO' : (item.category === 'vales' ? 'VALOR LIBERADO' : 'VALOR PAGO'));
+    const isSoCapital = item.action === 'QUITAR_SO_CAPITAL';
+    const valueSummary = isSoCapital
+      ? `<div class="lancamento-value-row lancamento-capital-row"><small>CAPITAL RECEBIDO</small><strong>${moneyBR(item.amount)}</strong></div>
+         <div class="lancamento-value-row lancamento-interest-waived-row"><small>JUROS DISPENSADOS</small><strong>${moneyBR(item.waivedInterest)}</strong></div>`
+      : `<small>${amountLabel}</small><strong>${moneyBR(item.amount)}</strong>`;
     const access = actionAccess(item);
     const disabledOpen = access.canOpen ? '' : ' disabled aria-disabled="true"';
     const disabledEdit = access.canEdit ? '' : ' disabled aria-disabled="true"';
@@ -297,9 +305,8 @@
                 ${item.action === 'REABRIR_VALE' ? `<span><i class="bi bi-clock"></i><b>HORA:</b> ${escapeHtml(item.time)}</span>` : ''}
               </div>
             </div>
-            <div class="lancamento-value">
-              <small>${amountLabel}</small>
-              <strong>${moneyBR(item.amount)}</strong>
+            <div class="lancamento-value${isSoCapital ? ' lancamento-value-so-capital' : ''}">
+              ${valueSummary}
             </div>
           </div>
         </div>

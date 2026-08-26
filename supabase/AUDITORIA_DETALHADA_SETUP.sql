@@ -53,7 +53,7 @@ create policy audit_logs_select on public.audit_logs for select to authenticated
         and sp.session_user_id=public.my_session_id()
         and sp.can_view_transactions=true
     )
-    and action in ('CRIAR_VALE','QUITAR_VALE','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS')
+    and action in ('CRIAR_VALE','QUITAR_VALE','QUITAR_SO_CAPITAL','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS')
   )
 );
 drop policy if exists audit_logs_insert on public.audit_logs;

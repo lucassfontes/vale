@@ -1,8 +1,11 @@
 /* VERSÃO DO SISTEMA — controlada em js/version.js */
-const versao = document.getElementById("versao_sytem");
-if (versao) {
-  versao.textContent = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.110'}`;
+function atualizarVersaoNosMenus() {
+  const label = globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.126'}`;
+  document.querySelectorAll('[data-valle-version], #versao_sytem').forEach((node) => {
+    node.textContent = label;
+  });
 }
+atualizarVersaoNosMenus();
 /**
  * ARQUIVO PRINCIPAL DO VALLE
  * ------------------------------------------------
@@ -286,8 +289,15 @@ function normalizeDb(obj, usarChavesSeparadas = false) {
     observacao: upper(v.observacao || ''),
     status: v.status === 'PAGO' ? 'PAGO' : 'ABERTO',
     jurosRecebidos: Number(v.jurosRecebidos || 0),
+    // Até qual vencimento os juros já foram efetivamente recebidos via "Só juros".
+    // Isso evita registrar juros como "dispensados" quando o cliente quita o
+    // capital dentro do mesmo ciclo que já teve os juros pagos.
+    jurosPagoAte: String(v.jurosPagoAte || ''),
     parcialRecebido: Number(v.parcialRecebido || 0),
     principalRecebido: Number(v.principalRecebido || 0),
+    quitadoSoCapital: !!v.quitadoSoCapital,
+    jurosPerdoados: Math.max(0, Number(v.jurosPerdoados || 0)),
+    valorCapitalQuitado: Math.max(0, Number(v.valorCapitalQuitado || 0)),
     listaNegra: !!v.listaNegra,
     criadoEm: v.criadoEm || new Date().toISOString(),
     editadoEm: v.editadoEm || ''
@@ -373,6 +383,7 @@ function toast(msg, type = 'info') {
     'PAGAMENTO PARCIAL REGISTRADO': 'Pagamento parcial registrado com sucesso!',
     'VALE MARCADO COMO QUITADO': 'Vale quitado com sucesso!',
     'VALE QUITADO': 'Vale quitado com sucesso!',
+    'CAPITAL RECEBIDO E VALE QUITADO SEM JUROS': 'Capital recebido e vale quitado sem juros!',
     'CONFIGURACAO SALVA': 'Configurações salvas com sucesso!',
     'PDF BAIXADO. ABRA O ARQUIVO PARA IMPRIMIR': 'PDF gerado com sucesso!',
     'PDF ABERTO. USE IMPRIMIR NO NAVEGADOR': 'PDF gerado com sucesso!',
@@ -892,14 +903,14 @@ function valleElectronicSignature(){
 }
 function valleAuditDiff(before,after){
   const ignored=new Set(['ultimaAssinaturaEletronica','assinaturaEletronica','editadoEm','criadoEm']);
-  const labels={nome:'Nome',cliente:'Cliente',telefone:'Telefone',cpf:'CPF',obs:'Observação',observacao:'Observação',valor:'Valor emprestado',total:'Valor a receber',juros:'Taxa de juros',taxaAtrasoDiario:'Taxa de atraso diária',tipoTaxaAtrasoDiario:'Tipo da taxa de atraso',multaAtrasoPercentual:'Multa por atraso',formaPagamento:'Forma de pagamento',crediarioCodigo:'Contrato de crediário',crediarioNome:'Nome do crediário',crediarioEntrada:'Entrada',parcelaNumero:'Número da parcela',parcelaTotal:'Total de parcelas',periodicidade:'Periodicidade',dataInicial:'Data inicial',dataFinal:'Data final',status:'Status',principalRecebido:'Principal recebido',jurosRecebidos:'Juros recebidos',parcialRecebido:'Pagamento parcial acumulado',listaNegra:'Lista negra'};
+  const labels={nome:'Nome',cliente:'Cliente',telefone:'Telefone',cpf:'CPF',obs:'Observação',observacao:'Observação',valor:'Valor emprestado',total:'Valor a receber',juros:'Taxa de juros',taxaAtrasoDiario:'Taxa de atraso diária',tipoTaxaAtrasoDiario:'Tipo da taxa de atraso',multaAtrasoPercentual:'Multa por atraso',formaPagamento:'Forma de pagamento',crediarioCodigo:'Contrato de crediário',crediarioNome:'Nome do crediário',crediarioEntrada:'Entrada',parcelaNumero:'Número da parcela',parcelaTotal:'Total de parcelas',periodicidade:'Periodicidade',dataInicial:'Data inicial',dataFinal:'Data final',status:'Status',principalRecebido:'Principal recebido',jurosRecebidos:'Juros recebidos',parcialRecebido:'Pagamento parcial acumulado',quitadoSoCapital:'Quitação somente de capital',jurosPerdoados:'Juros dispensados',valorCapitalQuitado:'Capital recebido na quitação',listaNegra:'Lista negra'};
   const out={}; const keys=new Set([...Object.keys(before||{}),...Object.keys(after||{})]);
   keys.forEach(k=>{if(ignored.has(k))return;const a=before?.[k],b=after?.[k];if(JSON.stringify(a)!==JSON.stringify(b))out[k]={label:labels[k]||k,anterior:a??null,novo:b??null}});
   return out;
 }
 function valleAudit(action,type,record,extra={}){
   try{
-    const names={CRIAR_CLIENTE:['CLIENTES','Novo cliente criado'],ATUALIZAR_CLIENTE:['CLIENTES','Cliente atualizado'],EXCLUIR_CLIENTE:['CLIENTES','Cliente excluído'],CRIAR_VALE:['VALES','Novo vale criado'],ATUALIZAR_VALE:['VALES','Vale atualizado'],EXCLUIR_VALE:['VALES','Vale excluído'],QUITAR_VALE:['PAGAMENTOS','Vale quitado'],PAGAMENTO_PARCIAL:['PAGAMENTOS','Pagamento parcial registrado'],PAGAMENTO_JUROS:['PAGAMENTOS','Pagamento de juros registrado'],NAO_PAGOU:['PAGAMENTOS','Não pagamento registrado'],LISTA_NEGRA:['CLIENTES','Cliente adicionado à lista negra'],PAGAMENTO_ENTRADA:['PAGAMENTOS','Entrada de crediário recebida'],REABRIR_VALE:['VALES','Vale reaberto']};
+    const names={CRIAR_CLIENTE:['CLIENTES','Novo cliente criado'],ATUALIZAR_CLIENTE:['CLIENTES','Cliente atualizado'],EXCLUIR_CLIENTE:['CLIENTES','Cliente excluído'],CRIAR_VALE:['VALES','Novo vale criado'],ATUALIZAR_VALE:['VALES','Vale atualizado'],EXCLUIR_VALE:['VALES','Vale excluído'],QUITAR_VALE:['PAGAMENTOS','Vale quitado'],QUITAR_SO_CAPITAL:['PAGAMENTOS','Vale quitado somente com capital'],PAGAMENTO_PARCIAL:['PAGAMENTOS','Pagamento parcial registrado'],PAGAMENTO_JUROS:['PAGAMENTOS','Pagamento de juros registrado'],NAO_PAGOU:['PAGAMENTOS','Não pagamento registrado'],LISTA_NEGRA:['CLIENTES','Cliente adicionado à lista negra'],PAGAMENTO_ENTRADA:['PAGAMENTOS','Entrada de crediário recebida'],REABRIR_VALE:['VALES','Vale reaberto']};
     const key=String(action||'').toUpperCase(); const meta=names[key]||[String(type||'SISTEMA').toUpperCase(),'Ação registrada'];
     const before=extra.old_data||null,after=extra.new_data||record||null,changes=extra.changes||valleAuditDiff(before,after);
     const user=window.ValleCloud?.profile?.name||'Usuário'; const target=record?.numero?`Vale #${record.numero}`:(record?.nome||record?.cliente||record?.id||'registro');
@@ -1027,7 +1038,7 @@ window.valleUndoAuditRecord=async function(record,logs=[]){
     }else if(action==='CRIAR_VALE'){
       const current=valleAuditFindVale(record);
       if(current){db.vales=db.vales.filter(v=>String(v.id)!==String(current.id));changed=true}
-    }else if(['ATUALIZAR_VALE','QUITAR_VALE','REABRIR_VALE'].includes(action)){
+    }else if(['ATUALIZAR_VALE','QUITAR_VALE','QUITAR_SO_CAPITAL','REABRIR_VALE'].includes(action)){
       if(!oldData)throw new Error('Este registro não possui o estado anterior do vale.');
       valleAuditReplace(db.vales,valleAuditFindVale(record),oldData);changed=true;
     }else if(action==='EXCLUIR_VALE'){
@@ -1908,6 +1919,12 @@ async function reabrirValeQuitado(id) {
 
   v.status = 'ABERTO';
   v.ultimoRecebimento = 'REABERTO';
+  // Ao reabrir uma quitação "Só capital", o vale volta ao saldo normal
+  // (principal + juros originalmente contratados). O histórico permanece na Auditoria/OBS.
+  v.quitadoSoCapital = false;
+  v.jurosPerdoados = 0;
+  v.valorCapitalQuitado = 0;
+  v.jurosPagoAte = '';
   v.editadoEm = agora;
   v.reabertoEm = agora;
   v.reabertoPor = assinatura.userName || 'USUÁRIO';
@@ -2315,17 +2332,19 @@ function openReceiveModal(id, editing = false) {
     </div>
 
     <div class="modal-footer d-block px-3 px-md-4 py-3">
-      <div id="receiveActionsGrid" class="row row-cols-2 row-cols-lg-4 g-2 mb-3">
-        <div class="col"><button type="button" class="btn btn-outline-success w-100" onclick="receiveQuitado('${v.id}')"><i class="bi bi-check-circle"></i><span>Quitado</span></button></div>
-        <div class="col"><button type="button" class="btn btn-outline-secondary w-100" onclick="receiveSoJuros('${v.id}')"><i class="bi bi-percent"></i><span>Só juros</span></button></div>
-        <div class="col"><button type="button" class="btn btn-outline-warning w-100" onclick="showReceiveParcialField('${v.id}')"><i class="bi bi-pie-chart"></i><span>Pg. parcial</span></button></div>
-        <div class="col"><button type="button" class="btn btn-outline-danger w-100" onclick="receiveNaoPagou('${v.id}')"><i class="bi bi-x-circle"></i><span>Não pagou</span></button></div>
+      <div class="receive-charge-actions-box mb-3">
+        <div class="receive-charge-actions-title"><span>Ações de recebimento</span></div>
+        <div id="receiveActionsGrid" class="row row-cols-2 row-cols-lg-4 g-2">
+          <div class="col"><button type="button" class="btn btn-outline-success w-100" onclick="receiveQuitado('${v.id}')"><i class="bi bi-check-circle"></i><span>Quitado</span></button></div>
+          <div class="col"><button type="button" class="btn btn-so-capital w-100" onclick="receiveSoCapital('${v.id}')"><i class="bi bi-wallet2"></i><span>Só capital</span></button></div>
+          <div class="col"><button type="button" class="btn btn-outline-secondary w-100" onclick="receiveSoJuros('${v.id}')"><i class="bi bi-percent"></i><span>Só juros</span></button></div>
+          <div class="col"><button type="button" class="btn btn-outline-warning w-100" onclick="showReceiveParcialField('${v.id}')"><i class="bi bi-pie-chart"></i><span>Pg. parcial</span></button></div>
+        </div>
       </div>
 
-      <div class="row g-2">
-        <div class="col-12 col-md"><button id="receiveEditBtn" type="button" class="btn btn-outline-primary w-100" onclick="${editing ? `saveReceiveModalEdit('${v.id}')` : `openReceiveModal('${v.id}', true)`}"><i class="bi ${editing ? 'bi-floppy' : 'bi-pencil-square'}"></i><span>${editing ? 'Salvar alterações' : 'Editar'}</span></button></div>
-        <div class="col-12 col-md"><button id="receiveCloseBtn" type="button" class="btn btn-outline-secondary w-100" onclick="window.valleCancelClientPaymentReceive?.();closeReceiveModal()"><i class="bi bi-x-lg"></i><span>Fechar</span></button></div>
-        <div class="col-12 col-md"><button id="receiveRemoveBtn" type="button" class="btn btn-outline-danger w-100" onclick="receiveRemover('${v.id}')"><i class="bi bi-trash3"></i><span>Remover registro</span></button></div>
+      <div class="row g-2 receive-footer-main-actions">
+        <div class="col-6 col-md"><button id="receiveEditBtn" type="button" class="btn btn-outline-primary w-100" onclick="${editing ? `saveReceiveModalEdit('${v.id}')` : `openReceiveModal('${v.id}', true)`}"><i class="bi ${editing ? 'bi-floppy' : 'bi-pencil-square'}"></i><span>${editing ? 'Salvar alterações' : 'Editar'}</span></button></div>
+        <div class="col-6 col-md"><button id="receiveCloseBtn" type="button" class="btn btn-outline-secondary w-100" onclick="window.valleCancelClientPaymentReceive?.();closeReceiveModal()"><i class="bi bi-x-lg"></i><span>Fechar</span></button></div>
       </div>
     </div>`
 
@@ -2385,6 +2404,10 @@ function saveReceiveModalEdit(id) {
   v.principalRecebido = 0;
   v.parcialRecebido = 0;
   v.jurosRecebidos = 0;
+  v.jurosPagoAte = '';
+  v.quitadoSoCapital = false;
+  v.jurosPerdoados = 0;
+  v.valorCapitalQuitado = 0;
   v.dataFinal = dataFinal;
   v.observacao = observacao;
   v.editadoEm = new Date().toISOString();
@@ -2404,6 +2427,10 @@ function receiveQuitado(id) {
   const valorQuitacao=loanTotalBalance(v);
   v.status = 'PAGO';
   v.ultimoRecebimento = 'QUITADO';
+  v.quitadoSoCapital = false;
+  v.jurosPerdoados = 0;
+  v.valorCapitalQuitado = 0;
+  v.jurosPagoAte = '';
   v.editadoEm = new Date().toISOString();
   const dataPagamento = brDate(inputDate(new Date()));
   const linhaQuitacao = `${dataPagamento} - PAGO ${money(valorQuitacao)} | QUITADO${v.crediarioId ? ` PARCELA ${Number(v.parcelaNumero || 0)}/${Number(v.parcelaTotal || 0)}` : ''}`;
@@ -2416,6 +2443,70 @@ function receiveQuitado(id) {
   save(); closeReceiveModal(); renderAll();
   window.valleCompleteClientPaymentReceive?.(id,'QUITADO',valorQuitacao);
   toast('VALE MARCADO COMO QUITADO');
+}
+
+
+function receiveSoCapital(id) {
+  if (!valleRequirePermission('can_receive_payment')) return;
+  const v = db.vales.find(x => x.id === id);
+  if (!v) return;
+  if (valeEstaQuitado(v)) {
+    toast('VALE JÁ QUITADO.');
+    return;
+  }
+  if (Number(v.valorOriginal || 0) <= 0) v.valorOriginal = originalLoanValue(v);
+  if (Number(v.totalOriginal || 0) <= 0) v.totalOriginal = originalLoanTotal(v);
+
+  const anterior = valleAuditClone(v);
+  const capital = loanPrincipalBalance(v);
+
+  // Se houve um recebimento "Só juros", os juros ficam cobertos até o novo
+  // vencimento criado por essa operação. Uma quitação de capital feita dentro
+  // desse período não deve registrar os mesmos juros como dispensados de novo.
+  const hoje = inputDate(new Date());
+  const jurosPagoAte = String(v.jurosPagoAte || '').trim();
+  const jurosDoCicloJaPagos = !!jurosPagoAte && hoje <= jurosPagoAte;
+  const jurosDispensados = jurosDoCicloJaPagos ? 0 : loanInterest(v);
+  if (capital <= 0) {
+    toast('NÃO HÁ CAPITAL EM ABERTO NESTE VALE');
+    return;
+  }
+
+  const agora = new Date().toISOString();
+  const dataPagamento = brDate(inputDate(new Date()));
+  v.status = 'PAGO';
+  v.ultimoRecebimento = 'SÓ CAPITAL';
+  v.quitadoSoCapital = true;
+  v.valorCapitalQuitado = capital;
+  v.jurosPerdoados = jurosDispensados;
+  v.editadoEm = agora;
+
+  const linha = `${dataPagamento} - PAGO CAPITAL ${money(capital)} | SÓ CAPITAL${jurosDispensados > 0 ? ` | JUROS DISPENSADOS ${money(jurosDispensados)}` : ''}`;
+  const obsAtual = String(v.observacao || '').trim();
+  v.observacao = obsAtual ? `${obsAtual}
+${linha}` : linha;
+
+  valleAudit('QUITAR_SO_CAPITAL', 'vale', v, {
+    old_data: anterior,
+    new_data: valleAuditClone(v),
+    valor_pago: capital,
+    valor_principal_pago: capital,
+    valor_juros_pago: 0,
+    juros_perdoados: jurosDispensados,
+    data_pagamento: agora,
+    title: 'Quitação somente de capital',
+    juros_ciclo_ja_pago: jurosDoCicloJaPagos,
+    juros_pago_ate: jurosPagoAte || null,
+    description: jurosDoCicloJaPagos
+      ? `Recebido somente o capital de ${money(capital)} no Vale #${v.numero || v.id}. Os juros deste ciclo já haviam sido recebidos; nenhum juros foi dispensado nesta quitação.`
+      : `Recebido somente o capital de ${money(capital)} no Vale #${v.numero || v.id}, sem cobrança de juros${jurosDispensados > 0 ? ` (${money(jurosDispensados)} dispensados)` : ''}.`
+  });
+
+  save();
+  closeReceiveModal();
+  renderAll();
+  window.valleCompleteClientPaymentReceive?.(id, 'SÓ CAPITAL', capital);
+  toast('CAPITAL RECEBIDO E VALE QUITADO SEM JUROS');
 }
 
 function addDaysToDate(dateStr, daysToAdd) {
@@ -2524,6 +2615,8 @@ function receiveSoJuros(id) {
   const juros = loanInterest(v);
   v.jurosRecebidos = Number(v.jurosRecebidos || 0) + juros;
   v.dataFinal = addDaysToDate(v.dataFinal, 30);
+  // Os juros pagos nesta operação cobrem o ciclo até o novo vencimento.
+  v.jurosPagoAte = v.dataFinal;
   v.ultimoRecebimento = 'SÓ JUROS';
   v.status = 'ABERTO';
 
@@ -3409,7 +3502,7 @@ function renderDashboard() {
   // Exemplo: emprestou R$100 e recebeu R$130 => entra só R$30.
   const jurosRecebidosAvulsos = vales.reduce((s, v) => s + Number(v.jurosRecebidos || 0), 0);
   const totalRecebido = jurosRecebidosAvulsos + pagos.reduce((s, v) => {
-    if (Number(v.jurosRecebidos || 0) > 0) return s;
+    if (Number(v.jurosRecebidos || 0) > 0 || v.quitadoSoCapital) return s;
     return s + Math.max(0, originalLoanTotal(v) - originalLoanValue(v));
   }, 0);
   const rentabilidade = capitalInvestido > 0 ? (totalJuros / capitalInvestido) * 100 : 0;
@@ -3548,7 +3641,7 @@ function relClienteStats() {
     o.aberto += saldo;
     if (v.status === 'PAGO') {
       o.pagos++;
-      o.recebido += originalLoanTotal(v);
+      o.recebido += v.quitadoSoCapital ? originalLoanValue(v) : originalLoanTotal(v);
       const dataPg = String(v.editadoEm || v.criadoEm || '').slice(0, 10);
       if (dataPg && v.dataFinal && dataPg > v.dataFinal) o.pagosAtrasados++;
       else o.emDia++;
@@ -3600,7 +3693,7 @@ function renderReports() {
   const dev = [...arrAll].sort((a, b) => b.aberto - a.aberto)[0];
   const totalAberto = aberto.reduce((s, v) => s + loanTotalBalance(v), 0);
   const jurosRecebidos = db.vales.reduce((s, v) => s + Number(v.jurosRecebidos || 0), 0);
-  const recebido = pagos.reduce((s, v) => s + originalLoanTotal(v), 0) + jurosRecebidos;
+  const recebido = pagos.reduce((s, v) => s + (v.quitadoSoCapital ? originalLoanValue(v) : originalLoanTotal(v)), 0) + jurosRecebidos;
   const risco = arrAll.filter(x => x.classe === 'bad' || x.atrasados > 0).length;
 
   if ($('relTopCliente')) $('relTopCliente').textContent = top ? `${top.nome} (${top.qtd})` : '-';
@@ -5467,7 +5560,7 @@ function renderPremiumClientList(id, list, empty){
   if (!box) return;
   box.innerHTML = list.length ? list.map(v => {
     const info = premiumStatusInfo(v);
-    const valor = v.status === 'PAGO' ? originalLoanTotal(v) : loanTotalBalance(v);
+    const valor = v.status === 'PAGO' ? (v.quitadoSoCapital ? originalLoanValue(v) : originalLoanTotal(v)) : loanTotalBalance(v);
     return `<div class="premium-client-row ${info.cls}">
       <span class="premium-avatar ${info.cls}">${premiumInitials(v.cliente)}</span>
       <span><b>${h(v.cliente)}</b><small>${brDate(v.dataFinal)} • ${h(info.txt)}</small></span>
@@ -5500,7 +5593,7 @@ function renderPremiumDashboard(){
   },0);
   const jurosRecebidos = db.vales.reduce((s,v)=>{
     const jurosRegistrados = Math.max(0, Number(v.jurosRecebidos || 0));
-    const jurosFinaisQuitados = v.status === 'PAGO' ? loanInterest(v) : 0;
+    const jurosFinaisQuitados = v.status === 'PAGO' && !v.quitadoSoCapital ? loanInterest(v) : 0;
     return s + jurosRegistrados + jurosFinaisQuitados;
   },0);
   const totalRecebido = principalRecuperado + jurosRecebidos;
@@ -5617,7 +5710,7 @@ function v35ClienteStats(){
     if (dataPg && (!o.ultimoPagamento || dataPg > o.ultimoPagamento)) o.ultimoPagamento = dataPg;
     if (pago) {
       o.pagos++;
-      o.recebido += total + jurosRec;
+      o.recebido += (v.quitadoSoCapital ? principal : total) + jurosRec;
       // Vale quitado deixa de ser considerado atraso ativo no relatório.
       // A data do pagamento continua registrada, mas não reduz o score nem
       // permanece no contador "Atrasos" do cliente.

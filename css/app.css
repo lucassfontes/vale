@@ -12,7 +12,9 @@
   --shadow: 0 18px 45px rgba(36, 10, 79, .14)
 }
 
-#versao_sytem{
+#versao_sytem,
+.valle-menu-version,
+[data-valle-version]{
   margin: 0;
   padding: 0;
   color: #fff;
@@ -23364,7 +23366,9 @@ body:not(.dark) #abrirValeSenhaModal .abrir-vale-senha-titulos p {
 }
 
 /* Versão exibida no menu do usuário */
-#versao_sytem {
+#versao_sytem,
+.valle-menu-version,
+[data-valle-version] {
   display: block !important;
   width: 100% !important;
   margin: 8px 0 0 !important;
@@ -23378,7 +23382,9 @@ body:not(.dark) #abrirValeSenhaModal .abrir-vale-senha-titulos p {
   text-transform: none !important;
   text-align: center !important;
 }
-body.dark #versao_sytem {
+body.dark #versao_sytem,
+body.dark .valle-menu-version,
+body.dark [data-valle-version] {
   border-top-color: rgba(148, 163, 184, .18) !important;
   color: #aeb7c8 !important;
 }
@@ -33977,5 +33983,889 @@ body.valle-system-message-open{
     right: 0 !important;
     width: 100% !important;
     max-width: none !important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.111 — senha segura em usuários gerenciados
+   ========================================================= */
+.user-modal .managed-password-label{gap:8px;}
+.user-modal .managed-password-control{position:relative;width:100%;display:block;}
+.user-modal .managed-password-control input{width:100%;padding-right:52px!important;}
+.user-modal .managed-password-toggle{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  width:38px;height:38px;border:0;border-radius:10px;background:transparent;
+  color:inherit;display:grid;place-items:center;cursor:pointer;z-index:2;
+}
+.user-modal .managed-password-toggle:hover{background:rgba(139,92,246,.12);}
+.user-modal .managed-password-toggle:focus-visible{outline:2px solid #8b5cf6;outline-offset:1px;}
+.user-modal .managed-password-toggle i{font-size:1.05rem;}
+.user-modal .managed-password-hint{font-size:.73rem;line-height:1.35;opacity:.72;font-weight:600;}
+/* Segurança visual: o ADM nunca vê blocos exclusivos de usuários de serviço. */
+.user-modal[data-manager-role="admin"] #serviceFinancialBox,
+.user-modal[data-manager-role="admin"] #permissionsBox{display:none!important;}
+
+
+/* =========================================================
+   VALLE 3.6.113 — modal de usuário refinado + olho estável
+   ========================================================= */
+#userModal .user-modal-scroll{
+  align-content:start!important;
+  align-items:start!important;
+  grid-auto-rows:max-content!important;
+  row-gap:14px!important;
+  column-gap:16px!important;
+}
+#userModal .user-modal-scroll > label:not(.check-line){
+  align-self:start!important;
+  height:auto!important;
+  min-height:0!important;
+}
+
+/* Olho com caixa fixa. Os dois glifos ficam sobrepostos no mesmo centro,
+   portanto nada muda de posição ao mostrar/ocultar a senha. */
+#userModal .managed-password-control{
+  position:relative!important;
+  width:100%!important;
+  min-height:50px!important;
+  display:block!important;
+  isolation:isolate!important;
+}
+#userModal .managed-password-control #managedPassword{
+  width:100%!important;
+  height:50px!important;
+  min-height:50px!important;
+  padding-right:58px!important;
+  box-sizing:border-box!important;
+  -webkit-appearance:none!important;
+  appearance:none!important;
+}
+#userModal .managed-password-toggle{
+  position:absolute!important;
+  top:50%!important;
+  right:6px!important;
+  transform:translate3d(0,-50%,0)!important;
+  width:42px!important;
+  min-width:42px!important;
+  max-width:42px!important;
+  height:42px!important;
+  min-height:42px!important;
+  max-height:42px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:11px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  flex:0 0 42px!important;
+  line-height:0!important;
+  background:transparent!important;
+  color:#a9b7ca!important;
+  -webkit-text-fill-color:#a9b7ca!important;
+  cursor:pointer!important;
+  z-index:5!important;
+  box-shadow:none!important;
+  outline:none!important;
+  touch-action:manipulation!important;
+}
+#userModal .managed-password-toggle:hover{
+  background:rgba(139,92,246,.12)!important;
+  color:#c4b5fd!important;
+  -webkit-text-fill-color:#c4b5fd!important;
+}
+#userModal .managed-password-toggle:active{
+  transform:translate3d(0,-50%,0)!important;
+}
+#userModal .managed-password-toggle:focus-visible{
+  outline:2px solid #8b5cf6!important;
+  outline-offset:-2px!important;
+}
+#userModal .managed-password-icon{
+  position:relative!important;
+  display:block!important;
+  width:20px!important;
+  height:20px!important;
+  min-width:20px!important;
+  min-height:20px!important;
+  flex:0 0 20px!important;
+  line-height:1!important;
+}
+#userModal .managed-password-icon > i{
+  position:absolute!important;
+  inset:0!important;
+  width:20px!important;
+  height:20px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  margin:0!important;
+  padding:0!important;
+  font-size:1.08rem!important;
+  line-height:20px!important;
+  transform:none!important;
+  transition:opacity .14s ease!important;
+}
+#userModal .managed-eye-show{opacity:1!important;}
+#userModal .managed-eye-hide{opacity:0!important;}
+#userModal .managed-password-toggle.is-showing .managed-eye-show{opacity:0!important;}
+#userModal .managed-password-toggle.is-showing .managed-eye-hide{opacity:1!important;}
+#userModal .managed-password-hint{
+  min-height:1em!important;
+  margin:0!important;
+  font-size:.72rem!important;
+  line-height:1.35!important;
+  opacity:.68!important;
+  font-weight:600!important;
+  text-transform:none!important;
+  letter-spacing:0!important;
+}
+
+/* Modal do administrador: composição limpa em três linhas. */
+#userModal[data-manager-role="admin"] .managed-name-field{grid-column:1!important;}
+#userModal[data-manager-role="admin"] .managed-email-field{grid-column:2!important;}
+#userModal[data-manager-role="admin"] .managed-new-password-field{grid-column:1!important;}
+#userModal[data-manager-role="admin"] .managed-validity-field{grid-column:2!important;}
+#userModal[data-manager-role="admin"] .managed-whatsapp-field{
+  grid-column:1 / -1!important;
+  width:100%!important;
+}
+#userModal[data-manager-role="admin"] .user-modal-scroll{
+  padding:18px 22px 20px!important;
+}
+#userModal[data-manager-role="admin"] .user-modal-card{
+  width:min(790px,calc(100vw - 24px))!important;
+  max-width:790px!important;
+}
+@media (min-width:721px){
+  #userModal[data-manager-role="admin"] .user-modal-card{
+    height:auto!important;
+    min-height:0!important;
+    max-height:min(690px,calc(var(--user-modal-viewport-height,100dvh) - 24px))!important;
+  }
+  #userModal[data-manager-role="admin"] #userForm.user-modal-body.user-modal-layout{
+    flex:0 1 auto!important;
+  }
+  #userModal[data-manager-role="admin"] .user-modal-scroll{
+    flex:0 1 auto!important;
+    overflow-y:auto!important;
+  }
+}
+
+/* Usuário de sessão -> usuário de serviço: senha ocupa uma linha inteira,
+   antes dos blocos de juros/permissões. */
+#userModal[data-manager-role="session"] .managed-new-password-field{
+  grid-column:1 / -1!important;
+}
+
+@media (max-width:720px){
+  #userModal .user-modal-scroll{
+    grid-template-columns:1fr!important;
+    row-gap:11px!important;
+    padding:13px 13px 15px!important;
+  }
+  #userModal[data-manager-role="admin"] .managed-name-field,
+  #userModal[data-manager-role="admin"] .managed-email-field,
+  #userModal[data-manager-role="admin"] .managed-new-password-field,
+  #userModal[data-manager-role="admin"] .managed-validity-field,
+  #userModal[data-manager-role="admin"] .managed-whatsapp-field,
+  #userModal[data-manager-role="session"] .managed-new-password-field{
+    grid-column:1!important;
+  }
+  #userModal .managed-password-toggle{
+    right:5px!important;
+    width:40px!important;
+    min-width:40px!important;
+    max-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    max-height:40px!important;
+    flex-basis:40px!important;
+  }
+}
+
+
+/* =========================================================
+   VALLE 3.6.114 — alinhamento senha/validade + olho no login
+   ========================================================= */
+/* O par Nova senha / Validade usa a mesma geometria vertical.
+   O spacer invisível replica a área de ajuda da senha sem alterar o visual. */
+#userModal[data-manager-role="admin"] .managed-new-password-field,
+#userModal[data-manager-role="admin"] .managed-validity-field{
+  display:grid!important;
+  grid-template-rows:17px 50px 18px!important;
+  align-items:start!important;
+  align-content:start!important;
+  gap:7px!important;
+  min-height:106px!important;
+  height:106px!important;
+  box-sizing:border-box!important;
+}
+#userModal[data-manager-role="admin"] .managed-new-password-field > #managedPasswordCaption,
+#userModal[data-manager-role="admin"] .managed-validity-field > .managed-field-caption{
+  display:flex!important;
+  align-items:center!important;
+  min-height:17px!important;
+  height:17px!important;
+  margin:0!important;
+  padding:0!important;
+  line-height:17px!important;
+}
+#userModal[data-manager-role="admin"] .managed-password-control,
+#userModal[data-manager-role="admin"] .managed-validity-field > #managedValidity{
+  min-height:50px!important;
+  height:50px!important;
+  margin:0!important;
+  box-sizing:border-box!important;
+}
+#userModal[data-manager-role="admin"] .managed-password-hint,
+#userModal[data-manager-role="admin"] .managed-field-spacer{
+  display:block!important;
+  min-height:18px!important;
+  height:18px!important;
+  margin:0!important;
+  padding:0!important;
+  line-height:18px!important;
+}
+#userModal[data-manager-role="admin"] .managed-field-spacer{
+  visibility:hidden!important;
+  pointer-events:none!important;
+  user-select:none!important;
+}
+
+/* Campo de senha do login com olho totalmente preso dentro do input. */
+#authGate .auth-password-label{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:7px!important;
+  margin:0!important;
+}
+#authGate .auth-password-label > span{
+  display:block!important;
+  margin:0!important;
+  line-height:1.2!important;
+}
+#authGate .auth-password-control{
+  position:relative!important;
+  width:100%!important;
+  min-height:50px!important;
+  height:50px!important;
+  margin:0!important;
+  display:block!important;
+  isolation:isolate!important;
+}
+#authGate .auth-password-control #loginPassword{
+  width:100%!important;
+  min-height:50px!important;
+  height:50px!important;
+  margin:0!important;
+  padding-right:58px!important;
+  box-sizing:border-box!important;
+  -webkit-appearance:none!important;
+  appearance:none!important;
+}
+#authGate .auth-password-toggle{
+  position:absolute!important;
+  top:50%!important;
+  right:6px!important;
+  transform:translate3d(0,-50%,0)!important;
+  width:42px!important;
+  min-width:42px!important;
+  max-width:42px!important;
+  height:42px!important;
+  min-height:42px!important;
+  max-height:42px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:11px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  background:transparent!important;
+  color:#94a3b8!important;
+  -webkit-text-fill-color:#94a3b8!important;
+  cursor:pointer!important;
+  z-index:5!important;
+  line-height:0!important;
+  box-shadow:none!important;
+  touch-action:manipulation!important;
+}
+#authGate .auth-password-toggle:hover{
+  background:rgba(139,92,246,.12)!important;
+  color:#c4b5fd!important;
+  -webkit-text-fill-color:#c4b5fd!important;
+}
+#authGate .auth-password-toggle:active{
+  transform:translate3d(0,-50%,0)!important;
+}
+#authGate .auth-password-toggle:focus-visible{
+  outline:2px solid #8b5cf6!important;
+  outline-offset:-2px!important;
+}
+#authGate .auth-password-icon{
+  position:relative!important;
+  display:block!important;
+  width:20px!important;
+  height:20px!important;
+  min-width:20px!important;
+  min-height:20px!important;
+  line-height:1!important;
+}
+#authGate .auth-password-icon > i{
+  position:absolute!important;
+  inset:0!important;
+  width:20px!important;
+  height:20px!important;
+  margin:0!important;
+  padding:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  font-size:1.08rem!important;
+  line-height:20px!important;
+  transform:none!important;
+  transition:opacity .14s ease!important;
+}
+#authGate .auth-eye-show{opacity:1!important;}
+#authGate .auth-eye-hide{opacity:0!important;}
+#authGate .auth-password-toggle.is-showing .auth-eye-show{opacity:0!important;}
+#authGate .auth-password-toggle.is-showing .auth-eye-hide{opacity:1!important;}
+
+/* Versão imediatamente abaixo do botão Entrar. */
+#authGate .auth-version{
+  width:100%!important;
+  margin:-4px 0 0!important;
+  padding:0!important;
+  text-align:center!important;
+  color:#718096!important;
+  -webkit-text-fill-color:#718096!important;
+  font-size:.70rem!important;
+  line-height:1.25!important;
+  font-weight:750!important;
+  letter-spacing:.035em!important;
+  text-transform:none!important;
+  user-select:none!important;
+}
+body.dark #authGate .auth-version{
+  color:#7f8da3!important;
+  -webkit-text-fill-color:#7f8da3!important;
+}
+
+@media (max-width:720px){
+  #userModal[data-manager-role="admin"] .managed-new-password-field,
+  #userModal[data-manager-role="admin"] .managed-validity-field{
+    min-height:106px!important;
+    height:106px!important;
+  }
+}
+
+
+/* VALLE 3.6.117 — versão em todos os menus de usuário */
+.management-user-dropdown .valle-menu-version,
+.dashboard-user-dropdown .valle-menu-version {
+  display: block !important;
+  width: 100% !important;
+  margin: 8px 0 0 !important;
+  padding: 10px 12px 2px !important;
+  border-top: 1px solid rgba(148, 163, 184, .22) !important;
+  color: #64748b !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  font-weight: 800 !important;
+  letter-spacing: .03em !important;
+  text-align: center !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+body.dark .management-user-dropdown .valle-menu-version,
+body.dark .dashboard-user-dropdown .valle-menu-version {
+  border-top-color: rgba(148, 163, 184, .18) !important;
+  color: #aeb7c8 !important;
+}
+
+
+/* =========================================================
+   VALLE 3.6.117 — menus ADM/Sessão/Serviço centralizados
+   ========================================================= */
+/* O posicionamento horizontal é definido pelo JS usando o mesmo eixo central.
+   Este bloco garante que nenhum CSS legado volte a empurrar os cards. */
+body > #dashboardUserDropdown,
+body > #managementUserDropdown,
+.dashboard-user-dropdown,
+.management-user-dropdown {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Conteúdo do cabeçalho do usuário centralizado de forma idêntica nos três menus. */
+.dashboard-user-dropdown .dashboard-user-info,
+.management-user-dropdown .dashboard-user-info {
+  width: 100% !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+.dashboard-user-dropdown .dashboard-user-info strong,
+.dashboard-user-dropdown .dashboard-user-info small,
+.management-user-dropdown .dashboard-user-info strong,
+.management-user-dropdown .dashboard-user-info small {
+  width: 100% !important;
+  text-align: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Botões com a mesma largura e alinhamento interno estável. */
+.dashboard-user-dropdown .valle-theme-picker,
+.management-user-dropdown .valle-theme-picker,
+#dashboardLogoutBtn,
+#logoutBtn {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Somente um ícone no botão Sair: o ícone visual é o ::before. */
+#dashboardLogoutBtn,
+#logoutBtn {
+  position: relative !important;
+  padding-left: 46px !important;
+  justify-content: flex-start !important;
+}
+#dashboardLogoutBtn::before,
+#logoutBtn::before {
+  content: "↪" !important;
+  position: absolute !important;
+  left: 13px !important;
+  top: 50% !important;
+  width: 24px !important;
+  height: 24px !important;
+  display: grid !important;
+  place-items: center !important;
+  transform: translateY(-50%) !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 759px) {
+  body > #dashboardUserDropdown,
+  body > #managementUserDropdown {
+    width: 216px !important;
+    min-width: 216px !important;
+    max-width: min(216px, calc(100vw - 24px)) !important;
+  }
+}
+
+
+/* VALLE 3.6.117 — um único ícone Sair em ADM, Sessão e Serviço (iOS/Android/PC). */
+#dashboardLogoutBtn,
+#logoutBtn,
+[data-valle-logout] {
+  position: relative !important;
+  padding-left: 46px !important;
+  justify-content: flex-start !important;
+}
+
+#dashboardLogoutBtn > i,
+#logoutBtn > i,
+[data-valle-logout] > i {
+  display: none !important;
+}
+
+#dashboardLogoutBtn::after,
+#logoutBtn::after,
+[data-valle-logout]::after {
+  content: none !important;
+  display: none !important;
+}
+
+#dashboardLogoutBtn::before,
+#logoutBtn::before,
+[data-valle-logout]::before {
+  content: "↪" !important;
+  position: absolute !important;
+  left: 13px !important;
+  top: 50% !important;
+  width: 24px !important;
+  height: 24px !important;
+  display: grid !important;
+  place-items: center !important;
+  flex: 0 0 24px !important;
+  margin: 0 !important;
+  border-radius: 8px !important;
+  background: rgba(239, 68, 68, .10) !important;
+  color: #dc2626 !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  font-family: inherit !important;
+  font-style: normal !important;
+  font-weight: 900 !important;
+  transform: translateY(-50%) !important;
+}
+
+body.dark #dashboardLogoutBtn::before,
+body.dark #logoutBtn::before,
+body.dark [data-valle-logout]::before {
+  color: #fca5a5 !important;
+  background: rgba(239, 68, 68, .13) !important;
+}
+
+#dashboardLogoutBtn:hover::before,
+#logoutBtn:hover::before,
+[data-valle-logout]:hover::before {
+  color: #fff !important;
+  background: rgba(255,255,255,.16) !important;
+}
+
+
+/* =========================================================
+   VALLE 3.6.118 — menu mobile ancorado + ícone Sair universal
+   ========================================================= */
+/* No celular o JS ancora o card abaixo da letra/avatar e pela borda direita.
+   Estas regras impedem CSS legado de recentralizar o menu. */
+@media (max-width: 759px) {
+  body > #dashboardUserDropdown,
+  body > #managementUserDropdown {
+    margin: 0 !important;
+    transform: none !important;
+  }
+}
+
+/* O ícone de sair é SVG próprio: mesmo desenho em Safari/iPhone, Android e PC. */
+[data-valle-logout] {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  padding-left: 12px !important;
+}
+[data-valle-logout]::before,
+[data-valle-logout]::after {
+  content: none !important;
+  display: none !important;
+}
+[data-valle-logout] > .bi {
+  display: none !important;
+}
+[data-valle-logout] > .valle-logout-icon {
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  flex: 0 0 26px !important;
+  display: grid !important;
+  place-items: center !important;
+  margin: 0 !important;
+  border-radius: 9px !important;
+  background: rgba(239,68,68,.11) !important;
+  color: #dc2626 !important;
+  line-height: 0 !important;
+}
+[data-valle-logout] > .valle-logout-icon svg {
+  width: 17px !important;
+  height: 17px !important;
+  display: block !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+body.dark [data-valle-logout] > .valle-logout-icon {
+  background: rgba(239,68,68,.14) !important;
+  color: #f87171 !important;
+}
+[data-valle-logout]:hover > .valle-logout-icon {
+  background: rgba(255,255,255,.16) !important;
+  color: #fff !important;
+}
+
+/* 3.6.118 — vence as regras legadas por ID do ícone antigo. */
+#dashboardLogoutBtn,
+#logoutBtn,
+[data-valle-logout] {
+  padding-left: 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+}
+#dashboardLogoutBtn::before,
+#dashboardLogoutBtn::after,
+#logoutBtn::before,
+#logoutBtn::after,
+[data-valle-logout]::before,
+[data-valle-logout]::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* v3.6.120 — detalhe da quitação somente de capital em Lançamentos */
+.lancamento-value-detail {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: .54rem;
+  line-height: 1.15;
+  font-style: normal;
+  font-weight: 850;
+  white-space: nowrap;
+}
+.lancamento-value-detail i { color: var(--p); }
+@media (max-width: 575.98px) {
+  .lancamento-value-detail {
+    white-space: normal;
+    text-align: right;
+    max-width: 145px;
+  }
+}
+
+
+/* v3.6.121 — histórico: cor oficial do “Só capital” (#3461eb) */
+.receive-bs-modal .btn-so-capital {
+  color: #3461eb !important;
+  background: transparent !important;
+  border-color: #3461eb !important;
+}
+.receive-bs-modal .btn-so-capital:hover,
+.receive-bs-modal .btn-so-capital:focus,
+.receive-bs-modal .btn-so-capital:active {
+  color: #fff !important;
+  background: #3461eb !important;
+  border-color: #3461eb !important;
+  box-shadow: 0 0 0 .2rem rgba(52, 97, 235, .18) !important;
+}
+.receive-bs-modal .btn-so-capital i {
+  color: currentColor !important;
+}
+
+.lancamento-capital-blue {
+  border-left-color: #3461eb !important;
+}
+.lancamento-capital-blue .lancamento-type-icon {
+  background: rgba(52, 97, 235, .13) !important;
+  color: #3461eb !important;
+}
+.lancamento-capital-blue .lancamento-type-badge {
+  background: rgba(52, 97, 235, .12) !important;
+  color: #3461eb !important;
+}
+.lancamento-capital-blue .lancamento-value small,
+.lancamento-capital-blue .lancamento-value strong,
+.lancamento-capital-blue .lancamento-value-detail i {
+  color: #3461eb !important;
+}
+body.dark .lancamento-capital-blue .lancamento-type-icon {
+  background: rgba(52, 97, 235, .20) !important;
+  color: #6f8fff !important;
+}
+body.dark .lancamento-capital-blue .lancamento-type-badge,
+body.dark .lancamento-capital-blue .lancamento-value small,
+body.dark .lancamento-capital-blue .lancamento-value strong,
+body.dark .lancamento-capital-blue .lancamento-value-detail i {
+  color: #6f8fff !important;
+}
+
+
+/* v3.6.123 — agrupamento discreto das ações de recebimento */
+.receive-bs-modal .receive-charge-actions-box {
+  width: 100%;
+  padding: .55rem .65rem .65rem;
+  border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, .20)) !important;
+  border-radius: .65rem;
+  background: rgba(127, 127, 127, .025) !important;
+  box-shadow: none !important;
+}
+.receive-bs-modal .receive-charge-actions-title {
+  display: flex;
+  align-items: center;
+  margin: 0 0 .45rem;
+  color: var(--bs-secondary-color);
+  opacity: .72;
+  font-size: .68rem;
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: .015em;
+  text-transform: none;
+}
+.receive-bs-modal .receive-charge-actions-box #receiveActionsGrid {
+  margin-bottom: 0 !important;
+}
+.receive-bs-modal .receive-footer-main-actions {
+  align-items: stretch;
+}
+.receive-bs-modal .receive-footer-main-actions > [class*="col-"] {
+  display: flex;
+}
+.receive-bs-modal .receive-footer-main-actions .btn {
+  height: 100% !important;
+}
+@media (max-width: 575.98px) {
+  .receive-bs-modal .receive-charge-actions-box {
+    padding: .5rem .55rem .55rem;
+    border-radius: .6rem;
+  }
+  .receive-bs-modal .receive-charge-actions-title {
+    margin-bottom: .4rem;
+    font-size: .65rem;
+  }
+  .receive-bs-modal .receive-footer-main-actions {
+    flex-wrap: nowrap !important;
+  }
+  .receive-bs-modal .receive-footer-main-actions > .col-6 {
+    flex: 0 0 50% !important;
+    width: 50% !important;
+    max-width: 50% !important;
+  }
+  .receive-bs-modal .receive-footer-main-actions .btn {
+    min-height: 40px !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* =========================================================
+   VALLE 3.6.124 — resumo Só Capital em duas linhas + dock mobile
+   ---------------------------------------------------------
+   - Capital recebido ocupa uma linha completa.
+   - Juros dispensados fica logo abaixo, sem quebra no rótulo.
+   - Carrossel sobe levemente e recupera margens laterais.
+   ========================================================= */
+.lancamento-value.lancamento-value-so-capital {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: center !important;
+  gap: 7px !important;
+}
+.lancamento-value-so-capital .lancamento-value-row {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  min-width: 0 !important;
+}
+.lancamento-value-so-capital .lancamento-value-row small,
+.lancamento-value-so-capital .lancamento-value-row strong {
+  display: block !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+}
+.lancamento-value-so-capital .lancamento-capital-row small,
+.lancamento-value-so-capital .lancamento-capital-row strong {
+  color: #3461eb !important;
+}
+body.dark .lancamento-value-so-capital .lancamento-capital-row small,
+body.dark .lancamento-value-so-capital .lancamento-capital-row strong {
+  color: #6f8fff !important;
+}
+.lancamento-value-so-capital .lancamento-interest-waived-row small,
+.lancamento-value-so-capital .lancamento-interest-waived-row strong,
+body.dark .lancamento-value-so-capital .lancamento-interest-waived-row small,
+body.dark .lancamento-value-so-capital .lancamento-interest-waived-row strong {
+  color: var(--muted) !important;
+}
+.lancamento-value-so-capital .lancamento-interest-waived-row strong {
+  font-size: .78rem !important;
+}
+
+@media (max-width: 960px) {
+  .lancamento-value.lancamento-value-so-capital {
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  .lancamento-value-so-capital .lancamento-value-row {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .lancamento-value-so-capital .lancamento-value-row {
+    gap: 8px !important;
+  }
+  .lancamento-value-so-capital .lancamento-value-row small {
+    font-size: .56rem !important;
+  }
+  .lancamento-value-so-capital .lancamento-capital-row strong {
+    font-size: .92rem !important;
+  }
+  .lancamento-value-so-capital .lancamento-interest-waived-row strong {
+    font-size: .72rem !important;
+  }
+}
+
+@media (max-width: 780px) {
+  #valleMobileNavDock.valle-mobile-nav-dock {
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: none !important;
+    bottom: 16px !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  #valleMobileNavDock > .tabs.valle-mobile-nav-detached {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+  }
+}
+
+@media (max-width: 390px) {
+  #valleMobileNavDock.valle-mobile-nav-dock {
+    left: 7px !important;
+    right: 7px !important;
+    width: auto !important;
+    bottom: 14px !important;
+  }
+  #valleMobileNavDock > .tabs.valle-mobile-nav-detached {
+    width: 100% !important;
+    border-radius: 15px !important;
+  }
+}
+
+/* =========================================================
+   VALLE 3.6.126 — Só juros + Só capital sem juros dispensados duplicados
+   ---------------------------------------------------------
+   A 3.6.124 aplicou overflow:hidden na barra ao arredondar o
+   carrossel. Isso impedia o navegador de realizar o scroll
+   horizontal por toque. Mantemos o recorte vertical e liberamos
+   exclusivamente o eixo X com inércia nativa no iOS/Android.
+   ========================================================= */
+@media (max-width:780px) {
+  #valleMobileNavDock.valle-mobile-nav-dock {
+    overflow: visible !important;
+    touch-action: pan-x pan-y !important;
+  }
+
+  #valleMobileNavDock > .tabs.valle-mobile-nav-detached {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-x: contain !important;
+    overscroll-behavior-y: none !important;
+    touch-action: pan-x !important;
+    scrollbar-width: none !important;
+    scroll-behavior: smooth;
+  }
+
+  #valleMobileNavDock > .tabs.valle-mobile-nav-detached::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  #valleMobileNavDock > .tabs.valle-mobile-nav-detached .tab {
+    flex: 0 0 auto !important;
+    touch-action: pan-x !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
   }
 }

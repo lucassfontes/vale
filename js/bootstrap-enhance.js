@@ -176,7 +176,23 @@
   ];
 
   function addButtonIcon(button){
-    if(!button || button.dataset.valleIconReady === '1' || button.querySelector(':scope > .bi')) return;
+    if(!button) return;
+    // Sair usa um SVG próprio e idêntico em iOS, Android e PC.
+    // Não depende de emoji, fonte ou Bootstrap Icons do sistema operacional.
+    if(button.matches('#dashboardLogoutBtn, #logoutBtn, [data-valle-logout]')){
+      button.querySelectorAll(':scope > .bi').forEach(icon=>icon.remove());
+      let icon=button.querySelector(':scope > .valle-logout-icon');
+      if(!icon){
+        icon=document.createElement('span');
+        icon.className='valle-logout-icon';
+        icon.setAttribute('aria-hidden','true');
+        icon.innerHTML='<svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M10 5.75H7.75A1.75 1.75 0 0 0 6 7.5v9A1.75 1.75 0 0 0 7.75 18.25H10"/><path d="M13 8.25 16.75 12 13 15.75M16.5 12H9.5"/></svg>';
+        button.prepend(icon);
+      }
+      button.dataset.valleIconReady='1';
+      return;
+    }
+    if(button.dataset.valleIconReady === '1' || button.querySelector(':scope > .bi')) return;
     const text=(button.textContent||'').trim();
     const found=iconByText.find(([rx])=>rx.test(text));
     if(found){

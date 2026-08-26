@@ -23,6 +23,7 @@ using (
         'CRIAR_VALE',
         'REABRIR_VALE',
         'QUITAR_VALE',
+        'QUITAR_SO_CAPITAL',
         'PAGAMENTO_PARCIAL',
         'PAGAMENTO_JUROS',
         'PAGAMENTO_ENTRADA'

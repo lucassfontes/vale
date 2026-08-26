@@ -14,7 +14,7 @@ using (
     public.my_role() = 'session'
     or (
       public.my_role() = 'service'
-      and action in ('CRIAR_VALE','QUITAR_VALE','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS')
+      and action in ('CRIAR_VALE','QUITAR_VALE','QUITAR_SO_CAPITAL','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS')
       and exists (
         select 1
         from public.service_permissions sp

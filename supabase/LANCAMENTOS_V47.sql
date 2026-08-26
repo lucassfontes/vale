@@ -23,7 +23,7 @@ using (
         and sp.session_user_id=public.my_session_id()
         and sp.can_view_transactions=true
     )
-    and action in ('CRIAR_VALE','QUITAR_VALE','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS')
+    and action in ('CRIAR_VALE','QUITAR_VALE','QUITAR_SO_CAPITAL','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS')
   )
 );
 

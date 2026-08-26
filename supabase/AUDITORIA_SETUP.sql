@@ -22,7 +22,7 @@ create policy audit_logs_select on public.audit_logs for select to authenticated
   (
     public.my_role()='service'
     and session_user_id=public.my_session_id()
-    and action in ('CRIAR_VALE','QUITAR_VALE','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS')
+    and action in ('CRIAR_VALE','QUITAR_VALE','QUITAR_SO_CAPITAL','PAGAMENTO_PARCIAL','PAGAMENTO_JUROS')
     and exists (
       select 1 from public.service_permissions sp
       where sp.service_user_id=auth.uid()

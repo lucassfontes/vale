@@ -57,8 +57,9 @@ function inject(){
    <img src="icons/icon-valle.png" alt="VALLE" class="auth-logo">
    <h1>VALLE</h1><p>Entre para acessar sua conta</p>
    <form id="loginForm"><label>E-mail<input id="loginEmail" type="email" required autocomplete="username"></label>
-   <label>Senha<input id="loginPassword" type="password" required autocomplete="current-password"></label>
-   <button class="btn primary" type="submit">Entrar</button></form>
+   <label class="auth-password-label"><span>Senha</span><div class="auth-password-control"><input id="loginPassword" type="password" required autocomplete="current-password"><button type="button" id="loginPasswordToggle" class="auth-password-toggle" aria-label="Mostrar senha" title="Mostrar senha" aria-pressed="false"><span class="auth-password-icon" aria-hidden="true"><i class="bi bi-eye auth-eye-show"></i><i class="bi bi-eye-slash auth-eye-hide"></i></span></button></div></label>
+   <button class="btn primary" type="submit">Entrar</button>
+   <div id="authVersion" class="auth-version">${htmlEscape(globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.118'}`)}</div></form>
    <div id="authMessage" class="auth-message"></div>
    <a id="authWhatsapp" class="auth-whatsapp hidden" target="_blank" rel="noopener">FALAR COM O ADMINISTRADOR</a>
    <small class="auth-setup ${ValleCloud.configured?'hidden':''}">Configure o Supabase em <b>js/supabase-config.js</b>.</small>
@@ -67,7 +68,7 @@ function inject(){
   ${themePickerMarkup('auth','valle-theme-picker--login')}
  </section>
  <section id="managementPanel" class="management-panel hidden">
-   <header class="management-top"><div><img src="icons/icon-valle.png"><div><h1>VALLE</h1><p id="managementSubtitle"></p></div></div><div class="management-top-actions"><div class="management-user-menu"><button type="button" class="management-user-trigger" id="managementUserTrigger" aria-expanded="false"><span class="management-trigger-avatar">U</span><span class="management-trigger-copy"><strong id="managementUserName">Usuário</strong><small id="managementUserPanelLabel">Painel</small></span><span class="dashboard-user-chevron" aria-hidden="true">⌄</span></button><div class="management-user-dropdown hidden" id="managementUserDropdown"><div class="dashboard-user-info"><strong id="managementUserDropdownName">Usuário</strong><small id="managementUserDropdownEmail"></small></div>${themePickerMarkup('management','valle-theme-picker--embedded')}<button type="button" id="logoutBtn" class="user-logout-menu-btn">↪ Sair</button></div></div></div></header>
+   <header class="management-top"><div><img src="icons/icon-valle.png"><div><h1>VALLE</h1><p id="managementSubtitle"></p></div></div><div class="management-top-actions"><div class="management-user-menu"><button type="button" class="management-user-trigger" id="managementUserTrigger" aria-expanded="false"><span class="management-trigger-avatar">U</span><span class="management-trigger-copy"><strong id="managementUserName">Usuário</strong><small id="managementUserPanelLabel">Painel</small></span><span class="dashboard-user-chevron" aria-hidden="true">⌄</span></button><div class="management-user-dropdown hidden" id="managementUserDropdown"><div class="dashboard-user-info"><strong id="managementUserDropdownName">Usuário</strong><small id="managementUserDropdownEmail"></small></div>${themePickerMarkup('management','valle-theme-picker--embedded')}<button type="button" id="logoutBtn" class="user-logout-menu-btn" data-valle-logout>Sair</button><p class="valle-menu-version" data-valle-version>${htmlEscape(globalThis.VALLE_VERSION_LABEL || `Versão-${globalThis.VALLE_VERSION || '3.6.118'}`)}</p></div></div></div></header>
    <main class="management-content"><section id="usersPanel" class="management-card"><div class="management-head"><div><h2 id="managementTitle">Usuários</h2><p id="managementHelp"></p></div><div class="management-head-actions"><button id="adminMessageBtn" class="btn admin-message-btn hidden" type="button"><i class="bi bi-megaphone-fill"></i> MSG ADM</button><button id="newManagedUserBtn" class="btn primary">NOVO USUÁRIO</button></div></div><div id="managedUsers"></div></section><section id="auditPanel" class="management-card hidden"><div class="management-head"><div><h2>Auditoria dos usuários de serviço</h2><p>Histórico permanente de criações, edições, exclusões, pagamentos e quitações.</p></div><span class="badge text-bg-success"><i class="bi bi-broadcast-pin"></i> TEMPO REAL</span></div><div class="audit-filters"><div class="audit-search"><i class="bi bi-search"></i><input id="auditSearch" type="search" placeholder="Buscar usuário, cliente, vale ou ação..."></div><select id="auditUserFilter"><option value="">Todos os usuários</option></select><select id="auditModuleFilter"><option value="">Todos os módulos</option><option>CLIENTES</option><option>VALES</option><option>PAGAMENTOS</option><option>USUARIOS</option><option>SISTEMA</option></select><select id="auditActionFilter"><option value="">Todas as ações</option></select><input id="auditDateFrom" type="date" title="Data inicial"><input id="auditDateTo" type="date" title="Data final"><button id="clearAuditFilters" class="btn audit-clear-btn" type="button"><i class="bi bi-eraser"></i><span>LIMPAR</span></button></div><div id="auditSummary" class="audit-summary"></div><div id="auditLogs"></div><div class="text-center mt-3"><button id="loadMoreAudit" class="btn btn-outline-primary hidden">CARREGAR MAIS</button></div></section></main>
  </section>
  <div id="userModal" class="user-modal hidden" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
@@ -83,11 +84,23 @@ function inject(){
      <form id="userForm" class="user-modal-body user-modal-layout">
        <div class="user-modal-scroll">
        <input id="managedId" type="hidden">
-       <label>Nome<input id="managedName" required autocomplete="name"></label>
-       <label>E-mail<input id="managedEmail" type="email" required autocomplete="email"></label>
-       <label id="managedPasswordLabel">Senha inicial<input id="managedPassword" type="password" minlength="6" autocomplete="new-password"></label>
-       <label id="managedValidityWrap">Validade da sessão<input id="managedValidity" type="date"></label>
-       <label id="managedWhatsappWrap" hidden>WhatsApp do administrador<input id="managedWhatsapp" inputmode="tel" placeholder="Ex: 5594999999999" autocomplete="tel"></label>
+       <label class="managed-name-field">Nome<input id="managedName" required autocomplete="name"></label>
+       <label class="managed-email-field">E-mail<input id="managedEmail" type="email" required autocomplete="email"></label>
+       <label id="managedPasswordLabel" class="managed-password-label managed-new-password-field">
+         <span id="managedPasswordCaption">Senha inicial</span>
+         <div class="managed-password-control">
+           <input id="managedPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Mínimo 6 caracteres">
+           <button type="button" id="managedPasswordToggle" class="managed-password-toggle" aria-label="Mostrar senha" title="Mostrar senha" aria-pressed="false">
+             <span class="managed-password-icon" aria-hidden="true">
+               <i class="bi bi-eye managed-eye-show"></i>
+               <i class="bi bi-eye-slash managed-eye-hide"></i>
+             </span>
+           </button>
+         </div>
+         <small id="managedPasswordHint" class="managed-password-hint">Use pelo menos 6 caracteres.</small>
+       </label>
+       <label id="managedValidityWrap" class="managed-validity-field"><span class="managed-field-caption">Validade da sessão</span><input id="managedValidity" type="date"><small class="managed-field-spacer" aria-hidden="true">&nbsp;</small></label>
+       <label id="managedWhatsappWrap" class="managed-whatsapp-field" hidden>WhatsApp do administrador<input id="managedWhatsapp" inputmode="tel" placeholder="Ex: 5594999999999" autocomplete="tel"></label>
        <fieldset id="serviceFinancialBox" class="service-financial-box">
          <legend><i class="bi bi-percent"></i> Configuração financeira individual</legend>
          <label for="managedInterestPercent" class="financial-field">
@@ -337,8 +350,12 @@ function setupDashboardUserMenu(profile){
    if(!rect) return;
    const menuWidth=Math.min(224,window.innerWidth-24);
    const menuHeight=dropdown.offsetHeight||224;
-   const left=Math.max(12,Math.min(window.innerWidth-menuWidth-12,rect.right-menuWidth));
    const isMobile=window.innerWidth<760;
+   // Mobile: abre preso logo abaixo da letra/avatar e alinhado pela direita.
+   // Desktop: mantém o card centralizado em relação ao acionador completo.
+   const left=isMobile
+     ? Math.max(8,Math.min(window.innerWidth-menuWidth-8,rect.right-menuWidth))
+     : Math.max(12,Math.min(window.innerWidth-menuWidth-12,(rect.left+rect.width/2)-(menuWidth/2)));
    const roomBelow=window.innerHeight-rect.bottom-12;
    // No celular, o card do menu deve abrir sempre logo abaixo do botão.
    // No desktop, mantém o ajuste automático quando não houver espaço abaixo.
@@ -428,10 +445,11 @@ function setupManagementUserMenu(profile){
   const rect=trigger.getBoundingClientRect();
   const mobile=window.matchMedia('(max-width:720px)').matches;
   const menuWidth=Math.min(mobile?216:Math.max(280,rect.width),window.innerWidth-24);
-  // No celular, usa um card compacto e alinha a borda direita exatamente com o botão.
-  // O mesmo posicionamento é aplicado aos painéis Administrador e Sessão.
-  const preferredLeft=rect.right-menuWidth;
-  const left=Math.max(12,Math.min(window.innerWidth-menuWidth-12,preferredLeft));
+  // Mobile: abre abaixo da letra/avatar e acompanha a borda direita do acionador.
+  // Desktop: continua centralizado em relação ao botão completo.
+  const left=mobile
+    ? Math.max(8,Math.min(window.innerWidth-menuWidth-8,rect.right-menuWidth))
+    : Math.max(12,Math.min(window.innerWidth-menuWidth-12,(rect.left+rect.width/2)-(menuWidth/2)));
   const top=rect.bottom+(mobile?8:10);
   dropdown.style.setProperty('position','fixed','important');
   dropdown.style.setProperty('width',menuWidth+'px','important');
@@ -1323,6 +1341,7 @@ async function showRole(profile,options={}){
    installContinuousCloudSync();
  } else {
    app.classList.add('hidden'); panel.classList.remove('hidden');
+   panel.dataset.role=profile.role;
    setupManagementUserMenu(profile);
    el('managementSubtitle').textContent=profile.role==='admin'?'Painel do administrador':'Painel do usuário de sessão';
    el('managementTitle').textContent=profile.role==='admin'?'Usuários de sessão':'Usuários de serviço';
@@ -1526,7 +1545,7 @@ function applyPermissions(p){
 }
 
 function auditActionMeta(action){
- const map={CRIAR_CLIENTE:['success','bi-person-plus','Cliente criado'],ATUALIZAR_CLIENTE:['primary','bi-pencil-square','Cliente atualizado'],EXCLUIR_CLIENTE:['danger','bi-person-x','Cliente excluído'],CRIAR_VALE:['success','bi-file-earmark-plus','Vale criado'],ATUALIZAR_VALE:['primary','bi-pencil-square','Vale atualizado'],EXCLUIR_VALE:['danger','bi-trash','Vale excluído'],QUITAR_VALE:['success','bi-check-circle','Vale quitado'],PAGAMENTO_PARCIAL:['warning','bi-pie-chart','Pagamento parcial'],PAGAMENTO_JUROS:['info','bi-cash-coin','Pagamento de juros'],NAO_PAGOU:['secondary','bi-clock-history','Não pagou'],LISTA_NEGRA:['danger','bi-shield-exclamation','Lista negra'],PAGAMENTO_ENTRADA:['success','bi-cash-coin','Entrada de crediário'],REABRIR_VALE:['info','bi-unlock-fill','Vale reaberto']};
+ const map={CRIAR_CLIENTE:['success','bi-person-plus','Cliente criado'],ATUALIZAR_CLIENTE:['primary','bi-pencil-square','Cliente atualizado'],EXCLUIR_CLIENTE:['danger','bi-person-x','Cliente excluído'],CRIAR_VALE:['success','bi-file-earmark-plus','Vale criado'],ATUALIZAR_VALE:['primary','bi-pencil-square','Vale atualizado'],EXCLUIR_VALE:['danger','bi-trash','Vale excluído'],QUITAR_VALE:['success','bi-check-circle','Vale quitado'],QUITAR_SO_CAPITAL:['primary','bi-wallet2','Quitado só capital'],PAGAMENTO_PARCIAL:['warning','bi-pie-chart','Pagamento parcial'],PAGAMENTO_JUROS:['info','bi-cash-coin','Pagamento de juros'],NAO_PAGOU:['secondary','bi-clock-history','Não pagou'],LISTA_NEGRA:['danger','bi-shield-exclamation','Lista negra'],PAGAMENTO_ENTRADA:['success','bi-cash-coin','Entrada de crediário'],REABRIR_VALE:['info','bi-unlock-fill','Vale reaberto']};
  return map[action]||['secondary','bi-activity',String(action||'Ação').replaceAll('_',' ')];
 }
 function auditFormatValue(v){if(v===null||v===undefined||v==='')return '—';if(typeof v==='boolean')return v?'Sim':'Não';if(typeof v==='number')return new Intl.NumberFormat('pt-BR',{maximumFractionDigits:2}).format(v);return String(v)}
@@ -1619,11 +1638,17 @@ function userCard(u,children,financial){
 function configureManagedForm(role, editing=false){
  const isAdmin=ValleCloud.profile.role==='admin';
  const isSession=ValleCloud.profile.role==='session';
+ const targetIsService=role==='service';
+ const showServiceSettings=isSession&&targetIsService;
+ const modal=el('userModal');if(modal)modal.dataset.managerRole=isAdmin?'admin':'session';
  const validity=el('managedValidityWrap');
  const whatsapp=el('managedWhatsappWrap');
  const whatsappInput=el('managedWhatsapp');
  const perms=el('permissionsBox');
  const financial=el('serviceFinancialBox');
+ const password=el('managedPassword');
+ const passwordCaption=el('managedPasswordCaption');
+ const passwordHint=el('managedPasswordHint');
  // Validade e WhatsApp pertencem somente ao painel do administrador.
  validity.classList.toggle('hidden',!isAdmin);
  whatsapp.classList.toggle('hidden',!isAdmin);
@@ -1635,15 +1660,33 @@ function configureManagedForm(role, editing=false){
   whatsappInput.disabled=!isAdmin;
   whatsappInput.required=false;
  }
- perms.classList.toggle('hidden',!isSession);
- perms.style.display=isSession?'':'none';
- financial.classList.toggle('hidden',!isSession);
- financial.style.display=isSession?'':'none';
+ // Juros e permissões pertencem EXCLUSIVAMENTE ao usuário de sessão ao administrar usuários de serviço.
+ // O modal do administrador (novo/editar usuário de sessão) nunca mostra estes blocos.
+ perms.classList.toggle('hidden',!showServiceSettings);
+ perms.hidden=!showServiceSettings;
+ perms.style.setProperty('display',showServiceSettings?'grid':'none','important');
+ financial.classList.toggle('hidden',!showServiceSettings);
+ financial.hidden=!showServiceSettings;
+ financial.style.setProperty('display',showServiceSettings?'block':'none','important');
  if(!isAdmin){el('managedValidity').value='';el('managedWhatsapp').value='';}
- // O ADM, ao editar, administra apenas validade/status. Dados de identidade ficam protegidos.
+ // O ADM, ao editar, administra validade/status e agora também pode redefinir a senha.
  el('managedName').disabled=isAdmin&&editing;
  el('managedEmail').disabled=editing;
- el('managedPasswordLabel').classList.toggle('hidden',editing);
+ if(password){
+  password.value='';
+  password.type='password';
+  password.required=!editing;
+  password.placeholder=editing?'Digite uma nova senha':'Mínimo 6 caracteres';
+ }
+ if(passwordCaption)passwordCaption.textContent=editing?'Nova senha (opcional)':'Senha inicial';
+ if(passwordHint)passwordHint.textContent=editing?'Deixe vazio para manter a senha atual.':'Use pelo menos 6 caracteres.';
+ const toggle=el('managedPasswordToggle');
+ if(toggle){
+  toggle.setAttribute('aria-label','Mostrar senha');
+  toggle.setAttribute('title','Mostrar senha');
+  toggle.setAttribute('aria-pressed','false');
+  toggle.classList.remove('is-showing');
+ }
 }
 function openNew(){
  el('userForm').reset(); el('managedId').value=''; el('managedInterestPercent').value='30';
@@ -1664,7 +1707,7 @@ async function openEdit(id,users){
  }
  el('managedId').value=u.id;el('managedName').value=u.name||'';el('managedEmail').value=u.email||'';el('managedPassword').value='';el('managedValidity').value=u.valid_until||'';el('managedWhatsapp').value=u.admin_whatsapp||'';
  el('userModalTitle').textContent=callerRole==='admin'?'Administrar usuário de sessão':'Administrar usuário de serviço';
- const subtitle=el('userModalSubtitle'); if(subtitle)subtitle.textContent=callerRole==='admin'?'Atualize a validade desta sessão.':'Atualize os dados, juros e permissões deste usuário.';
+ const subtitle=el('userModalSubtitle'); if(subtitle)subtitle.textContent=callerRole==='admin'?'Atualize a validade ou redefina a senha desta sessão.':'Atualize os dados, senha, juros e permissões deste usuário.';
  const saveBtn=document.querySelector('#userForm .btn.primary span'); if(saveBtn)saveBtn.textContent='ATUALIZAR';
  configureManagedForm(u.role,true);
  if(u.role==='service'){
@@ -1679,7 +1722,9 @@ async function openEdit(id,users){
 function closeModal(){
  document.body.classList.remove('user-modal-open');
  el('userModal').classList.add('hidden');
- el('managedName').disabled=false;el('managedEmail').disabled=false;el('managedPasswordLabel').classList.remove('hidden');
+ el('managedName').disabled=false;el('managedEmail').disabled=false;
+ const password=el('managedPassword');if(password){password.value='';password.type='password';password.required=false;}
+ const toggle=el('managedPasswordToggle');if(toggle){toggle.classList.remove('is-showing');toggle.setAttribute('aria-pressed','false');toggle.setAttribute('aria-label','Mostrar senha');toggle.setAttribute('title','Mostrar senha');}
 }
 async function toggleUser(id,active){try{await ValleCloud.invokeManage('update',{userId:id,active});await renderUsers()}catch(e){toast(e.message || 'Erro ao realizar a operação.', 'error')}}
 
@@ -1713,6 +1758,11 @@ async function saveManaged(e){
   payload.name=el('managedName').value.trim();
   payload.email=el('managedEmail').value.trim();
   payload.password=el('managedPassword').value;
+ }
+ const typedPassword=String(el('managedPassword').value||'');
+ if(typedPassword){
+  if(typedPassword.length<6){toast('A nova senha deve ter pelo menos 6 caracteres.', 'warn');return;}
+  payload.password=typedPassword;
  }
  if(callerRole==='admin'){
   payload.validUntil=el('managedValidity').value||null;
@@ -1767,7 +1817,28 @@ async function boot(){
    const p=await ValleCloud.signIn(el('loginEmail').value,el('loginPassword').value);setMsg('');await showRole(p);
   }catch(err){setMsg(err.message);if(err.whatsapp){const a=el('authWhatsapp');a.href=whatsappLink(err.whatsapp);a.classList.remove('hidden')}}
  };
+ const loginPasswordToggle=el('loginPasswordToggle');
+ if(loginPasswordToggle){
+  loginPasswordToggle.onclick=()=>{
+   const input=el('loginPassword');const button=el('loginPasswordToggle');if(!input||!button)return;
+   const willShow=input.type==='password';
+   input.type=willShow?'text':'password';
+   button.classList.toggle('is-showing',willShow);
+   button.setAttribute('aria-pressed',willShow?'true':'false');
+   button.setAttribute('aria-label',willShow?'Ocultar senha':'Mostrar senha');
+   button.setAttribute('title',willShow?'Ocultar senha':'Mostrar senha');
+  };
+ }
  el('logoutBtn').onclick=async()=>{await ValleCloud.signOut();location.reload()};el('newManagedUserBtn').onclick=openNew;el('closeUserModal').onclick=closeModal;el('cancelUserModal').onclick=closeModal;el('userForm').onsubmit=saveManaged;
+ el('managedPasswordToggle').onclick=()=>{
+  const input=el('managedPassword');const button=el('managedPasswordToggle');if(!input||!button)return;
+  const willShow=input.type==='password';
+  input.type=willShow?'text':'password';
+  button.classList.toggle('is-showing',willShow);
+  button.setAttribute('aria-pressed',willShow?'true':'false');
+  button.setAttribute('aria-label',willShow?'Ocultar senha':'Mostrar senha');
+  button.setAttribute('title',willShow?'Ocultar senha':'Mostrar senha');
+ };
  el('adminMessageBtn').onclick=openAdminMessageComposer;el('adminMessageForm').onsubmit=submitAdminMessage;el('systemUpdateMessageClose').onclick=closeSystemUpdateMessage;
  installAdminMessageWatcher();
  document.addEventListener('click',async event=>{
